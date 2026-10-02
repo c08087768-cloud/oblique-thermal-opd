@@ -1,0 +1,33 @@
+# Research materials / working notes
+Papers/
+Notes/
+Reports/
+
+# Generated results
+results/
+outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# Temporary files
+*.log
+*.tmp
+.obsidian/
