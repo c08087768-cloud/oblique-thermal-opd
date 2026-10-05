@@ -2,6 +2,7 @@
 Papers/
 Notes/
 Reports/
+manuscript/
 
 # Generated results
 results/
@@ -11,6 +12,7 @@ outputs/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+*.egg-info/
 
 # Virtual environments
 .venv/
@@ -28,6 +30,7 @@ Thumbs.db
 !.env.example
 
 # Temporary files
+tmp/
 *.log
 *.tmp
 .obsidian/
