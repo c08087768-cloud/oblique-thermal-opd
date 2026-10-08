@@ -1,4 +1,15 @@
 import numpy as np
+from thermal_opd import projection
+
+
+def test_batched_projection_matches_independent_scalar_integrals():
+    r = np.linspace(0., 0.7, 301)
+    phi = np.linspace(0., 2*np.pi, 40, endpoint=False)
+    q = np.exp(-r[:, None]**2)*(2.+np.cos(2*phi))
+    roots = np.array([1., 3., 8.])
+    actual = projection.fourier_bessel_coefficients(q, r, phi, 2, roots)
+    expected = [projection.fourier_bessel_coefficient(q, r, phi, 2, lam) for lam in roots]
+    np.testing.assert_allclose(actual, expected, rtol=1e-13)
 from scipy.special import jv
 from scipy.integrate import quad
 

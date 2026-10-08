@@ -59,19 +59,6 @@ def _axial_decay_parameters(lam, source_coefficient, conductivity, thickness, h_
     return amplitude, rear_ratio
 
 
-def axial_integral(lam, source_coefficient, conductivity, thickness, h_front, h_back):
-    """Return the analytical integral of axial temperature rise over 0<=z<=L.
-
-    The result is in K*m. Inputs follow axial_response with lam>0. expm1
-    evaluates 1-exp(-lam*L) accurately without growing hyperbolic functions.
-    """
-    amplitude, rear_ratio = _axial_decay_parameters(
-        lam, source_coefficient, conductivity, thickness, h_front, h_back
-    )
-    decay = np.exp(-lam * thickness)
-    return amplitude * (-np.expm1(-lam * thickness)) * (1 + rear_ratio * decay) / lam
-
-
 def steady_mode(r, phi, z, m, lam, A, B):
     """Evaluate one steady Fourier-Bessel temperature mode."""
 
@@ -90,16 +77,19 @@ def steady_temperature(r, phi, z, coefficients, eigenvalues, conductivity, thick
     is used in this temperature evaluation.
     """
 
-    temperature = np.zeros(np.broadcast_shapes(np.shape(r), np.shape(phi), np.shape(z)))
+    def response(m, n, depths):
+        return axial_response(depths, eigenvalues[m][n], coefficients[m][n],
+                              conductivity, thickness, h_front, h_back)[0]
+    return modal_temperature(r, phi, z, coefficients, eigenvalues, response)
 
-    for m, coeffs_m in coefficients.items():
-        for n, source_coefficient in enumerate(coeffs_m):
-            lam = eigenvalues[m][n]
-            axial, _ = axial_response(
-                z, lam, source_coefficient, conductivity, thickness, h_front, h_back
-            )
-            temperature += jv(m, lam * r) * np.cos(m * phi) * axial
 
+def modal_temperature(r, phi, z, coefficients, eigenvalues, response):
+    """Shared spatial sum; response(m,n,z) supplies steady or transient amplitudes."""
+    r, phi, z = (np.asarray(a) for a in (r, phi, z))
+    temperature = np.zeros(np.broadcast_shapes(r.shape,phi.shape,z.shape))
+    for m, values in coefficients.items():
+        for n in range(len(values)):
+            temperature += jv(m, eigenvalues[m][n]*r)*np.cos(m*phi)*response(m, n, z)
     return temperature
 
 
@@ -109,16 +99,23 @@ def steady_temperature_gradient(r, phi, z, coefficients, eigenvalues, conductivi
     Coordinates and modal inputs follow steady_temperature. This returns
     dT/dr and dT/dz, not the azimuthal component of the full gradient.
     """
-    shape = np.broadcast_shapes(np.shape(r), np.shape(phi), np.shape(z))
+    def response(m,n,depths):
+        return axial_response(depths,eigenvalues[m][n],coefficients[m][n],
+                              conductivity,thickness,h_front,h_back)
+    return modal_temperature_gradient(r,phi,z,coefficients,eigenvalues,response)
+
+
+def modal_temperature_gradient(r, phi, z, coefficients, eigenvalues, response):
+    """Shared analytic spatial derivatives; response returns (amplitude, dz)."""
+    r,phi,z = (np.asarray(a) for a in (r,phi,z))
+    shape = np.broadcast_shapes(r.shape,phi.shape,z.shape)
     radial_gradient = np.zeros(shape)
     axial_gradient = np.zeros(shape)
     for m, coeffs_m in coefficients.items():
         angular = np.cos(m * phi)
-        for n, source_coefficient in enumerate(coeffs_m):
+        for n in range(len(coeffs_m)):
             lam = eigenvalues[m][n]
-            axial, derivative = axial_response(
-                z, lam, source_coefficient, conductivity, thickness, h_front, h_back
-            )
+            axial, derivative = response(m,n,z)
             radial_gradient += lam * jvp(m, lam * r) * angular * axial
             axial_gradient += jv(m, lam * r) * angular * derivative
     return radial_gradient, axial_gradient

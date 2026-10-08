@@ -39,3 +39,13 @@ def reconstruct_cosine_field(coefficients, eigenvalues, r, phi):
             field += coefficient * jv(m, lam * R) * np.cos(m * Phi)
 
     return field
+
+
+def fourier_bessel_coefficients(q, r, phi, m, eigenvalues):
+    """Project one angular order onto many roots, sharing its angular integral."""
+    eigenvalues = np.asarray(eigenvalues)
+    angular_projection = (2*np.pi/len(phi))*np.sum(q*np.cos(m*phi), axis=1)
+    radial = jv(m, eigenvalues[:, None]*r)
+    numerator = np.trapezoid(radial*angular_projection*r, x=r, axis=1)
+    angular_norm = 2*np.pi if m == 0 else np.pi
+    return numerator/(radial_mode_norm(eigenvalues, m, r[-1])*angular_norm)

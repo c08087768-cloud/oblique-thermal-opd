@@ -22,6 +22,12 @@ class PhysicalParameters:
     radius: float = 12.7e-3              # m
     thickness: float = 5.0e-3            # m
     conductivity: float = 1.38           # W/(m K)
+    # Added for transient runs, not values provided by the manuscript.
+    # Heraeus Quartz Glass Plates datasheet: density 2.203 g/cm3 and
+    # mean cp over 0..100 C. Nominal constant model, not a 300 K measurement.
+    # https://www.heraeus-conamic.com/media/Media/Documents/Products_and_Solutions/SEMI/EN/Quartz_Glass_Plates_EN.pdf
+    density: float = 2203.0              # kg/m^3
+    specific_heat: float = 772.0         # J/(kg K), mean 0..100 C
     h_conv: float = 10.0                 # W/(m^2 K)
     emissivity: float = 0.85
     ambient_temperature: float = 300.0   # K
@@ -29,11 +35,21 @@ class PhysicalParameters:
     beam_radius_ratio: float = 0.30
     dn_dT: float = 0.96e-5               # 1/K, tabulated at 643.8 nm
     wavelength: float = 1064e-9          # m
+    incident_refractive_index: float = 1.0  # Air approximation for Snell's law.
+    # Nominal fused silica at 1064 nm, Malitson (1965) Sellmeier formula.
+    # Not a sample measurement; update with wavelength/material changes.
+    # https://doi.org/10.1364/JOSA.55.001205
+    substrate_refractive_index: float = 1.44963
 
     @property
     def beam_radius(self) -> float:
         """Return the 1/e^2 intensity radius normal to beam propagation (m)."""
         return self.beam_radius_ratio * self.radius
+
+    @property
+    def thermal_diffusivity(self) -> float:
+        """Constant-model k/(rho*cp), in m^2/s."""
+        return self.conductivity / (self.density * self.specific_heat)
 
     @property
     def h_eff(self) -> float:
