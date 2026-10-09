@@ -12,7 +12,8 @@ from operator import index
 import numpy as np
 from scipy.optimize import brentq
 
-from thermal_opd.steady import axial_response, modal_temperature, modal_temperature_gradient
+from thermal_opd.steady import axial_response
+from thermal_opd.modal_evaluation import modal_temperature, modal_temperature_gradient
 from thermal_opd.opd import modal_refracted_opd, modal_refracted_opd_series, prepare_modal_ray_series
 
 

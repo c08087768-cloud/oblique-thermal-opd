@@ -1,5 +1,6 @@
 """Reload result files and verify fields/metrics rather than trusting status text."""
 
+from thermal_opd.run_io import data_directory, figure_directory
 import json
 from pathlib import Path
 import numpy as np
@@ -20,7 +21,7 @@ def matching_errors(actual, stored, *, skip_pv=False):
 
 
 def validate_selection(path, summary):
-    with np.load(path/'fields.npz', allow_pickle=False) as fields:
+    with np.load(data_directory(path)/'fields.npz', allow_pickle=False) as fields:
         require(all(np.all(np.isfinite(fields[key])) for key in fields.files), 'Nonfinite selection field')
         weights = fields['temperature_area_weights']
         require(len(summary['cases']) == len(summary['angles_deg']), 'Missing selection angle')
@@ -65,7 +66,7 @@ def validate_fem(path, summary):
     require(len(summary['cases']) == len(summary['angles_deg']), 'Missing FEM angle')
     for case in summary['cases']:
         label = f"theta{case['angle_deg']:g}"
-        with np.load(path/f'{label}_fields.npz', allow_pickle=False) as fields:
+        with np.load(data_directory(path)/f'{label}_fields.npz', allow_pickle=False) as fields:
             tm, om = fields['temperature_mask'], fields['opd_common_mask']
             require(tm.dtype == bool and om.dtype == bool and tm.ndim==2 and om.ndim==2, 'Invalid FEM mask format')
             require(int(tm.sum())==case['temperature_common_sample_count'], 'Temperature mask count mismatch')
@@ -84,7 +85,7 @@ def validate_fem(path, summary):
                 matching_errors(changes, row['changes_vs_finest_fem'])
                 require(np.allclose(np.ptp(of[j]), row['fem_opd_pv_common_aperture_m'], rtol=1e-10, atol=1e-20), 'FEM PV mismatch')
                 require(row['relative_linear_residual'] <= summary['sanity_tolerance'], 'FEM linear residual failed')
-                with np.load(path/f'{label}_mesh{j}.npz', allow_pickle=False) as mesh:
+                with np.load(data_directory(path)/f'{label}_mesh{j}.npz', allow_pickle=False) as mesh:
                     xy, tri, z, t = (mesh[k] for k in ('disk_nodes_xy_m', 'disk_triangles', 'axial_nodes_z_m', 'temperature_K'))
                     require(t.shape==(z.size, xy.shape[1]) and np.all(np.isfinite(t)), 'Bad FEM nodal temperature')
                     require(np.all(np.diff(z)>0) and z[0]==0 and z[-1]==p['thickness'], 'Bad FEM axial coordinates')
@@ -111,8 +112,8 @@ def validate_fem(path, summary):
             require(q_check['passed'] and within_tolerance(q_check['errors'], summary['mesh_change_target']/10), 'FEM load quadrature failed')
             expected_change = within_tolerance(case['meshes'][-2]['changes_vs_finest_fem'], summary['mesh_change_target'])
             require(case['finest_mesh_change_within_target']==expected_change, 'Incorrect FEM convergence flag')
-        require((path/f'{label}_comparison.png').is_file(), 'Missing FEM comparison figure')
-    require((path/'comparison.csv').is_file(), 'Missing FEM comparison table')
+        require((figure_directory(path)/f'{label}_comparison.png').is_file(), 'Missing FEM comparison figure')
+    require((data_directory(path)/'comparison.csv').is_file(), 'Missing FEM comparison table')
     established = summary['mode']=='full' and all(c['finest_mesh_change_within_target'] for c in summary['cases'])
     require(summary['mesh_convergence_established']==established, 'Incorrect full mesh-convergence flag')
 
@@ -124,7 +125,7 @@ def validate_transient(path, summary):
     require(summary['sanity_pass'],'Transient sanity failed')
     require(not summary['transient_truncation_established'] and not summary['fem_convergence_established'],
             'Diagnostic study cannot claim final convergence')
-    with np.load(path/'fields.npz',allow_pickle=False) as f:
+    with np.load(data_directory(path)/'fields.npz',allow_pickle=False) as f:
         require(all(np.all(np.isfinite(f[key])) for key in f.files),'Nonfinite transient field')
         times,weights = f['times_s'],f['area_weights_m2']
         require(np.array_equal(times,summary['times_s']) and times[0]==0 and np.all(np.diff(times)>0),'Bad transient times')
@@ -179,7 +180,7 @@ def validate_transient(path, summary):
                 if t>0:
                     err = field_errors(tf[j],temperature[j][...,tm],weights[tm],of[j],f['opd_sa_fem_common_m'][j])
                     matching_errors(err,row['errors_vs_sa'][j])
-            with np.load(path/f'fem_run{i}.npz',allow_pickle=False) as mesh:
+            with np.load(data_directory(path)/f'fem_run{i}.npz',allow_pickle=False) as mesh:
                 xy,tri,z,T = (mesh[key] for key in ('disk_nodes_xy_m','disk_triangles','axial_nodes_z_m','temperature_K'))
                 require(T.shape==(times.size,z.size,xy.shape[1]) and np.all(np.isfinite(T)),'Bad transient FEM nodal fields')
                 require(np.array_equal(mesh['times_s'],times) and np.all(T[0]==0),'Bad FEM initial time')
@@ -212,12 +213,12 @@ def validate_transient(path, summary):
                     loss = h*(np.sum(areas*T[j,0,tri].mean(axis=0))+np.sum(areas*T[j,-1,tri].mean(axis=0))
                               +np.trapezoid(np.sum(T[j,:,edges].mean(axis=1)*lengths[:,None],axis=0),x=z))
                     require(np.isclose(loss,steps['heat_loss_W'][k[0]],rtol=1e-9,atol=1e-12),'Nodal heat loss mismatch')
-        require((path/'transient_modes.png').is_file() and (path/'modal_contributions.csv').is_file(),'Missing modal study artifacts')
+        require((figure_directory(path)/'transient_modes.png').is_file() and (data_directory(path)/'modal_contributions.csv').is_file(),'Missing modal study artifacts')
 
 
 def validate_transient_selection(path,summary):
     require(len(summary['cases'])==len(summary['angles_deg']),'Missing transient selection angle')
-    with np.load(path/'fields.npz',allow_pickle=False) as f:
+    with np.load(data_directory(path)/'fields.npz',allow_pickle=False) as f:
         require(all(np.all(np.isfinite(f[key])) for key in f.files),'Nonfinite transient selection field')
         weights = f['temperature_area_weights']
         for case in summary['cases']:
@@ -259,7 +260,7 @@ def validate_fine_transient(path,summary):
                 and summary['selected_axial_modes']==selected['selected_settings']['J'],'Fine transient outside selected scope')
         require(summary['precision_scope']['times_s']==selected['times_s'],'Selected times differ')
     require(not summary['fem_convergence_established'],'Fine SA fields do not establish FEM convergence')
-    with np.load(path/'fields.npz',allow_pickle=False) as f:
+    with np.load(data_directory(path)/'fields.npz',allow_pickle=False) as f:
         times,r,phi,z = (f[key] for key in ('times_s','temperature_r_m','temperature_phi_rad','temperature_z_m'))
         T,O,mask = f['temperature_K'],f['opd_m'],f['aperture_mask']
         s = summary['numerical_settings']
@@ -300,7 +301,7 @@ def validate_fine_transient(path,summary):
             errors = field_errors(T[-1].reshape(3,-1),f['steady_temperature_K'].reshape(3,-1),w,O[-1,mask],f['steady_opd_m'][mask])
             matching_errors(errors,summary['long_time_errors_vs_same_modes_steady'])
             require(within_tolerance(errors,summary['precision_target']),'Fine long-time limit above target')
-            with np.load(path/'history.npz',allow_pickle=False) as history:
+            with np.load(data_directory(path)/'history.npz',allow_pickle=False) as history:
                 require(all(np.all(np.isfinite(history[key])) for key in history.files),'Nonfinite fine history')
                 ht,ho,hT = history['times_s'],history['opd_m'],history['temperature_K']
                 require(ht[0]==0 and np.all(np.diff(ht)>0) and ht[-1]==times[-1],'Invalid fine history times')
@@ -315,11 +316,54 @@ def validate_fine_transient(path,summary):
         require((figure_path/filename).is_file(),'Missing fine transient figure')
 
 
+def validate_steady_fields(path,summary):
+    """Check representative steady runs, including their legacy flat layout."""
+    from thermal_opd.model import PreparedModel,ModalResolution
+    from thermal_opd.parameters import PhysicalParameters
+    from thermal_opd.validation import steady_boundary_residuals,steady_energy_balance
+    from thermal_opd.opd import transmitted_ray_mask
+    p=PhysicalParameters(**summary['physical_parameters_SI'])
+    s=summary['numerical_settings']
+    c={int(m):np.asarray(v) for m,v in summary['source_coefficients_W_per_m2'].items()}
+    roots={int(m):np.asarray(v) for m,v in summary['eigenvalues_per_m'].items()}
+    prepared=PreparedModel(p,summary['incidence_angle_deg'],ModalResolution(s['M'],s['N'],s['projection_r'],s['projection_phi'],s['opd_ray_points']),c,roots)
+    solution=prepared.solve_steady()
+    with np.load(data_directory(path)/'fields.npz',allow_pickle=False) as f:
+        r,phi,z=f['temperature_r_m'],f['temperature_phi_rad'],f['temperature_z_m']
+        require(np.array_equal(z,[0.,p.thickness/2,p.thickness]),'Bad steady axial planes')
+        expected=np.stack([solution.temperature(r[:,None],phi[None,:],zz) for zz in z])
+        require(f['temperature_rise_K'].shape==expected.shape and np.all(np.isfinite(f['temperature_rise_K']))
+                and np.allclose(f['temperature_rise_K'],expected,rtol=1e-11,atol=1e-13),'Steady temperature differs from saved modal model')
+        x,y=f['opd_x_m'],f['opd_y_m']
+        if x.ndim==y.ndim==1:
+            x,y=np.meshgrid(x,y)
+        mask=f['aperture_mask']
+        require(mask.dtype==bool and mask.shape==x.shape==y.shape==f['opd_m'].shape,'Bad steady optical shape')
+        require(np.all(np.isnan(f['opd_m'][~mask])),'Unexpected steady exterior OPD')
+        physical=transmitted_ray_mask(x,y,p.radius,p.thickness,prepared.refraction_angle)
+        entrance=x*x+y*y<=(p.radius*summary['aperture_radius_ratio'])**2
+        require(np.array_equal(mask,physical&entrance),'Steady aperture mask differs from geometry')
+        optical=solution.opd(x[mask],y[mask],point_chunk_size=s['opd_point_chunk_size'])
+        require(np.allclose(f['opd_m'][mask],optical,rtol=1e-11,atol=1e-20),'Steady OPD differs from saved model')
+        require(np.isclose(np.ptp(optical),summary['opd_pv_m'],rtol=1e-11,atol=1e-20),'Steady PV differs')
+        bc=steady_boundary_residuals(r,phi,np.linspace(0,p.thickness,s['boundary_z']),c,roots,p.radius,p.conductivity,p.thickness,p.h_eff,p.h_eff,p.h_eff)
+        require(max(bc.values())<1e-7,'Steady boundary residual above tolerance')
+        for key,value in bc.items():
+            require(np.isclose(value,summary['boundary_absolute_residuals_W_per_m2'][key],atol=1e-10,rtol=1e-8),'Steady boundary metrics differ')
+        energy=steady_energy_balance(c,roots,p.radius,p.conductivity,p.thickness,p.h_eff,p.h_eff,p.h_eff,
+                                     num_r=s['energy_r'],num_z=s['energy_z'],num_phi=s['energy_phi'])
+        for key,value in energy.items():
+            require(np.isclose(value,summary['energy_balance'][key],rtol=1e-10,atol=1e-12),'Steady energy metrics differ')
+        require(energy['balance_absolute_error_W']<=1e-9+abs(energy['modal_input_W'])*1e-7,'Steady energy balance above tolerance')
+
+
 def validate_saved_run(directory):
     path = Path(directory)
     summary = json.loads((path/'summary.json').read_text(encoding='utf-8'))
-    require(summary.get('status')=='COMPLETE', 'Run is not complete')
     kind = summary.get('kind')
+    if kind=='complete_representative_steady_refracted_ray_case' and 'status' not in summary:
+        summary['status']='COMPLETE'  # Original steady writer predated status metadata.
+    require(summary.get('status')=='COMPLETE', 'Run is not complete')
     if kind == 'steady_joint_truncation_selection':
         validate_selection(path, summary)
     elif kind == 'steady_prismatic_fem_comparison':
@@ -330,15 +374,24 @@ def validate_saved_run(directory):
         validate_transient_selection(path,summary)
     elif kind == 'transient_fine_fields':
         validate_fine_transient(path,summary)
+    elif kind == 'scientific_verification':
+        from thermal_opd.verification import validate_scientific_artifacts
+        scientific_report = validate_scientific_artifacts(path,summary)
+    elif kind == 'complete_representative_steady_refracted_ray_case':
+        validate_steady_fields(path,summary)
     else:
         raise ValueError(f'Unsupported run kind: {kind}')
     boundary_check = None
     if kind in ('transient_modal_fem_study','transient_fine_fields'):
         from thermal_opd.transient_validation import validate_transient_boundary_check
         boundary_check = validate_transient_boundary_check(path,summary)
+    if kind!='scientific_verification':
+        from thermal_opd.verification import verification_from_validated_run
+        scientific_report = verification_from_validated_run(path,summary,boundary_check)
     return {'status': 'PASS', 'kind': kind, 'run_directory': str(path.resolve()),
             'mesh_convergence_established': summary.get('mesh_convergence_established'),
             'transient_truncation_established': summary.get('transient_truncation_established'),
             'fem_convergence_established': summary.get('fem_convergence_established'),
             'transient_boundary_check': boundary_check,
+            'verification': scientific_report,
             'note': 'PASS verifies saved run consistency and stated numerical gates; smoke PASS is not final convergence.'}

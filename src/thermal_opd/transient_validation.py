@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+from thermal_opd.run_io import data_directory
 
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
 from thermal_opd.parameters import PhysicalParameters
@@ -76,8 +77,8 @@ def write_transient_boundary_check(directory,model,times,r,phi,side_z,*,angle_de
         zero_source_note='At zero prescribed power, normalized values are 0; the absolute residual gate still applies.',
         scope='Sampled semi-analytical Robin consistency only; not PDE/J convergence or FEM pointwise flux validation.',
         provenance=provenance)
-    np.savez_compressed(directory/BOUNDARY_FILES[0],**f)
-    with (directory/BOUNDARY_FILES[2]).open('w',newline='',encoding='utf-8') as stream:
+    np.savez_compressed(data_directory(directory)/BOUNDARY_FILES[0],**f)
+    with (data_directory(directory)/BOUNDARY_FILES[2]).open('w',newline='',encoding='utf-8') as stream:
         writer = csv.writer(stream)
         writer.writerow(CSV_COLUMNS)
         writer.writerows(np.column_stack((f['times_s'],absolute,relative)))
@@ -88,7 +89,8 @@ def write_transient_boundary_check(directory,model,times,r,phi,side_z,*,angle_de
 def validate_transient_boundary_check(directory,summary):
     """Recompute stored residuals, reconstruct the model and check snapshot T."""
     directory = Path(directory)
-    present = [(directory/name).is_file() for name in BOUNDARY_FILES]
+    locations=(data_directory(directory)/BOUNDARY_FILES[0],directory/BOUNDARY_FILES[1],data_directory(directory)/BOUNDARY_FILES[2])
+    present = [path.is_file() for path in locations]
     def require(condition,message):
         if not condition:
             raise ValueError(message)
@@ -97,7 +99,7 @@ def validate_transient_boundary_check(directory,summary):
     require(all(present),'Missing transient boundary check files')
     report = json.loads((directory/BOUNDARY_FILES[1]).read_text(encoding='utf-8'))
     require(report['version']==1,'Unsupported transient boundary check version')
-    with np.load(directory/'fields.npz',allow_pickle=False) as saved, np.load(directory/BOUNDARY_FILES[0],allow_pickle=False) as f:
+    with np.load(data_directory(directory)/'fields.npz',allow_pickle=False) as saved, np.load(locations[0],allow_pickle=False) as f:
         model = model_from_saved_transient(summary,saved)
         p = model.parameters
         require(report['physical_parameters_SI']==asdict(p) and report['history']==asdict(model.history)
@@ -133,7 +135,7 @@ def validate_transient_boundary_check(directory,summary):
         for key,value in (('max_absolute_residuals_W_per_m2',absolute),('max_residuals_over_full_power_peak_flux',relative)):
             require(np.asarray(report[key]).shape==value.shape and np.allclose(report[key],value,rtol=1e-11,atol=1e-14),
                     'Transient boundary summary metrics differ')
-        with (directory/BOUNDARY_FILES[2]).open(newline='',encoding='utf-8') as stream:
+        with locations[2].open(newline='',encoding='utf-8') as stream:
             rows = list(csv.reader(stream))
         require(tuple(rows[0])==CSV_COLUMNS,'Transient boundary CSV columns differ')
         table = np.asarray(rows[1:],dtype=float)
@@ -143,4 +145,4 @@ def validate_transient_boundary_check(directory,summary):
         require(report['status']=='PASS' and np.max(absolute)<=limit,'Transient boundary residual exceeds tolerance')
     return dict(status='PASS',max_absolute_residuals_W_per_m2=np.max(absolute,axis=0).tolist(),
                 boundary_order=report['boundary_order'],allowed_absolute_residual_W_per_m2=limit,
-                report_file=BOUNDARY_FILES[1],table_file=BOUNDARY_FILES[2])
+                report_file=BOUNDARY_FILES[1],table_file=str(locations[2].relative_to(directory)))

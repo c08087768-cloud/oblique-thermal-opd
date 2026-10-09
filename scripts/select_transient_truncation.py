@@ -4,6 +4,9 @@ Step loading, nominal physical inputs, 0/30/60 degrees and specified positive
 observation times only. No FEM is run. Numerical continuous PV uses the same
 multistart optimizer as the steady selection; it is not a certified bound.
 """
+from thermal_opd.run_io import script_defaults
+from thermal_opd.model import ThermalModel
+from thermal_opd.run_io import data_directory
 import argparse
 from dataclasses import asdict
 from pathlib import Path
@@ -11,11 +14,11 @@ from time import perf_counter
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 from thermal_opd.convergence import field_errors,within_tolerance,continuous_aperture_pv
-from thermal_opd.model import ModalResolution,solve_modal_source
+from thermal_opd.model import ModalResolution
 from thermal_opd.opd import refracted_angle,transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.run_io import create_run,provenance,write_summary
-from thermal_opd.transient import TransientModel,PowerHistory
+from thermal_opd.transient import PowerHistory
 
 parameters = PhysicalParameters()
 angles_deg = (0.,30.,60.)
@@ -45,8 +48,7 @@ def optical_coordinates(p,angle,count):
 
 
 def optical(model,xy,angle,ray_points):
-    return model.refracted_opd_series(*xy,times_s,radius=parameters.radius,refraction_angle=angle,
-                                     num_ray_points=ray_points,point_chunk_size=point_chunk_size)
+    return model.opd_series(*xy, times_s, num_ray_points=ray_points, point_chunk_size=point_chunk_size)
 
 
 def compare(T,R,weights,O,RO,pv=None,ref_pv=None):
@@ -60,8 +62,7 @@ def compare(T,R,weights,O,RO,pv=None,ref_pv=None):
 def extrema(model,angle,ray_points):
     output = []
     for t in times_s:
-        evaluator = model.prepare_refracted_opd(t,radius=parameters.radius,refraction_angle=angle,
-                                                num_ray_points=ray_points,point_chunk_size=point_chunk_size)
+        evaluator = model.prepare_opd(t, num_ray_points=ray_points, point_chunk_size=point_chunk_size)
         result = continuous_aperture_pv(evaluator,radius=parameters.radius,thickness=parameters.thickness,
             refraction_angle=angle,aperture_radius=aperture_radius_ratio*parameters.radius,
             num_seed_radius=pv_seed_radius,num_seed_phi=pv_seed_phi)
@@ -85,7 +86,7 @@ def main():
         aperture_radius_ratio=aperture_radius_ratio,common_xy_points=common_xy_points,
         verification_xy_points=verification_xy_points,selected_figure_xy=figure_xy_points,
         provenance=provenance(repository_root,__file__),cases=[])
-    write_summary(directory,summary)
+    write_summary(directory, summary, defaults=script_defaults(globals()))
     print(f'Run: {directory}',flush=True)
     started = perf_counter()
     nodes,w = leggauss(temperature_r_points)
@@ -104,8 +105,8 @@ def main():
             label = f'theta{angle:g}'
             def evaluate(settings,J):
                 tick = perf_counter()
-                c,roots = solve_modal_source(p,angle,settings)
-                model = TransientModel(p,c,roots,num_axial_modes=J)
+                prepared = ThermalModel(p,angle,settings).prepare()
+                model = prepared.solve_transient(num_axial_modes=J)
                 T = np.stack([np.stack([model.temperature(r[:,None],phi[None,:],z,t).ravel() for z in planes]) for t in times_s])
                 O = optical(model,xy,internal,settings.ray_points)
                 print(f'  fields M{settings.M}/N{settings.N}/J{J} ({perf_counter()-tick:.1f}s)',flush=True)
@@ -141,7 +142,7 @@ def main():
                 saved[label+'_'+key] = value
             saved[label+'_opd_x_m'],saved[label+'_opd_y_m'] = xy
             summary['cases'].append(case)
-            write_summary(directory,summary)
+            write_summary(directory, summary, defaults=script_defaults(globals()))
         feasible = [i for i in range(len(candidates)) if all(case['reference_pass'] and case['candidates'][i]['accepted'] for case in summary['cases'])]
         if not feasible:
             raise RuntimeError('No candidate passes every angle/time and reference-stability gate')
@@ -164,17 +165,17 @@ def main():
             for key,value in (('selected_temperature_K',T),('selected_opd_m',O),('selected_continuous_pv_m',pv),
                               ('fine_reference_opd_m',fine_r),('fine_selected_opd_m',fine_s),('figure_opd_m',figure)):
                 saved[label+'_'+key] = value
-            write_summary(directory,summary)
+            write_summary(directory, summary, defaults=script_defaults(globals()))
             if not (case['denser_common_grid_pass'] and case['sampling_pass']):
                 raise RuntimeError(f'{label}: dense-field or figure-sampling gate failed')
-        np.savez_compressed(directory/'fields.npz',**saved)
+        np.savez_compressed(data_directory(directory)/'fields.npz',**saved)
         summary.update(status='COMPLETE',elapsed_seconds=perf_counter()-started)
-        write_summary(directory,summary)
+        write_summary(directory, summary, defaults=script_defaults(globals()))
         print(f'COMPLETE: selected {summary["selected_settings"]}; {directory}',flush=True)
     except BaseException as error:
-        np.savez_compressed(directory/'partial_fields.npz',**saved)
+        np.savez_compressed(data_directory(directory)/'partial_fields.npz',**saved)
         summary.update(status='ABORTED' if isinstance(error,KeyboardInterrupt) else 'FAILED',error=str(error))
-        write_summary(directory,summary)
+        write_summary(directory, summary, defaults=script_defaults(globals()))
         raise
 
 

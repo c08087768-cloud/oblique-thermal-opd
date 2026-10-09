@@ -6,6 +6,7 @@ import sys
 import numpy as np
 import pytest
 from thermal_opd.run_validation import validate_saved_run
+from thermal_opd.run_io import data_directory
 
 
 def test_transient_script_saves_consistent_modes_and_checker_catches_corruption(tmp_path):
@@ -23,10 +24,10 @@ def test_transient_script_saves_consistent_modes_and_checker_catches_corruption(
     summary = json.loads((output/'summary.json').read_text())
     assert summary['transient_truncation_established'] is False
     assert summary['boundary_validation_required'] is True
-    assert (output/'boundary_residuals.csv').is_file()
-    with np.load(output/'fields.npz') as saved:
+    assert (data_directory(output)/'boundary_residuals.csv').is_file()
+    with np.load(data_directory(output)/'fields.npz') as saved:
         fields = {key:saved[key] for key in saved.files}
     fields['order_temperature_K'][0,1,0,0,0] += 1.
-    np.savez_compressed(output/'fields.npz',**fields)
+    np.savez_compressed(data_directory(output)/'fields.npz',**fields)
     with pytest.raises(ValueError,match='mode|Mode'):
         validate_saved_run(output)

@@ -27,3 +27,15 @@ def opd_peak_to_valley(opd, aperture_mask):
     if not np.all(np.isfinite(selected)):
         raise ValueError("OPD values inside aperture must be finite")
     return float(np.max(selected) - np.min(selected))
+
+
+def opd_metrics(opd,aperture_mask):
+    """Equal-area sampled PV, mean and piston-removed RMS, all in meters.
+
+    Intended for uniform Cartesian aperture grids. This is not a continuous
+    aperture extremum or an area-weighted metric for irregular sample points.
+    """
+    pv=opd_peak_to_valley(opd,aperture_mask)
+    values=np.asarray(opd)[np.asarray(aperture_mask,dtype=bool)]
+    mean=float(np.mean(values))
+    return dict(pv_m=pv,mean_opd_m=mean,piston_removed_rms_m=float(np.sqrt(np.mean((values-mean)**2))))

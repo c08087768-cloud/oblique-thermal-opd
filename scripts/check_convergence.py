@@ -4,21 +4,21 @@ The finest case in each sweep is a numerical reference, not an exact solution.
 This script does not compare against FEM or impose an accuracy threshold.
 """
 
+from thermal_opd.run_io import script_defaults
+from thermal_opd.run_io import data_directory
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
+from thermal_opd.model import PreparedModel, ModalResolution, project_modal_source
+from thermal_opd.run_io import create_run,figure_directory,provenance,write_summary,parse_output_directory
 import csv
-import json
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from thermal_opd.eigenmodes import radial_eigenvalues
-from thermal_opd.heat_source import oblique_gaussian_heat_flux
 from thermal_opd.metrics import circular_aperture_mask
 from thermal_opd.opd import refracted_angle, transmitted_ray_mask, steady_refracted_opd
 from thermal_opd.parameters import PhysicalParameters
-from thermal_opd.projection import fourier_bessel_coefficient
-from thermal_opd.steady import steady_temperature
 
 
 parameters = PhysicalParameters()
@@ -38,8 +38,6 @@ num_temperature_phi = 180
 common_num_opd_xy = 201
 
 repository_root = Path(__file__).resolve().parents[1]
-result_directory = repository_root / "results/convergence"
-figure_path = repository_root / "outputs/figures/convergence.png"
 
 
 @dataclass(frozen=True)
@@ -69,6 +67,9 @@ def relative_disk_l2(fields, reference, r):
 
 
 def main():
+    result_directory=create_run(repository_root,'convergence_diagnostic',parse_output_directory(__doc__))
+    figure_path=figure_directory(result_directory)/'convergence.png'
+    result_path=result_directory/'summary.json'
     p = parameters
     baseline = Settings(
         max(azimuthal_orders), max(radial_mode_counts),
@@ -126,24 +127,11 @@ def main():
             return solution_cache[key]
         grid_key = (settings.projection_r, settings.projection_phi)
         if grid_key not in projection_cache:
-            projection_r = np.linspace(0.0, p.radius, settings.projection_r)
-            projection_phi = np.linspace(0.0, 2 * np.pi, settings.projection_phi, endpoint=False)
-            q = oblique_gaussian_heat_flux(
-                projection_r[:, None] * np.cos(projection_phi),
-                projection_r[:, None] * np.sin(projection_phi),
-                p.beam_radius, np.deg2rad(incidence_angle_deg), p.absorbed_power,
-            )
-            projection_cache[grid_key] = {
-                m: np.array([fourier_bessel_coefficient(q, projection_r, projection_phi, m, lam)
-                             for lam in values])
-                for m, values in roots.items()
-            }
+            projection_cache[grid_key]=project_modal_source(p,incidence_angle_deg,roots,num_r=settings.projection_r,num_phi=settings.projection_phi)
         selected_roots = {m: values[:settings.N] for m, values in roots.items() if m <= settings.M}
         coefficients = {m: projection_cache[grid_key][m][:settings.N] for m in selected_roots}
-        fields = np.stack([
-            steady_temperature(r[:, None], phi[None, :], z, coefficients, selected_roots, *thermal_args)
-            for z in z_planes
-        ])
+        solution=PreparedModel(p,incidence_angle_deg,ModalResolution(settings.M,settings.N,settings.projection_r,settings.projection_phi,settings.ray_points),coefficients,selected_roots).solve_steady()
+        fields=np.stack([solution.temperature(r[:,None],phi[None,:],z) for z in z_planes])
         solution_cache[key] = coefficients, selected_roots, fields
         return solution_cache[key]
 
@@ -227,8 +215,9 @@ def main():
         "sweeps": groups,
     }
     result_directory.mkdir(parents=True, exist_ok=True)
-    (result_directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    with (result_directory / "comparison.csv").open("w", encoding="utf-8", newline="") as stream:
+    summary.update(status="COMPLETE",physical_parameters_SI=asdict(parameters),provenance=provenance(repository_root,__file__))
+    write_summary(result_directory, summary, defaults=script_defaults(globals()))
+    with (data_directory(result_directory) / "comparison.csv").open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(csv_records[0]))
         writer.writeheader()
         writer.writerows(csv_records)

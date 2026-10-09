@@ -4,6 +4,9 @@ Reuses source projections, steady temperature, refracted rays and prism FEM.
 Saved mode OPDs are contributions from thermal orders, not a Fourier analysis
 of the cropped entrance-plane optical field. Single-order PVs are not additive.
 """
+from thermal_opd.run_io import script_defaults
+from thermal_opd.model import ThermalModel, PreparedModel
+from thermal_opd.run_io import data_directory
 import argparse
 import csv
 from dataclasses import asdict
@@ -12,20 +15,18 @@ from time import perf_counter
 
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+from thermal_opd.plotting import save_transient_diagnostic_figure as save_figure
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
 from thermal_opd.convergence import field_errors
-from thermal_opd.fem import solve_transient_fem
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
-from thermal_opd.model import ModalResolution, solve_modal_source
-from thermal_opd.opd import refracted_angle, transmitted_ray_mask, steady_refracted_opd
+from thermal_opd.model import ModalResolution
+from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.projection import reconstruct_cosine_field
 from thermal_opd.run_io import create_run, provenance, write_summary
-from thermal_opd.steady import steady_temperature
-from thermal_opd.transient import TransientModel, PowerHistory
+from thermal_opd.transient import PowerHistory
 from thermal_opd.transient_validation import write_transient_boundary_check
 
 
@@ -56,8 +57,7 @@ def evaluate(model, times, r, phi, z, x, y, angle, ray_points):
     p = model.parameters
     temperature = np.stack([np.stack([model.temperature(r[:,None],phi[None,:],plane,t)
                                       for plane in z]) for t in times])
-    opd = model.refracted_opd_series(x,y,times,radius=p.radius,refraction_angle=angle,
-                                   num_ray_points=ray_points,point_chunk_size=point_chunk_size)
+    opd = model.opd_series(x, y, times, num_ray_points=ray_points, point_chunk_size=point_chunk_size)
     return temperature,opd
 
 
@@ -101,12 +101,14 @@ def main():
         'sanity_tolerance':sanity_tolerance,'transient_truncation_established':False,
         'fem_convergence_established':False,'boundary_validation_required':True,'provenance':provenance(repository_root,__file__),
         'selection_directory':str(args.selection.resolve()) if args.selection is not None else None}
-    write_summary(directory,summary)
+    write_summary(directory, summary, defaults=script_defaults(globals()))
     started = perf_counter()
     print(f'Run: {directory}',flush=True)
     try:
-        c,roots = solve_modal_source(p,args.angle,settings)
-        model = TransientModel(p,c,roots,num_axial_modes=axial_counts[-1],history=history)
+        prepared = ThermalModel(p,args.angle,settings).prepare()
+        c,roots = prepared.coefficients,prepared.roots
+        steady = prepared.solve_steady()
+        model = prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
         times = np.array(observation_times_s)
         long_time = max(times[-1],long_time_decay_exponent/model.slowest_decay_rate,
                         long_time_decay_exponent*history.tau if history.kind!='step' else 0.)
@@ -130,9 +132,8 @@ def main():
             fields[f'source_coefficients_m{m}_W_per_m2'] = c[m]
             fields[f'radial_roots_m{m}_per_m'] = roots[m]
         thermal_args = (c,roots,p.conductivity,p.thickness,p.h_eff,p.h_eff)
-        fields['steady_temperature_K'] = np.stack([steady_temperature(r[:,None],phi[None,:],plane,*thermal_args) for plane in z])
-        fields['steady_opd_m'] = steady_refracted_opd(ox,oy,*thermal_args,p.dn_dT,radius=p.radius,
-            refraction_angle=internal,num_ray_points=settings.ray_points,point_chunk_size=point_chunk_size)
+        fields['steady_temperature_K'] = np.stack([steady.temperature(r[:,None],phi[None,:],plane) for plane in z])
+        fields['steady_opd_m'] = steady.opd(ox,oy,point_chunk_size=point_chunk_size)
         tl,ol = evaluate(model,[long_time],r,phi,z,ox,oy,internal,settings.ray_points)
         fields['long_time_temperature_K'],fields['long_time_opd_m'] = tl[0],ol[0]
         summary['long_time_errors_vs_steady'] = field_errors(tl[0].reshape(3,-1),fields['steady_temperature_K'].reshape(3,-1),
@@ -142,14 +143,15 @@ def main():
         order_t,order_o,source_orders,steady_order_t,steady_order_o = [],[],[],[],[]
         for m in c:
             cm,rm = {m:c[m]},{m:roots[m]}
-            one = TransientModel(p,cm,rm,num_axial_modes=axial_counts[-1],history=history)
+            one_prepared = PreparedModel(p,args.angle,settings,cm,rm)
+            one = one_prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
+            one_steady = one_prepared.solve_steady()
             tm,om = evaluate(one,times,r,phi,z,ox,oy,internal,settings.ray_points)
             order_t.append(tm); order_o.append(om)
             source_orders.append(reconstruct_cosine_field(cm,rm,r,phi))
             one_args = (cm,rm,p.conductivity,p.thickness,p.h_eff,p.h_eff)
-            steady_order_t.append(np.stack([steady_temperature(r[:,None],phi[None,:],plane,*one_args) for plane in z]))
-            steady_order_o.append(steady_refracted_opd(ox,oy,*one_args,p.dn_dT,radius=p.radius,
-                refraction_angle=internal,num_ray_points=settings.ray_points,point_chunk_size=point_chunk_size))
+            steady_order_t.append(np.stack([one_steady.temperature(r[:,None],phi[None,:],plane) for plane in z]))
+            steady_order_o.append(one_steady.opd(ox,oy,point_chunk_size=point_chunk_size))
         fields['order_temperature_K'],fields['order_opd_m'] = np.array(order_t),np.array(order_o)
         fields['steady_order_temperature_K'],fields['steady_order_opd_m'] = np.array(steady_order_t),np.array(steady_order_o)
         fields['source_order_W_per_m2'] = np.array(source_orders)
@@ -166,7 +168,7 @@ def main():
         fields['source_l2_squared_shares'] = source_energies/source_energies.sum()
         fields['order_sampled_opd_pv_m'] = np.ptp(fields['order_opd_m'],axis=-1)
         summary['mode_opd_interpretation'] = 'Ray integrals of thermal azimuthal orders; not entrance Fourier harmonics. Single-order PVs do not add.'
-        with (directory/'modal_contributions.csv').open('w',newline='',encoding='utf-8') as stream:
+        with (data_directory(directory)/'modal_contributions.csv').open('w',newline='',encoding='utf-8') as stream:
             writer = csv.writer(stream)
             writer.writerow(['time_s','thermal_order_m','front_temperature_L2_squared_share','single_order_sampled_opd_PV_nm','total_sampled_opd_PV_nm'])
             for j,t in enumerate(times):
@@ -179,13 +181,13 @@ def main():
         print('Checking J, transverse truncation and ray quadrature separately',flush=True)
         j_fields_t,j_fields_o = [],[]
         for count in axial_counts:
-            candidate = TransientModel(p,c,roots,num_axial_modes=count,history=history)
+            candidate = prepared.solve_transient(num_axial_modes=count,history=history)
             tc,oc = evaluate(candidate,times,r,phi,z,ox,oy,internal,settings.ray_points)
             j_fields_t.append(tc);j_fields_o.append(oc)
         fields['axial_check_temperature_K'],fields['axial_check_opd_m'] = np.array(j_fields_t),np.array(j_fields_o)
         summary['axial_errors_vs_largest_J'] = [errors_by_time(tc,temperature,area_weights,oc,opd) for tc,oc in zip(j_fields_t,j_fields_o)]
-        cr,rr = solve_modal_source(p,args.angle,reference_settings)
-        ref = TransientModel(p,cr,rr,num_axial_modes=axial_counts[-1],history=history)
+        ref_prepared = ThermalModel(p,args.angle,reference_settings).prepare()
+        ref = ref_prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
         # Same ray count isolates M/N/projection; then increase ray quadrature.
         tr,orr = evaluate(ref,times,r,phi,z,ox,oy,internal,settings.ray_points)
         fields['reference_temperature_K'],fields['reference_opd_m'] = tr,orr
@@ -198,6 +200,7 @@ def main():
 
         # FEM: spatial refinement at fixed dt, followed by dt refinement on
         # the finest spatial mesh. No duplicate steady assembly or ray formula.
+        from thermal_opd.fem import solve_transient_fem
         meshes = smoke_meshes if args.mode=='smoke' else full_meshes
         steps = smoke_time_steps_s if args.mode=='smoke' else full_time_steps_s
         configs = [(mesh,steps[0]) for mesh in meshes]+[(meshes[-1],dt) for dt in steps[1:]]
@@ -231,7 +234,7 @@ def main():
         fem_t,fem_o = [],[]
         for i,result in enumerate(fem_solutions):
             tf = np.stack([np.stack([f.temperature_at(tx[thermal_mask],ty[thermal_mask],plane) for plane in z]) for f in result.frames])
-            of = np.stack([f.refracted_opd(x[common],y[common],internal,p.dn_dT,point_chunk_size=point_chunk_size) for f in result.frames])
+            of = np.stack([f.refracted_opd(x[common], y[common], internal, p.dn_dT, point_chunk_size=point_chunk_size) for f in result.frames])
             fem_t.append(tf);fem_o.append(of)
             st = temperature[...,thermal_mask]
             weights = area_weights[thermal_mask]
@@ -241,7 +244,7 @@ def main():
             rows[i]['temperature_absolute_max_difference_K'] = np.max(np.abs(tf-st),axis=-1).tolist()
             rows[i]['temperature_area_rms_difference_K'] = np.sqrt(np.sum((tf-st)**2*weights,axis=-1)/weights.sum()).tolist()
             step_keys = list(result.steps[0])
-            np.savez_compressed(directory/f'fem_run{i}.npz',disk_nodes_xy_m=result.frames[0].disk_mesh.p,
+            np.savez_compressed(data_directory(directory)/f'fem_run{i}.npz',disk_nodes_xy_m=result.frames[0].disk_mesh.p,
                 disk_triangles=result.frames[0].disk_mesh.t,axial_nodes_z_m=result.frames[0].z_m,
                 temperature_K=np.array([f.temperature_K for f in result.frames]),times_s=times,
                 step_keys=np.array(step_keys),steps=np.array([[s[key] for key in step_keys] for s in result.steps]))
@@ -255,7 +258,7 @@ def main():
                                    and row['max_relative_linear_residual']<sanity_tolerance for row in rows)
         if not summary['sanity_pass']:
             raise RuntimeError('Transient FEM energy/linear checks failed')
-        np.savez_compressed(directory/'fields.npz',**fields)
+        np.savez_compressed(data_directory(directory)/'fields.npz',**fields)
         boundary = write_transient_boundary_check(directory,model,times,r,phi,np.linspace(0,p.thickness,boundary_z_points),
             angle_deg=args.angle,relative_tolerance=boundary_relative_tolerance,
             absolute_tolerance=boundary_absolute_tolerance_W_per_m2,provenance=summary['provenance'])
@@ -263,31 +266,13 @@ def main():
             raise RuntimeError('Transient Robin boundary residual failed')
         save_figure(directory,fields)
         summary.update(status='COMPLETE',elapsed_seconds=perf_counter()-started)
-        write_summary(directory,summary)
+        write_summary(directory, summary, defaults=script_defaults(globals()))
         print(f'COMPLETE: {directory}; transient/FEM final convergence remains unestablished.',flush=True)
     except BaseException as error:
         summary.update(status='ABORTED' if isinstance(error,KeyboardInterrupt) else 'FAILED',error=str(error))
-        write_summary(directory,summary)
+        write_summary(directory, summary, defaults=script_defaults(globals()))
         raise
 
-
-def save_figure(directory,fields):
-    times,orders = fields['times_s'],fields['orders']
-    fig,axes = plt.subplots(1,3,figsize=(14,4),layout='constrained')
-    for i,m in enumerate(orders):
-        axes[0].plot(times,fields['temperature_plane_l2_squared_shares'][i,:,0],marker='o',label=f'm={m}')
-        axes[1].plot(times,fields['order_sampled_opd_pv_m'][i]*1e9,marker='o',label=f'thermal m={m}')
-    axes[0].set_ylabel('Front thermal L2 squared share');axes[0].legend()
-    axes[1].plot(times,np.ptp(fields['opd_sa_m'],axis=-1)*1e9,'k--',label='total')
-    axes[1].set_ylabel('Single-order sampled OPD PV [nm]');axes[1].legend()
-    for i,values in enumerate(fields['opd_fem_m']):
-        axes[2].plot(times,np.ptp(values,axis=-1)*1e9,marker='.',label=f'FEM run {i}')
-    axes[2].plot(times,np.ptp(fields['opd_sa_fem_common_m'],axis=-1)*1e9,'k--',label='SA')
-    axes[2].set_ylabel('Sampled OPD PV on common aperture [nm]');axes[2].legend()
-    for ax in axes:
-        ax.set_xlabel('Time [s]');ax.grid(alpha=.25)
-    fig.savefig(directory/'transient_modes.png',dpi=160)
-    plt.close(fig)
 
 
 if __name__=='__main__':

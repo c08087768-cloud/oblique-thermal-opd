@@ -1,4 +1,8 @@
+from thermal_opd.run_io import script_defaults
 import numpy as np
+from pathlib import Path
+from dataclasses import asdict
+from thermal_opd.run_io import create_run,data_directory,write_summary,provenance,parse_output_directory
 
 from thermal_opd.azimuthal import azimuthal_coefficients
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
@@ -17,6 +21,9 @@ num_phi_samples = 256  # Must exceed 2 * max_azimuthal_order.
 
 def main():
     """Inspect the Fourier expansion of heat flux on one fixed-radius circle."""
+    root=Path(__file__).resolve().parents[1]
+    directory=create_run(root,'azimuthal_inspection',parse_output_directory(__doc__))
+    records=[];saved={}
     r = sample_radius_ratio * parameters.beam_radius
     # Do not duplicate the periodic endpoint at 2*pi.
     phi = np.linspace(0.0, 2 * np.pi, num_phi_samples, endpoint=False)
@@ -57,6 +64,14 @@ def main():
         print(f"Relative L2 reconstruction error on circle: {relative_l2_error:.6e}")
         print(f"Largest odd cosine amplitude / a_0: {odd_amplitude:.6e}")
         print(f"Largest sine amplitude / a_0: {sine_amplitude:.6e}")
+        records.append(dict(angle_deg=angle_deg,relative_L2_error=float(relative_l2_error),
+                            odd_over_mean=float(odd_amplitude),sine_over_mean=float(sine_amplitude)))
+        saved[f'q_theta{angle_deg:g}_W_per_m2']=q_phi
+        saved[f'a_theta{angle_deg:g}_W_per_m2']=a
+        saved[f'b_theta{angle_deg:g}_W_per_m2']=b
+    np.savez_compressed(data_directory(directory)/'azimuthal_fields.npz',phi_rad=phi,**saved)
+    write_summary(directory, dict(kind='azimuthal_inspection', status='COMPLETE', physical_parameters_SI=asdict(parameters), numerical_settings=dict(max_azimuthal_order=max_azimuthal_order, num_phi_samples=num_phi_samples), sample_radius_m=r, sample_radius_ratio=sample_radius_ratio, cases=records, provenance=provenance(root, __file__)), defaults=script_defaults(globals()))
+    print(f'Results: {directory}')
 
 
 if __name__ == "__main__":

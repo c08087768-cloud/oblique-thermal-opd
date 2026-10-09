@@ -3,6 +3,7 @@
 Reuses saved coefficients and roots. Does not rerun projection, OPD or FEM,
 and does not replace the original fields/summary/provenance.
 """
+from thermal_opd.run_io import data_directory
 import argparse
 import json
 from pathlib import Path
@@ -25,7 +26,7 @@ def main():
     if summary['status']!='COMPLETE':
         raise ValueError('Need a completed transient run')
     print(f'Checking saved transient boundaries: {directory}',flush=True)
-    with np.load(directory/'fields.npz',allow_pickle=False) as saved:
+    with np.load(data_directory(directory)/'fields.npz',allow_pickle=False) as saved:
         model = model_from_saved_transient(summary,saved)
         keys = ('temperature_r_m','temperature_phi_rad') if summary['kind']=='transient_fine_fields' else ('r_m','phi_rad')
         write_transient_boundary_check(directory,model,saved['times_s'],saved[keys[0]],saved[keys[1]],
@@ -39,7 +40,7 @@ def main():
         (directory/'check_report.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
         raise SystemExit(f'FAIL: {error}') from error
     (directory/'check_report.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
-    print(f'PASS: {directory}\nBoundary table: {directory/"boundary_residuals.csv"}',flush=True)
+    print(f'PASS: {directory}\nBoundary table: {data_directory(directory)/"boundary_residuals.csv"}',flush=True)
 
 
 if __name__=='__main__':

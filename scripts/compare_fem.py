@@ -4,6 +4,9 @@
 All settings are defined below; output directories are unique and never reused.
 """
 
+from thermal_opd.run_io import script_defaults
+from thermal_opd.model import ThermalModel
+from thermal_opd.run_io import data_directory, figure_directory
 import argparse
 import csv
 from dataclasses import asdict
@@ -20,11 +23,10 @@ from thermal_opd.convergence import field_errors, within_tolerance
 from thermal_opd.fem import solve_steady_fem
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
 from thermal_opd.metrics import circular_aperture_mask
-from thermal_opd.model import ModalResolution, solve_modal_source
-from thermal_opd.opd import refracted_angle, transmitted_ray_mask, steady_refracted_opd
+from thermal_opd.model import ModalResolution
+from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.run_io import create_run, provenance, write_summary
-from thermal_opd.steady import steady_temperature
 
 
 parameters = PhysicalParameters()
@@ -70,7 +72,7 @@ def save_figure(directory, label, tx, ty, tm, t_sa, t_fem, ox, oy, om, o_sa, o_f
         ax.set_title(title)
         fig.colorbar(mappable, ax=ax)
     fig.suptitle(f'{label}: finest mesh on common polygon/optical aperture')
-    fig.savefig(directory/f'{label}_comparison.png', dpi=160)
+    fig.savefig(figure_directory(directory)/f'{label}_comparison.png', dpi=160)
     plt.close(fig)
 
 
@@ -108,7 +110,7 @@ def main():
                'fem_ray_quadrature': 'split at all crossed triangle edges and axial layers; two Gauss points per quadratic segment',
                'mesh_geometry': 'inscribed polygon xy disk x line layers; common domain for all meshes, no extrapolation',
                'provenance': provenance(repository_root, __file__), 'cases': []}
-    write_summary(directory, summary)
+    write_summary(directory, summary, defaults=script_defaults(globals()))
     flat_rows = []
     planes = np.array([0., p.thickness/2, p.thickness])
     axis_t = np.linspace(-p.radius, p.radius, count_t)
@@ -128,7 +130,7 @@ def main():
                                         solver='direct' if args.mode == 'smoke' else 'cg', rtol=solver_rtol)
             solutions.append(solution)
             print(f"  disk={level}, z={layers}, DOF={solution.diagnostics['degrees_of_freedom']}, solve={solution.diagnostics['solve_seconds']:.3f}s", flush=True)
-            np.savez_compressed(directory/f'{label}_mesh{len(solutions)-1}.npz',
+            np.savez_compressed(data_directory(directory)/f'{label}_mesh{len(solutions)-1}.npz',
                                 disk_nodes_xy_m=solution.disk_mesh.p, disk_triangles=solution.disk_mesh.t,
                                 axial_nodes_z_m=solution.z_m, temperature_K=solution.temperature_K)
         tm = tx**2+ty**2 <= p.radius**2
@@ -140,16 +142,17 @@ def main():
             om &= solution.transmitted_mask(ox, oy, internal)
         if not np.any(tm) or not np.any(om):
             raise RuntimeError('Common FEM evaluation domain is empty')
-        coefficients, roots = solve_modal_source(p, theta, modal)
+        prepared = ThermalModel(p,theta,modal).prepare()
+        coefficients,roots = prepared.coefficients,prepared.roots
+        steady = prepared.solve_steady()
         thermal_args = (coefficients, roots, p.conductivity, p.thickness, p.h_eff, p.h_eff)
         tick = perf_counter()
-        sa_t = np.stack([steady_temperature(np.hypot(tx[tm], ty[tm]), np.arctan2(ty[tm], tx[tm]), z, *thermal_args) for z in planes])
-        sa_o = steady_refracted_opd(ox[om], oy[om], *thermal_args, p.dn_dT, radius=p.radius,
-                                   refraction_angle=internal, num_ray_points=modal.ray_points, point_chunk_size=point_chunk_size)
+        sa_t = np.stack([steady.temperature(np.hypot(tx[tm],ty[tm]),np.arctan2(ty[tm],tx[tm]),z) for z in planes])
+        sa_o = steady.opd(ox[om],oy[om],point_chunk_size=point_chunk_size)
         sa_evaluation_seconds = perf_counter()-tick
         def sample(solution):
             t = np.stack([solution.temperature_at(tx[tm], ty[tm], z) for z in planes])
-            o = solution.refracted_opd(ox[om], oy[om], internal, p.dn_dT, point_chunk_size=point_chunk_size)
+            o = solution.refracted_opd(ox[om],oy[om],internal,p.dn_dT,point_chunk_size=point_chunk_size)
             return t, o
         fields, sampling_seconds = [], []
         for solution in solutions:
@@ -195,7 +198,7 @@ def main():
             return shaped
         t_sa_grid, t_fem_grid = scatter(sa_t, tm), scatter(fine_t, tm)
         o_sa_grid, o_fem_grid = scatter(sa_o, om), scatter(fine_o, om)
-        np.savez_compressed(directory/f'{label}_fields.npz', temperature_x_m=tx, temperature_y_m=ty,
+        np.savez_compressed(data_directory(directory)/f'{label}_fields.npz', temperature_x_m=tx, temperature_y_m=ty,
                             temperature_z_m=planes, temperature_mask=tm, temperature_sa_K=t_sa_grid,
                             temperature_fem_K=np.stack([scatter(t, tm) for t, _ in fields]),
                             temperature_higher_quadrature_K=scatter(higher_t, tm),
@@ -204,7 +207,7 @@ def main():
                             opd_higher_quadrature_m=scatter(higher_o, om))
         save_figure(directory, label, tx, ty, tm, t_sa_grid, t_fem_grid, ox, oy, om, o_sa_grid, o_fem_grid)
         summary['cases'].append(case)
-        write_summary(directory, summary)
+        write_summary(directory, summary, defaults=script_defaults(globals()))
     sanity_pass = all(c['load_quadrature_check']['passed'] and all(
         r['relative_energy_imbalance'] <= sanity_tolerance and r['relative_linear_residual'] <= sanity_tolerance
         for r in c['meshes']) for c in summary['cases'])
@@ -213,8 +216,8 @@ def main():
     summary['mesh_convergence_established'] = args.mode == 'full' and all(c['finest_mesh_change_within_target'] for c in summary['cases'])
     summary['elapsed_seconds'] = perf_counter()-started
     summary['limits'] = 'Smoke tests the implementation and coarse-mesh trend only. FEM polygon geometry and field discretization both change with refinement. Field errors/PV are on a recorded common subset, not the full physical aperture. Timings are component timings, not an end-to-end speedup claim. Transient remains required future work.'
-    write_summary(directory, summary)
-    with (directory/'comparison.csv').open('w', newline='', encoding='utf-8') as stream:
+    write_summary(directory, summary, defaults=script_defaults(globals()))
+    with (data_directory(directory)/'comparison.csv').open('w', newline='', encoding='utf-8') as stream:
         writer = csv.DictWriter(stream, fieldnames=list(flat_rows[0]))
         writer.writeheader()
         writer.writerows(flat_rows)

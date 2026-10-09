@@ -4,6 +4,9 @@ Run from any directory after pip install -e '.[dev]'. No full FEM is launched.
 The 0.1% criterion concerns finite numerical references, not physical accuracy.
 """
 
+from thermal_opd.run_io import script_defaults
+from thermal_opd.model import ThermalModel
+from thermal_opd.run_io import data_directory
 import argparse
 from dataclasses import asdict
 from pathlib import Path
@@ -14,11 +17,10 @@ from numpy.polynomial.legendre import leggauss
 
 from thermal_opd.convergence import field_errors, within_tolerance, continuous_aperture_pv
 from thermal_opd.metrics import circular_aperture_mask
-from thermal_opd.model import ModalResolution, solve_modal_source
-from thermal_opd.opd import refracted_angle, transmitted_ray_mask, steady_refracted_opd
+from thermal_opd.model import ModalResolution
+from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.run_io import create_run, provenance, write_summary
-from thermal_opd.steady import steady_temperature
 
 
 parameters = PhysicalParameters()
@@ -64,7 +66,7 @@ def main():
                'reference': asdict(reference), 'enlarged_reference': asdict(enlarged_reference),
                'aperture_radius_ratio': aperture_radius_ratio,
                'provenance': provenance(repository_root, __file__), 'cases': []}
-    write_summary(directory, summary)
+    write_summary(directory, summary, defaults=script_defaults(globals()))
     nodes, weights = leggauss(num_temperature_r)
     r, wr = (nodes+1)*p.radius/2, weights*p.radius/2
     phi = np.linspace(0, 2*np.pi, num_temperature_phi, endpoint=False)
@@ -80,14 +82,13 @@ def main():
         xy = optical_coordinates(p, internal, num_comparison_xy)
         def evaluate(resolution):
             tick = perf_counter()
-            coefficients, roots = solve_modal_source(p, theta, resolution)
+            prepared = ThermalModel(p,theta,resolution).prepare()
+            coefficients,roots = prepared.coefficients,prepared.roots
+            steady = prepared.solve_steady()
             print(f'  source projections ready ({perf_counter()-tick:.2f}s)', flush=True)
             thermal = (coefficients, roots, p.conductivity, p.thickness, p.h_eff, p.h_eff)
-            temperatures = np.stack([steady_temperature(rt.ravel(), phit.ravel(), z, *thermal) for z in planes])
-            def opd(x, y, internal_angle=internal):
-                return steady_refracted_opd(x, y, *thermal, p.dn_dT, radius=p.radius,
-                                            refraction_angle=internal_angle, num_ray_points=resolution.ray_points,
-                                            point_chunk_size=point_chunk_size)
+            temperatures = np.stack([steady.temperature(rt.ravel(),phit.ravel(),z) for z in planes])
+            opd = steady.prepare_opd(point_chunk_size=point_chunk_size)
             optical = opd(*xy)
             print(f'  sampled fields ready ({perf_counter()-tick:.2f}s); searching PV', flush=True)
             extrema = continuous_aperture_pv(opd, radius=p.radius, thickness=p.thickness,
@@ -118,11 +119,11 @@ def main():
         saved[f'theta{theta:g}_reference_opd_m'] = ref_o
         saved[f'theta{theta:g}_opd_x_m'], saved[f'theta{theta:g}_opd_y_m'] = xy
         summary['cases'].append(case)
-        write_summary(directory, summary)
+        write_summary(directory, summary, defaults=script_defaults(globals()))
     feasible = [i for i in range(len(candidates)) if all(c['reference_pass'] and c['candidates'][i]['accepted'] for c in summary['cases'])]
     if not feasible:
         summary['status'] = 'FAILED'
-        write_summary(directory, summary)
+        write_summary(directory, summary, defaults=script_defaults(globals()))
         raise RuntimeError(f'No candidate passed all criteria: {directory}')
     index = feasible[0]
     selected = candidates[index]
@@ -157,8 +158,8 @@ def main():
     summary['limits'] = 'Finite numerical reference; sampled field norms; multistart extrema not a certified global bound. Scope: stated material, w0/R=0.30, 0/30/60 deg, steady only. No FEM accuracy claim.'
     summary['status'] = 'COMPLETE' if acceptable_grids and all(c['denser_common_grid_pass'] for c in summary['cases']) else 'FAILED'
     summary['elapsed_seconds'] = perf_counter()-started
-    np.savez_compressed(directory/'fields.npz', **saved)
-    write_summary(directory, summary)
+    np.savez_compressed(data_directory(directory)/'fields.npz', **saved)
+    write_summary(directory, summary, defaults=script_defaults(globals()))
     print(f"{summary['status']}: {directory}; selected={asdict(selected)}; figure xy={summary['selected_figure_xy']}", flush=True)
     if summary['status'] != 'COMPLETE':
         raise RuntimeError('Verification or figure sampling failed')

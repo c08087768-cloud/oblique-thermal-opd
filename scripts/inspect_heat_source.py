@@ -1,13 +1,16 @@
+from thermal_opd.run_io import script_defaults
 from pathlib import Path
-import json
+from dataclasses import asdict
+from thermal_opd.model import ThermalModel, ModalResolution
+from thermal_opd.run_io import create_run,figure_directory,provenance,write_summary,parse_output_directory
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
-from thermal_opd.eigenmodes import radial_eigenvalues, radial_eigenvalue_equation
+from thermal_opd.eigenmodes import radial_eigenvalue_equation
 from thermal_opd.parameters import PhysicalParameters
-from thermal_opd.projection import fourier_bessel_coefficient, reconstruct_cosine_field
+from thermal_opd.projection import reconstruct_cosine_field
 
 
 parameters = PhysicalParameters()
@@ -20,11 +23,12 @@ num_projection_r = 400
 num_projection_phi = 256
 
 repository_root = Path(__file__).resolve().parents[1]
-figure_path = repository_root / "outputs/figures/heat_source_reconstruction.png"
-result_path = repository_root / "results/heat_source_reconstruction/summary.json"
 
 
 def main():
+    result_directory=create_run(repository_root,'heat_source_inspection',parse_output_directory(__doc__))
+    figure_path=figure_directory(result_directory)/'heat_source_reconstruction.png'
+    result_path=result_directory/'summary.json'
     theta = np.deg2rad(incidence_angle_deg)
     r = np.linspace(0.0, parameters.radius, num_projection_r)
     phi = np.linspace(0.0, 2 * np.pi, num_projection_phi, endpoint=False)
@@ -34,25 +38,11 @@ def main():
         parameters.beam_radius, theta, parameters.absorbed_power,
     )
 
-    eigenvalues = {}
-    coefficients = {}
-    robin_residuals = []
-    # Centered, aligned Gaussian heating has only even cosine orders.
-    for m in range(0, max_azimuthal_order + 1, 2):
-        roots = radial_eigenvalues(
-            m, parameters.radius, parameters.conductivity,
-            parameters.h_eff, num_radial_modes,
-        )
-        eigenvalues[m] = roots
-        coefficients[m] = np.array([
-            fourier_bessel_coefficient(q_true, r, phi, m, lam) for lam in roots
-        ])
-        robin_residuals.extend(
-            np.abs(radial_eigenvalue_equation(
-                roots, m, parameters.radius,
-                parameters.conductivity, parameters.h_eff,
-            ))
-        )
+    prepared=ThermalModel(parameters,incidence_angle_deg,ModalResolution(max_azimuthal_order,num_radial_modes,num_projection_r,num_projection_phi,16)).prepare()
+    eigenvalues,coefficients=prepared.roots,prepared.coefficients
+    robin_residuals=[]
+    for m,roots in eigenvalues.items():
+        robin_residuals.extend(np.abs(radial_eigenvalue_equation(roots,m,parameters.radius,parameters.conductivity,parameters.h_eff)))
 
     q_reconstructed = reconstruct_cosine_field(coefficients, eigenvalues, r, phi)
     difference = q_reconstructed - q_true
@@ -131,7 +121,8 @@ def main():
         "source_coefficients_W_per_m2": {str(m): c.tolist() for m, c in coefficients.items()},
     }
     result_path.parent.mkdir(parents=True, exist_ok=True)
-    result_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    summary.update(status="COMPLETE",physical_parameters_SI=asdict(parameters),provenance=provenance(repository_root,__file__))
+    write_summary(result_directory, summary, defaults=script_defaults(globals()))
     print(f"Figure: {figure_path}")
     print(f"Summary: {result_path}")
 

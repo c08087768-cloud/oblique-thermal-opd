@@ -1,16 +1,17 @@
+from thermal_opd.run_io import script_defaults
+from thermal_opd.run_io import data_directory
 from dataclasses import asdict
 from pathlib import Path
-import json
+from thermal_opd.model import ThermalModel, ModalResolution
+from thermal_opd.run_io import create_run,figure_directory,provenance,write_summary,parse_output_directory
 
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
-from thermal_opd.eigenmodes import radial_eigenvalues
 from thermal_opd.parameters import PhysicalParameters
-from thermal_opd.projection import fourier_bessel_coefficient
-from thermal_opd.steady import steady_temperature, steady_temperature_gradient
+from thermal_opd.steady import steady_temperature
 from thermal_opd.validation import steady_boundary_residuals, steady_energy_balance
 
 
@@ -28,28 +29,17 @@ num_energy_r = 80
 num_energy_z = 64
 
 repository_root = Path(__file__).resolve().parents[1]
-figure_path = repository_root / "outputs/figures/steady_temperature.png"
-result_directory = repository_root / "results/steady_temperature"
 
 
 def main():
+    result_directory=create_run(repository_root,'temperature_inspection',parse_output_directory(__doc__))
+    figure_path=figure_directory(result_directory)/'steady_temperature.png'
+    result_path=result_directory/'summary.json'
     p = parameters
     theta = np.deg2rad(incidence_angle_deg)
-    projection_r = np.linspace(0.0, p.radius, num_projection_r)
-    projection_phi = np.linspace(0.0, 2 * np.pi, num_projection_phi, endpoint=False)
-    source = oblique_gaussian_heat_flux(
-        projection_r[:, None] * np.cos(projection_phi),
-        projection_r[:, None] * np.sin(projection_phi),
-        p.beam_radius, theta, p.absorbed_power,
-    )
-    roots = {}
-    coefficients = {}
-    for m in range(0, max_azimuthal_order + 1, 2):
-        roots[m] = radial_eigenvalues(m, p.radius, p.conductivity, p.h_eff, num_radial_modes)
-        coefficients[m] = np.array([
-            fourier_bessel_coefficient(source, projection_r, projection_phi, m, lam)
-            for lam in roots[m]
-        ])
+    prepared=ThermalModel(p,incidence_angle_deg,ModalResolution(max_azimuthal_order,num_radial_modes,num_projection_r,num_projection_phi,16)).prepare()
+    solution=prepared.solve_steady()
+    coefficients,roots=prepared.coefficients,prepared.roots
     args = (coefficients, roots, p.conductivity, p.thickness, p.h_eff, p.h_eff)
 
     r = np.linspace(0.0, p.radius, num_field_r)
@@ -57,9 +47,9 @@ def main():
     z_planes = np.array([0.0, p.thickness / 2, p.thickness])
     # Broadcast 1D radial/azimuthal factors rather than repeat Bessel evaluations.
     fields = np.stack([
-        steady_temperature(r[:, None], phi[None, :], z, *args) for z in z_planes
+        solution.temperature(r[:,None],phi[None,:],z) for z in z_planes
     ])
-    _, front_dz = steady_temperature_gradient(r[:, None], phi[None, :], 0.0, *args)
+    _, front_dz = solution.temperature_gradient(r[:,None],phi[None,:],0.)
     specified_source = oblique_gaussian_heat_flux(
         r[:, None] * np.cos(phi), r[:, None] * np.sin(phi),
         p.beam_radius, theta, p.absorbed_power,
@@ -156,8 +146,9 @@ def main():
         "source_coefficients_W_per_m2": {str(m): v.tolist() for m, v in coefficients.items()},
     }
     result_directory.mkdir(parents=True, exist_ok=True)
-    (result_directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    np.savez_compressed(result_directory / "surface_fields.npz", r_m=r, phi_rad=phi, z_m=z_planes, temperature_rise_K=fields)
+    summary.update(status="COMPLETE",physical_parameters_SI=asdict(parameters),provenance=provenance(repository_root,__file__))
+    write_summary(result_directory, summary, defaults=script_defaults(globals()))
+    np.savez_compressed(data_directory(result_directory) / "surface_fields.npz", r_m=r, phi_rad=phi, z_m=z_planes, temperature_rise_K=fields)
     print(f"Figure: {figure_path}")
     print(f"Results: {result_directory}")
 

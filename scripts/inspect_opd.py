@@ -1,18 +1,19 @@
 """Inspect refracted-ray thermo-optic OPD on front-face entrance coordinates."""
 
+from thermal_opd.run_io import script_defaults
+from thermal_opd.run_io import data_directory
 from dataclasses import asdict
 from pathlib import Path
-import json
+from thermal_opd.model import PreparedModel, ModalResolution, project_modal_source
+from thermal_opd.run_io import create_run,figure_directory,provenance,write_summary,parse_output_directory
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from thermal_opd.eigenmodes import radial_eigenvalues
-from thermal_opd.heat_source import oblique_gaussian_heat_flux
 from thermal_opd.metrics import circular_aperture_mask, opd_peak_to_valley
-from thermal_opd.opd import refracted_angle, transmitted_ray_mask, steady_refracted_opd
+from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
-from thermal_opd.projection import fourier_bessel_coefficient
 
 
 parameters = PhysicalParameters()
@@ -35,22 +36,10 @@ higher_max_azimuthal_order = 10
 higher_num_radial_modes = 16
 
 repository_root = Path(__file__).resolve().parents[1]
-figure_path = repository_root / "outputs/figures/refracted_opd.png"
-result_directory = repository_root / "results/refracted_opd"
 
 
 def source_coefficients(angle_deg, eigenvalues, num_r, num_phi):
-    p = parameters
-    r = np.linspace(0.0, p.radius, num_r)
-    phi = np.linspace(0.0, 2 * np.pi, num_phi, endpoint=False)
-    q = oblique_gaussian_heat_flux(
-        r[:, None] * np.cos(phi), r[:, None] * np.sin(phi),
-        p.beam_radius, np.deg2rad(angle_deg), p.absorbed_power,
-    )
-    return {
-        m: np.array([fourier_bessel_coefficient(q, r, phi, m, lam) for lam in roots])
-        for m, roots in eigenvalues.items()
-    }
+    return project_modal_source(parameters,angle_deg,eigenvalues,num_r=num_r,num_phi=num_phi)
 
 
 def opd_at(x0, y0, coefficients, eigenvalues, angle_deg):
@@ -59,16 +48,15 @@ def opd_at(x0, y0, coefficients, eigenvalues, angle_deg):
     x0, y0 = np.broadcast_arrays(x0, y0)
     valid = transmitted_ray_mask(x0, y0, p.radius, p.thickness, internal)
     output = np.full(x0.shape, np.nan)
-    output[valid] = steady_refracted_opd(
-        x0[valid], y0[valid], coefficients, eigenvalues,
-        p.conductivity, p.thickness, p.h_eff, p.h_eff, p.dn_dT,
-        radius=p.radius, refraction_angle=internal,
-        num_ray_points=num_opd_ray_points, point_chunk_size=opd_point_chunk_size,
-    )
+    solution=PreparedModel(p,angle_deg,ModalResolution(max(eigenvalues),max(len(v) for v in eigenvalues.values()),num_projection_r,num_projection_phi,num_opd_ray_points),coefficients,eigenvalues).solve_steady()
+    output[valid]=solution.opd(x0[valid],y0[valid],point_chunk_size=opd_point_chunk_size)
     return output
 
 
 def main():
+    result_directory=create_run(repository_root,'opd_inspection',parse_output_directory(__doc__))
+    figure_path=figure_directory(result_directory)/'refracted_opd.png'
+    result_path=result_directory/'summary.json'
     p = parameters
     aperture_radius = aperture_radius_ratio * p.radius
     axis = np.linspace(-aperture_radius, aperture_radius, num_opd_xy)
@@ -196,9 +184,10 @@ def main():
         "display_reference_m": display_reference,
     }
     result_directory.mkdir(parents=True, exist_ok=True)
-    (result_directory / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    summary.update(status="COMPLETE",physical_parameters_SI=asdict(parameters),provenance=provenance(repository_root,__file__))
+    write_summary(result_directory, summary, defaults=script_defaults(globals()))
     np.savez_compressed(
-        result_directory / "opd_fields.npz", x_m=axis, y_m=axis,
+        data_directory(result_directory) / "opd_fields.npz", x_m=axis, y_m=axis,
         entrance_aperture_mask=entrance_mask, aperture_mask=np.stack(transmitted_masks), incidence_angles_deg=incidence_angles_deg,
         opd_m=np.stack(opd_maps), profile_axis_m=profile_axis,
         selected_angle_deg=selected_angle, x_axis_opd_m=x_profile, y_axis_opd_m=y_profile,
