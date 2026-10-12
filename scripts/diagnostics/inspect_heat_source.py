@@ -22,7 +22,7 @@ num_radial_modes = 12
 num_projection_r = 400
 num_projection_phi = 256
 
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 def main():

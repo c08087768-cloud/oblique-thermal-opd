@@ -4,9 +4,10 @@ Notes/
 Reports/
 manuscript/
 
-# Generated results
-results/
-outputs/
+# All generated runs, archived results, and migration evidence
+/outputs/
+# Obsolete output root: keep accidental legacy writes untracked
+/results/
 
 # Python
 __pycache__/

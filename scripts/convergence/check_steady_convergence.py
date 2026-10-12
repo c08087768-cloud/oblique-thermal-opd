@@ -37,7 +37,7 @@ num_temperature_r = 161
 num_temperature_phi = 180
 common_num_opd_xy = 201
 
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)

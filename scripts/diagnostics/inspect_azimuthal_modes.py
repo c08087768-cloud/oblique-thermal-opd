@@ -21,7 +21,7 @@ num_phi_samples = 256  # Must exceed 2 * max_azimuthal_order.
 
 def main():
     """Inspect the Fourier expansion of heat flux on one fixed-radius circle."""
-    root=Path(__file__).resolve().parents[1]
+    root=Path(__file__).resolve().parents[2]
     directory=create_run(root,'azimuthal_inspection',parse_output_directory(__doc__))
     records=[];saved={}
     r = sample_radius_ratio * parameters.beam_radius

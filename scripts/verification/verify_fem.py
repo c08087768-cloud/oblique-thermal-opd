@@ -10,7 +10,8 @@ from thermal_opd.fem import solve_steady_fem,solve_transient_fem
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.transient import PowerHistory
 from thermal_opd.run_io import create_run,provenance,write_summary
-from thermal_opd.verification import uniform_flux_1d_reference,verification_check,verification_report
+from thermal_opd.transient_validation import transient_uniform_flux_1d_reference
+from thermal_opd.run_io import validation_check,validation_report
 
 parameters=PhysicalParameters()
 uniform_flux_W_per_m2=1000.
@@ -19,7 +20,7 @@ axial_layers=(8,16,32)
 time_steps_s=(.25,.125,.0625)
 times_s=(0.,.625,2.5,20.)
 reference_tolerance,local_fem_tolerance=1e-4,2e-2
-repository_root=Path(__file__).resolve().parents[1]
+repository_root=Path(__file__).resolve().parents[2]
 
 
 def main():
@@ -34,10 +35,10 @@ def main():
     fields={};checks=[]
     def check(name,value,threshold,scope):
         fields[name]=np.array([value])
-        checks.append(verification_check(name,'passed' if value<=threshold else 'failed',metrics={'max_error':float(value)},threshold=threshold,scope=scope,evidence=name))
+        checks.append(validation_check(name,'passed' if value<=threshold else 'failed',metrics={'max_error':float(value)},threshold=threshold,scope=scope,evidence=name))
     refs=[]
     for n in reference_intervals:
-        z,T=uniform_flux_1d_reference(p.thickness,p.conductivity,p.density*p.specific_heat,q,p.h_eff,p.h_eff,times_s,num_intervals=n)
+        z,T=transient_uniform_flux_1d_reference(p.thickness,p.conductivity,p.density*p.specific_heat,q,p.h_eff,p.h_eff,times_s,num_intervals=n)
         refs.append((z,T));fields[f'reference_{n}_z_m']=z;fields[f'reference_{n}_T_K']=T
     z,T=refs[-1]
     previous=np.stack([np.interp(z,refs[0][0],row) for row in refs[0][1]])
@@ -66,8 +67,8 @@ def main():
     check('energy_balance',max(energy),1e-9,'Per-step storage plus surface losses equals applied input')
     check('linear_equation_residual',max(linear),1e-9,'Discrete weak-form equations, including natural boundary loads')
     for name in ('gaussian_case_mesh_convergence','gaussian_case_time_convergence','pointwise_boundary_flux','cross_method_comparison'):
-        checks.append(verification_check(name,'not_run',scope='Separate general-case verification; weak-form/energy checks do not prove pointwise flux'))
-    report=verification_report(checks,config=config,run_directory=directory)
+        checks.append(validation_check(name,'not_run',scope='Separate general-case verification; weak-form/energy checks do not prove pointwise flux'))
+    report=validation_report(checks,config=config,run_directory=directory)
     np.savez_compressed(data_directory(directory)/'verification_fields.npz',**fields)
     (directory/'verification.json').write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
     write_summary(directory, dict(kind='scientific_verification', status='COMPLETE', verification_type='fem', config=config, physical_parameters_SI=asdict(p), verification_status=report['status'], provenance=provenance(repository_root, __file__)), defaults=script_defaults(globals()))

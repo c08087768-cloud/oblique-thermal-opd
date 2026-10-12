@@ -45,7 +45,7 @@ solver_rtol = 1e-10
 sanity_tolerance = 1e-7
 mesh_change_target = 1e-3
 point_chunk_size = 128
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 def save_figure(directory, label, tx, ty, tm, t_sa, t_fem, ox, oy, om, o_sa, o_fem):

@@ -33,20 +33,6 @@ def bessel_j(order,argument):
     return result
 
 
-"""
-建立 λ 的扫描区间
-        ↓
-计算 f(λ)
-        ↓
-找 f(λ_i) f(λ_{i+1}) < 0
-        ↓
-说明中间穿过 0
-        ↓
-brentq 精确求这个根
-        ↓
-收集前 N 个 λ_mn
-"""
-
 def radial_eigenvalue_equation(lam, m, radius, conductivity, h):
     """Return k*lam*J_m'(lam*R) + h*J_m(lam*R) for sidewall heat loss.
 

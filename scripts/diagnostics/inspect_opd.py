@@ -35,7 +35,7 @@ finer_num_projection_r = 800
 higher_max_azimuthal_order = 10
 higher_num_radial_modes = 16
 
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 def source_coefficients(angle_deg, eigenvalues, num_r, num_phi):

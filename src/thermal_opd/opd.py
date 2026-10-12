@@ -8,6 +8,13 @@ from thermal_opd.eigenmodes import bessel_j
 from thermal_opd.steady import axial_response
 
 
+def _ray_settings(prepared, num_ray_points, point_chunk_size):
+    """Resolve solution ray geometry and quadrature from its prepared problem."""
+    return dict(radius=prepared.parameters.radius, refraction_angle=prepared.refraction_angle,
+                num_ray_points=prepared.resolution.ray_points if num_ray_points is None else num_ray_points,
+                point_chunk_size=point_chunk_size)
+
+
 def _forward_angle(angle):
     if not np.isfinite(angle) or abs(angle) >= np.pi/2:
         raise ValueError("Angle must be finite and strictly between -pi/2 and pi/2")

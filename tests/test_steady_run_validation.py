@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from thermal_opd.model import ThermalModel,ModalResolution
 from thermal_opd.parameters import PhysicalParameters
-from thermal_opd.validation import steady_boundary_residuals,steady_energy_balance
-from thermal_opd.run_validation import validate_saved_run
+from thermal_opd.steady_validation import steady_boundary_residuals,steady_energy_balance
+from thermal_opd.steady_validation import validate_saved_steady_run
 
 
 def test_legacy_steady_fields_are_checked_against_saved_modal_model(tmp_path):
@@ -24,8 +24,8 @@ def test_legacy_steady_fields_are_checked_against_saved_modal_model(tmp_path):
         eigenvalues_per_m={str(m):a.tolist() for m,a in prepared.roots.items()},source_coefficients_W_per_m2={str(m):a.tolist() for m,a in prepared.coefficients.items()},
         boundary_absolute_residuals_W_per_m2=bc,energy_balance=energy)
     np.savez(tmp_path/'fields.npz',**fields);(tmp_path/'summary.json').write_text(json.dumps(summary))
-    assert validate_saved_run(tmp_path)['status']=='PASS'
+    assert validate_saved_steady_run(tmp_path)['status']=='PASS'
     fields['temperature_rise_K'][1,2,3]+=.1
     np.savez(tmp_path/'fields.npz',**fields)
     with pytest.raises(ValueError,match='Steady|steady'):
-        validate_saved_run(tmp_path)
+        validate_saved_steady_run(tmp_path)

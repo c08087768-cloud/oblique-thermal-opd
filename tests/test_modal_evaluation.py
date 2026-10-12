@@ -1,10 +1,8 @@
 import numpy as np
 
 
-def test_steady_compatibility_exports_and_broadcasted_modal_derivatives():
-    from thermal_opd import modal_evaluation,steady
-    assert steady.modal_temperature is modal_evaluation.modal_temperature
-    assert steady.modal_temperature_gradient is modal_evaluation.modal_temperature_gradient
+def test_shared_modal_evaluation_broadcasts_and_preserves_derivatives():
+    from thermal_opd import modal_evaluation
     c,roots = {0:np.array([1.]),2:np.array([2.])},{0:np.array([80.]),2:np.array([300.])}
     r,phi,z = np.linspace(0,.01,5)[:,None,None],np.arange(8)[None,:,None]*np.pi/4,np.array([0,.002,.005])[None,None,:]
     value = lambda m,n,z:np.exp(-roots[m][n]*z)

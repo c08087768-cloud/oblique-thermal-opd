@@ -23,7 +23,7 @@ def modal_case():
 
 
 def test_boundary_check_handles_mixed_modes_and_unequal_face_losses(modal_case):
-    from thermal_opd.validation import steady_boundary_residuals
+    from thermal_opd.steady_validation import steady_boundary_residuals
 
     coefficients, roots = modal_case
     residuals = steady_boundary_residuals(
@@ -35,7 +35,7 @@ def test_boundary_check_handles_mixed_modes_and_unequal_face_losses(modal_case):
 
 
 def test_boundary_check_detects_inconsistent_side_heat_transfer(modal_case):
-    from thermal_opd.validation import steady_boundary_residuals
+    from thermal_opd.steady_validation import steady_boundary_residuals
 
     coefficients, roots = modal_case
     r = np.linspace(0, RADIUS, 41)
@@ -56,7 +56,7 @@ def test_boundary_check_detects_inconsistent_side_heat_transfer(modal_case):
 
 
 def test_energy_balance_matches_independent_surface_integrals(modal_case):
-    from thermal_opd.validation import steady_energy_balance
+    from thermal_opd.steady_validation import steady_energy_balance
 
     coefficients, roots = modal_case
     actual = steady_energy_balance(
@@ -78,7 +78,7 @@ def test_energy_balance_matches_independent_surface_integrals(modal_case):
 
 
 def test_nonaxisymmetric_mode_has_zero_net_power(modal_case):
-    from thermal_opd.validation import steady_energy_balance
+    from thermal_opd.steady_validation import steady_energy_balance
 
     coefficients, roots = modal_case
     actual = steady_energy_balance(
@@ -90,7 +90,7 @@ def test_nonaxisymmetric_mode_has_zero_net_power(modal_case):
 
 
 def test_zero_source_reports_finite_absolute_energy_balance(modal_case):
-    from thermal_opd.validation import steady_energy_balance
+    from thermal_opd.steady_validation import steady_energy_balance
 
     _, roots = modal_case
     actual = steady_energy_balance(

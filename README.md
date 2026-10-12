@@ -23,7 +23,7 @@ python run.py --list
 python run.py --experiment steady --show-config
 python run.py --experiment steady --yes --angle 60
 # 等价的直接入口
-python scripts/run_steady_case.py --angle 60
+python scripts/cases/run_steady_case.py --angle 60
 ```
 
 预览显示脚本默认值及传入的命令行参数；运行后 `config.json` 保存实际设置。M、N、投影网格、采样点、观察时刻和 FEM 网格等仍在对应 Python 脚本顶部定义，支持的 CLI 参数用 `--help` 查看。
@@ -54,6 +54,8 @@ opd_history = transient.opd_series([0.], [0.], times=[0., .625, 2.5])
 
 `ThermalModel` 固定物理参数、角度和数值设置，构造时不计算模态。`PreparedModel` 以只读映射及数组保存共同数据，两个解复用同一份准备结果；瞬态专用轴向模态只在创建瞬态解时计算。显式再次调用 `prepare()` 会重新准备，没有隐藏的全局缓存。解对象只求值，普通求解不会自动绘图、写文件或执行昂贵验证。
 
+`TransientSolution` 直接定义在 `transient.py`，保存功率历史、轴向模态、衰减率和幅值，并执行瞬态响应与物理量求值。共同数据统一从 `solution.prepared` 读取：`parameters`、`coefficients` 和 `roots`。`SteadySolution` 位于 `solutions.py`，调用独立稳态数值函数；两个解都提供 `temperature`、`temperature_gradient`、`opd`、`prepare_opd`，瞬态另有 `opd_series`。
+
 ```text
 ThermalModel.prepare()
   └─ heat_source + eigenmodes + projection → PreparedModel
@@ -69,17 +71,18 @@ FEM 实验 → fem 独立组装/求解 → 独立参考或方法间对照
 | 模块 | 职责 |
 |---|---|
 | parameters.py | 几何、材料、环境及光学物理参数 |
-| model.py、solutions.py | 四个公共对象、准备流程和统一求值接口 |
+| model.py、solutions.py | 问题/共同准备、稳态求值接口；瞬态解直接位于 transient.py |
 | heat_source.py、azimuthal.py、eigenmodes.py、projection.py | 热源、圆周分解、径向根与投影 |
 | steady.py、transient.py、modal_evaluation.py | 各自轴向算法、功率历史、共同空间模态求和 |
 | opd.py | Snell 折射、透射掩膜、分块光线积分与预备回调 |
 | fem.py | 棱柱 FEM 的共享空间组装、稳态/瞬态及分段光线积分 |
 | metrics.py、plotting.py | PV、去 piston RMS、绘图和读取已有场重绘 |
-| validation.py、transient_validation.py | 三面边界、能量、边界证据保存与模型恢复 |
-| convergence.py、verification.py | 场误差、数值极值、独立参考/PDE检查与科学状态 |
-| run_validation.py、run_io.py、experiments.py | 重读结果检查、输出元数据、实验入口目录 |
+| steady_validation.py | 稳态边界、能量、独立 PDE、截断/FEM 和保存结果复核 |
+| transient_validation.py | 瞬态边界、初值/时间/长期极限、独立参考、截断/FEM 和保存结果复核 |
+| validation_common.py、convergence.py | 共用差分、网格几何、误差与保存证据核对；场误差和数值极值 |
+| run_io.py、experiments.py | 文件读写、路径、报告状态元数据、实验入口目录 |
 
-底层 `solve_modal_source`、`TransientModel` 等原有接口仍可用。没有通用 Experiment 继承体系，也没有额外 YAML/TOML 算例配置。
+旧瞬态求解器类及其转发包装已删除，统一使用 `prepared.solve_transient(...)`。底层 `solve_modal_source` 保留实际源准备职责；共享空间函数从 `modal_evaluation.py` 导入。没有通用 Experiment 继承体系，也没有额外 YAML/TOML 算例配置。
 
 ## 物理及数值约定
 
@@ -92,36 +95,40 @@ FEM 实验 → fem 独立组装/求解 → 独立参考或方法间对照
 
 ## 实验入口
 
-以下均可通过 `run.py` 的对应名称选择，也可独立运行。指定 `--output-dir` 时目录必须尚未存在。
+脚本按 cases、convergence、verification、diagnostics、tools 分类；统一入口的实验名称保持不变。verify_* 是本次指定的脚本名称，核心科学验证模块仍使用 validation 命名。
+
+当前 `run.py` 每次启动一个实验，尚无一次执行所有正式实验的批次脚本。服务器正式批次需要按独立验证、截断选择、正式场、FEM 加密和结果复核的依赖顺序组织，并使用新选择结果；不能直接循环运行全部入口来代替科学验收。
+
+以下均可通过 `run.py` 的对应名称选择，也可独立运行。默认自动创建唯一运行目录；指定 `--output-dir` 时必须采用本仓库 `outputs/<实验类型>/<自定义唯一ID>` 结构，且目录尚未存在。例如稳态使用 `--output-dir outputs/steady_case/trial-001`，瞬态 smoke 使用 `outputs/fem_comparison/trial-001`。不接受旧 `results/`、共享 `outputs/figures/` 或归档目录作为新输出位置。
 
 | 交互名称 | scripts/ 中的入口 | 用途 |
 |---|---|---|
-| steady | run_steady_case.py | 单个稳态温度/OPD、三面边界及能量 |
-| transient | run_transient_case.py | fields 精细场，或 smoke/full 瞬态 FEM 诊断 |
-| convergence | select_truncation.py | 稳态联合截断选择 |
-| transient-convergence | select_transient_truncation.py | 瞬态联合截断选择 |
-| semi-verification | verify_semi_analytical.py | 独立有限差分 PDE、能量、初值附近、投影及已知极限 |
-| fem-verification | verify_fem.py | 均匀热流/绝热侧面的一维独立基准 |
-| fem-comparison | compare_fem.py | 稳态半解析与 FEM 同条件对照 |
-| validate | validate_run.py | 重读保存的数据与报告 |
-| boundaries | check_transient_boundaries.py | 给既有瞬态场补三面边界证据 |
-| source / azimuthal | inspect_heat_source.py / inspect_azimuthal_modes.py | 热源投影、单圆周方位角分解 |
-| temperature / opd | inspect_steady_temperature.py / inspect_opd.py | 单环节检查与图像 |
-| sweeps | check_convergence.py | 六种数值设置逐项诊断，不进行联合选择 |
-| replot / regression | replot_case.py / compare_refactor_baseline.py | 已有场重绘、重构基线比较 |
+| steady | cases/run_steady_case.py | 单个稳态温度/OPD、三面边界及能量 |
+| transient | cases/run_transient_case.py | fields 精细场，或 smoke/full 瞬态 FEM 诊断 |
+| convergence | convergence/select_steady_truncation.py | 稳态联合截断选择 |
+| transient-convergence | convergence/select_transient_truncation.py | 瞬态联合截断选择 |
+| semi-validation | verification/verify_semi_analytical.py | 独立有限差分 PDE、能量、初值附近、投影及已知极限 |
+| fem-validation | verification/verify_fem.py | 均匀热流/绝热侧面的一维独立基准 |
+| fem-comparison | verification/compare_steady_fem.py | 稳态半解析与 FEM 同条件对照 |
+| validate | verification/validate_run.py | 重读保存的数据与报告 |
+| boundaries | verification/check_transient_boundaries.py | 给既有瞬态场补三面边界证据 |
+| source / azimuthal | diagnostics/inspect_heat_source.py / diagnostics/inspect_azimuthal_modes.py | 热源投影、单圆周方位角分解 |
+| temperature / opd | diagnostics/inspect_steady_temperature.py / diagnostics/inspect_opd.py | 单环节检查与图像 |
+| sweeps | convergence/check_steady_convergence.py | 六种数值设置逐项诊断，不进行联合选择 |
+| replot / regression | tools/replot_case.py / tools/compare_refactor_baseline.py | 已有场重绘、重构基线比较 |
 
 典型流程（`<...>` 换成实际目录）：
 
 ```bash
-python scripts/select_truncation.py
-python scripts/validate_run.py --results <稳态选择目录>
-python scripts/compare_fem.py --mode smoke --selection <稳态选择目录>
+python scripts/convergence/select_steady_truncation.py
+python scripts/verification/validate_run.py --results <稳态选择目录>
+python scripts/verification/compare_steady_fem.py --mode smoke --selection <稳态选择目录>
 
-python scripts/select_transient_truncation.py
-python scripts/run_transient_case.py --mode fields --angle 60 --selection <瞬态选择目录>
-python scripts/run_transient_case.py --mode smoke --angle 60 --history step
-python scripts/run_transient_case.py --mode smoke --history linear --ramp-time 5
-python scripts/run_transient_case.py --mode smoke --history exponential --ramp-time 5
+python scripts/convergence/select_transient_truncation.py
+python scripts/cases/run_transient_case.py --mode fields --angle 60 --selection <瞬态选择目录>
+python scripts/cases/run_transient_case.py --mode smoke --angle 60 --history step
+python scripts/cases/run_transient_case.py --mode smoke --history linear --ramp-time 5
+python scripts/cases/run_transient_case.py --mode smoke --history exponential --ramp-time 5
 ```
 
 `fields` 读取已完成且参数匹配的选择；默认温度网格 161×180、OPD 网格 201×201，包含逐时刻四联图、稳态极限、演化、早期厚度、历史和模态贡献图。`smoke/full` 的命名不构成精度证明；完整 FEM 批量须另行执行并评估收敛。
@@ -133,20 +140,24 @@ outputs/<experiment_type>/<UTC时间戳_唯一后缀>/
 ├── run.json             # 目录模式、运行标识与创建时间
 ├── config.json          # 物理/数值设置、脚本默认值及版本记录
 ├── summary.json         # 运行状态、关键结果与关联记录
-├── metrics.json         # 完成运行的指标
+├── metrics.json         # 当前运行状态及已产生的指标
 ├── verification.json    # 科学检查项目、阈值、范围与状态
 ├── data/                # NPZ、CSV 等数值证据
 └── figures/             # 图像
 ```
 
-自动目录采用 UTC 时间和唯一后缀，同一秒多次运行也不覆盖。`config.json` 包含可获得的 Git revision、工作区是否有修改、源文件哈希和依赖版本；未提交的修改不能仅靠 commit hash 复现，应一并保留代码及哈希。普通完成运行的科学状态初始为 `not_run`，运行完成本身不表示验证通过。
+自动目录采用 UTC 时间和唯一后缀，同一秒多次运行也不覆盖。创建运行时即建立以上文件和两个目录，初始运行状态为 `RUNNING`、科学状态为 `not_run`；失败或中止仍保留这些位置，指标只反映实际已保存的内容。稳态场归入 `steady_case`，精细瞬态场归入 `transient_case`，稳态/瞬态截断归入 `convergence`，FEM 对照归入 `fem_comparison`；其他检查按各自实验名称分类。
 
-旧 `results/<run>/` 平铺数据和旧图像位置继续可读，不自动搬动、删除或覆盖已有场。读取旧选择可以生成采用新布局的新实验。
+`config.json` 包含可获得的 Git revision、工作区是否有修改、源文件哈希和依赖版本；未提交的修改不能仅靠 commit hash 复现，应一并保留代码及哈希。运行完成本身不表示科学验证通过。新摘要中的文件和关联运行路径相对本次运行目录保存，跨运行引用如 `../../convergence/<ID>`；读取时以摘要所在运行目录解析，不依赖当前终端目录。不同 Windows 盘符之间无法表示相对路径时保留绝对路径。
+
+旧结果按原仓库相对路径归档：`results/` → `outputs/legacy/results/`，旧共享图像 `outputs/figures/` → `outputs/legacy/outputs/figures/`。原文件内容、早期归档、失败及中止结果完整保留；归档数据维持原结构，不强行拆成新布局。实际移动状态见审计目录的 `data/migration_manifest.csv`；被其他程序占用而尚未移动的文件保留在原处，单独列于 `data/unmigrated_files.json`。
+
+按本次整理时的最新约定，不提供旧路径自动跳转，也不修复归档元数据中的历史跨目录引用。旧结果可按迁移清单定位，但不保证仍能完整校验；需要新结果时修改代码后另行运行。原有平铺数组读取分支保留，`validate_run.py`、`replot_case.py` 可以处理其已支持且依赖完整的格式；使用时显式传入实际目录。旧 normal-path OPD、未完成结果等不恢复旧算法或伪装为已通过。审计清单、逐项哈希、引用例外及前后目录树位于 `outputs/migration_audit/<审计ID>/data/`。
 
 ```bash
-python scripts/validate_run.py --results <已有结果目录>
-python scripts/check_transient_boundaries.py --results <已有瞬态结果目录>
-python scripts/replot_case.py --results <稳态或精细瞬态场目录>
+python scripts/verification/validate_run.py --results <已有结果目录>
+python scripts/verification/check_transient_boundaries.py --results <已有瞬态结果目录>
+python scripts/tools/replot_case.py --results <稳态或精细瞬态场目录>
 ```
 
 重绘只读取保存的 fields.npz、history.npz 和摘要，图像进入新的 replot 运行；不重算模态或修改原始场。边界补检查使用保存的根、系数、J 和功率历史；新增边界证据及检查报告。
@@ -156,21 +167,27 @@ python scripts/replot_case.py --results <稳态或精细瞬态场目录>
 `tests/` 是快速软件测试。科学验证按明确的物理条件、采样范围和门槛逐项记录 **passed / failed / not_run**。任何失败使汇总状态为 failed；没有失败但仍有未执行项目时汇总为 not_run。不把未执行项目默认通过。
 
 ```bash
-python scripts/verify_semi_analytical.py --angle 60
-python scripts/verify_fem.py
-python scripts/validate_run.py --results <验证实验目录>
+python scripts/verification/verify_semi_analytical.py --angle 60
+python scripts/verification/verify_fem.py
+python scripts/verification/validate_run.py --results <验证实验目录>
 # 自动化需要严格接受科学状态时使用：
-python scripts/validate_run.py --results <结果目录> --require-scientific-pass
+python scripts/verification/validate_run.py --results <结果目录> --require-scientific-pass
 ```
 
 `validate_run.py` 的 `PASS (saved-file integrity)` 表示已重新读取并核对保存的数组、指标和适用的运行检查；同一行另打印科学汇总状态。科学检查存在失败时，证据文件仍可以完整且一致。严格标志会在科学状态为 failed/not_run 时返回非零退出码。
+
+统一入口按保存的 `kind` 调用稳态或瞬态验证模块。`scientific_verification` 是可包含两类物理检查的通用证据格式，其标量数组、阈值和状态由 `validation_common.py` 直接复核；旧报告不含模型子类型也可读取。新代码统一采用 validation 命名；`verification.json`、`verification_fields.npz` 和既有 JSON/NPZ 字段继续沿用原数据格式。状态记录与汇总只整理已执行检查，不由文件 I/O 判断物理结果。稳态/瞬态共享空间差分及网格几何检查，FEM 求解与载荷积分仍保持独立。
 
 半解析独立实验包括内部差分 PDE、三面 Robin、独立体积储能/表面散热积分、零热源、初始和长期极限、固定 M/N 的投影积分加密、早期 J 加密以及短时深厚基底解析极限。热边界检查针对截断热源；它不能代替原始 Gaussian 投影误差和截断收敛。
 
 FEM 独立实验采用均匀前面热流、绝热侧面：稳态对照精确线性轴向解，瞬态对照独立一维有限体积且精确时间演化的参考；参考也单独加密。网格和时间步分别改变，检查全部零初值节点、离散方程及逐步能量。该局部基准使用 2% 门槛，一般 Gaussian 问题的最终网格/时间和逐点边界通量仍标为 not_run。方法间接近不能代替两种方法各自验证。
 
-## 当前证据与待解决问题（2026-10-08）
+## 当前证据与待解决问题（2026-10-13）
 
+- 最近一次结构重构验收：218项完整快速软件测试通过，38项轻量入口检查通过；34个固定基线数组完全一致。下列118/141项及97数组比较是较早阶段的历史记录。
+- 本轮已完成瞬态解包装清理、稳态/瞬态科学验证模块整理、统一输出路径和17个实验脚本的分类迁移。所有新实验输出默认位于 outputs/<类型>/<唯一ID>/；论文、Notes 和生成结果不随 Git 提交。
+- 全量批次前仍需补齐实验验收：瞬态 full 模式目前记录网格/时间步变化，但没有最终收敛接受判定；半解析独立验证固定使用 M6/N8、J12，尚未绑定精细瞬态选出的 M10/N20 配置。不能把 COMPLETE 或保存文件完整性 PASS 当成全部科学检查通过。
+- 2026-10-09进一步移除瞬态包装：本次修改前后174个数组完全一致（0/60/-30°、三种历史、J12/J48、0至2500 s的温度/梯度及三种OPD求值路径），最大差0；此前34数组基线也保持差异0。141项软件测试仍全部通过。
 - 重构前 118 项测试，重构后 141 项测试通过。固定回归基线的 34 个温度/梯度/系数/OPD 数组完全一致；实际旧/新稳态及瞬态 CLI 的 97 个数组中 86 个完全一致，其余 OPD 最大绝对差 2.12e-22 m。这证明所测计算的重构一致性，不是物理精度认证。
 - 既有稳态选择为 M6/N8、投影400×32、光线16点；既有瞬态选择为 M10/N20、投影1200×128、光线32点、J12。瞬态选择仅覆盖名义参数、0/30/60°、阶跃及 0.625/2.5/20/50/75 s，0.1% 为相对有限参考的数值变化目标。
 - **额外早期检查发现限制：**60°、M6/N8、J12 在 t=0.001 s 的前表面温度相对 J512 的峰值归一化最大差约 **1.849（184.9%）**，J256/J512 稳定性差约 2.25e-12。报告保留 failed。精确 t=0 零初值和很小的边界残差均不能证明任意接近零的正时刻精度；这项检查不属于此前 t>=0.625 s 的选择范围。本次不修改瞬态公式来消除该失败。
@@ -179,7 +196,7 @@ FEM 独立实验采用均匀前面热流、绝热侧面：稳态对照精确线�
 本地重构基线在 `outputs/refactor_baseline/20261008T134605332619Z`，包含配置、源文件审查、原始数组和 CLI 比较记录，可运行：
 
 ```bash
-python scripts/compare_refactor_baseline.py --baseline outputs/refactor_baseline/20261008T134605332619Z
+python scripts/tools/compare_refactor_baseline.py --baseline outputs/refactor_baseline/20261008T134605332619Z
 ```
 
 完整审查、分阶段记录与本地证据目录见 `Notes/仓库重构审查与实施计划.md`；Notes 和生成结果不随 Git 提交。

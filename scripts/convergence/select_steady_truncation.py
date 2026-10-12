@@ -41,7 +41,7 @@ figure_xy_counts = (121, 201, 301)
 num_pv_seed_radius = 9
 num_pv_seed_phi = 48
 point_chunk_size = 512
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 def optical_coordinates(p, angle, count):

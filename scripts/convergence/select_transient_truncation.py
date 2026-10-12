@@ -37,7 +37,7 @@ common_xy_points,verification_xy_points,figure_xy_points = 61,121,201
 aperture_radius_ratio = .9
 pv_seed_radius,pv_seed_phi = 9,48
 point_chunk_size = 512
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 def optical_coordinates(p,angle,count):

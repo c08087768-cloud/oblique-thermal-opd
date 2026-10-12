@@ -17,7 +17,7 @@ from thermal_opd.model import ModalResolution
 from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.plotting import save_temperature_opd_figure,save_evolution,save_history,save_early_depths,save_modal_contribution_figure
 from thermal_opd.run_io import create_run,provenance,write_summary
-from thermal_opd.run_validation import validate_saved_run
+from thermal_opd.transient_validation import validate_saved_transient_run
 from thermal_opd.transient_validation import write_transient_boundary_check
 from thermal_opd.metrics import opd_metrics
 
@@ -33,7 +33,7 @@ boundary_relative_tolerance,boundary_absolute_tolerance_W_per_m2 = 1e-10,1e-9
 
 def load_selection(directory,p,angle,history):
     directory = Path(directory).resolve()
-    validate_saved_run(directory)
+    validate_saved_transient_run(directory)
     s = json.loads((directory/'summary.json').read_text(encoding='utf-8'))
     if s['kind']!='transient_joint_truncation_selection' or s['physical_parameters_SI']!=asdict(p):
         raise ValueError('Need completed transient selection with identical physical parameters')
@@ -149,7 +149,7 @@ def run_fine_fields(args,p,root):
         np.savez_compressed(data_directory(directory)/'fields.npz',**saved)
         print('Checking front/rear/side Robin residuals at every snapshot',flush=True)
         boundary = write_transient_boundary_check(directory,model,times,r,phi,np.linspace(0,p.thickness,boundary_z_points),
-            angle_deg=args.angle,relative_tolerance=boundary_relative_tolerance,
+            relative_tolerance=boundary_relative_tolerance,
             absolute_tolerance=boundary_absolute_tolerance_W_per_m2,provenance=summary['provenance'])
         if boundary['status']!='PASS':
             raise RuntimeError('Transient Robin boundary residual failed')

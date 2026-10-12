@@ -14,8 +14,9 @@ from thermal_opd.model import ThermalModel,PreparedModel,ModalResolution
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.transient import PowerHistory
 from thermal_opd.run_io import create_run,provenance,write_summary
-from thermal_opd.validation import transient_boundary_fields,steady_boundary_residuals,steady_energy_balance
-from thermal_opd.verification import verification_check,verification_report,finite_difference_pde_residual
+from thermal_opd.transient_validation import transient_boundary_fields,transient_pde_residual
+from thermal_opd.steady_validation import steady_boundary_residuals,steady_energy_balance,steady_pde_residual
+from thermal_opd.run_io import validation_check,validation_report
 
 parameters=PhysicalParameters()
 resolution=ModalResolution(6,8,400,32,32)
@@ -29,7 +30,7 @@ reference_tolerance=2e-6
 pde_tolerance,energy_tolerance,limit_tolerance=1e-4,1e-5,1e-3
 boundary_tolerance_W_per_m2=1e-7
 space_step_ratio,time_step_s=2e-4,1e-4
-repository_root=Path(__file__).resolve().parents[1]
+repository_root=Path(__file__).resolve().parents[2]
 
 
 def main():
@@ -47,7 +48,7 @@ def main():
                 early_axial_counts=list(early_axial_counts),space_step_ratio=space_step_ratio,time_step_s=time_step_s)
     checks=[];fields={}
     def check(name,value,threshold,scope,field=None):
-        checks.append(verification_check(name,'passed' if value<=threshold else 'failed',
+        checks.append(validation_check(name,'passed' if value<=threshold else 'failed',
             metrics={'max_error':float(value)},threshold=threshold,scope=scope,evidence=field))
     r,phi,z=np.linspace(0,p.radius,25),np.arange(32)*2*np.pi/32,np.linspace(0,p.thickness,33)
     bc=transient_boundary_fields(transient,np.array([0.,*times_s]),r,phi,z)
@@ -67,13 +68,12 @@ def main():
     h=space_step_ratio*min(p.radius,p.thickness)
     residuals=[]
     for step in (h,h/2):
-        residuals.append(np.stack([finite_difference_pde_residual(transient.temperature,p,rr,pp,zz,t,
+        residuals.append(np.stack([transient_pde_residual(transient.temperature,p,rr,pp,zz,t,
             space_step=step,time_step=time_step_s)/scale for t in times_s]))
     fields['pde_normalized_residuals']=np.array(residuals)
     check('transient_pde',np.max(abs(fields['pde_normalized_residuals'])),pde_tolerance,
           'Interior finite differences at h and h/2; normalized by full-power peak flux/L','pde_normalized_residuals')
-    steady_res=np.stack([finite_difference_pde_residual(lambda r,phi,z,t:steady.temperature(r,phi,z),p,rr,pp,zz,1.,
-        space_step=step,time_step=time_step_s)/scale for step in (h,h/2)])
+    steady_res=np.stack([steady_pde_residual(steady.temperature,p,rr,pp,zz,space_step=step)/scale for step in (h,h/2)])
     fields['steady_pde_normalized_residuals']=steady_res
     check('steady_pde',np.max(abs(steady_res)),pde_tolerance,'Independent interior finite differences','steady_pde_normalized_residuals')
     long_time=max(12/transient.slowest_decay_rate,max(times_s))
@@ -144,8 +144,8 @@ def main():
     check('initial_neighborhood_reference_stability',errors[-1],limit_tolerance,
           f'J{early_axial_counts[-2]} vs J{early_axial_counts[-1]} at t={early_time_s}s','early_reference_stability')
     for name in ('joint_modal_truncation','fem_independent_verification','cross_method_comparison'):
-        checks.append(verification_check(name,'not_run',scope='Separate experiment/evidence required; this run does not certify it'))
-    report=verification_report(checks,config=config,run_directory=directory)
+        checks.append(validation_check(name,'not_run',scope='Separate experiment/evidence required; this run does not certify it'))
+    report=validation_report(checks,config=config,run_directory=directory)
     np.savez_compressed(data_directory(directory)/'verification_fields.npz',**fields)
     (directory/'verification.json').write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
     write_summary(directory, dict(kind='scientific_verification', status='COMPLETE', verification_type='semi_analytical', physical_parameters_SI=asdict(p), config=config, verification_status=report['status'], provenance=provenance(repository_root, __file__)), defaults=script_defaults(globals()))

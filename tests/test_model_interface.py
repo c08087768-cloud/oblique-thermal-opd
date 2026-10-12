@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.model import ThermalModel, ModalResolution
-from thermal_opd.transient import PowerHistory, TransientModel
+from thermal_opd.transient import PowerHistory, TransientSolution
 from thermal_opd.steady import steady_temperature, steady_temperature_gradient
 from thermal_opd.opd import steady_refracted_opd
 
@@ -43,19 +43,21 @@ def test_solutions_reuse_prepared_data_and_preserve_temperature_gradient_and_opt
     prepared = ThermalModel(p,angle_deg=angle,resolution=s).prepare()
     steady = prepared.solve_steady()
     transient = prepared.solve_transient(num_axial_modes=24,history=PowerHistory('linear',5.))
+    assert isinstance(transient,TransientSolution)
     assert steady.prepared is transient.prepared is prepared
     args = (prepared.coefficients,prepared.roots,p.conductivity,p.thickness,p.h_eff,p.h_eff)
     r,phi,z = np.array([.001,.003]),np.array([.2,.7]),np.array([.001,.003])
     np.testing.assert_array_equal(steady.temperature(r,phi,z),steady_temperature(r,phi,z,*args))
     np.testing.assert_array_equal(steady.temperature_gradient(r,phi,z),steady_temperature_gradient(r,phi,z,*args))
-    old = TransientModel(p,prepared.coefficients,prepared.roots,num_axial_modes=24,history=PowerHistory('linear',5.))
-    np.testing.assert_array_equal(transient.temperature(r,phi,z,.625),old.temperature(r,phi,z,.625))
-    np.testing.assert_array_equal(transient.temperature_gradient(r,phi,z,.625),old.temperature_gradient(r,phi,z,.625))
+    eps=1e-7
+    dr,dz=transient.temperature_gradient(r,phi,z,.625)
+    np.testing.assert_allclose(dr,(transient.temperature(r+eps,phi,z,.625)-transient.temperature(r-eps,phi,z,.625))/(2*eps),rtol=2e-7,atol=1e-7)
+    np.testing.assert_allclose(dz,(transient.temperature(r,phi,z+eps,.625)-transient.temperature(r,phi,z-eps,.625))/(2*eps),rtol=2e-7,atol=1e-7)
     kw = dict(radius=p.radius,refraction_angle=prepared.refraction_angle,num_ray_points=s.ray_points,point_chunk_size=512)
     x,y = np.array([0.,.002]),np.array([0.,-.003])
     np.testing.assert_array_equal(steady.opd(x,y),steady_refracted_opd(x,y,*args,p.dn_dT,**kw))
-    np.testing.assert_array_equal(transient.opd(x,y,.625),old.refracted_opd(x,y,.625,**kw))
-    np.testing.assert_array_equal(transient.opd_series(x,y,[0.,.625,2.5]),old.refracted_opd_series(x,y,[0.,.625,2.5],**kw))
+    np.testing.assert_allclose(transient.opd_series(x,y,[0.,.625,2.5]),
+                               np.stack([transient.opd(x,y,t) for t in [0.,.625,2.5]]),rtol=1e-13,atol=1e-20)
     np.testing.assert_array_equal(transient.prepare_opd(.625)(x,y),transient.opd(x,y,.625))
     with pytest.raises(ValueError,match='rear|cylinder'):
         steady.opd(p.radius*2,0.)

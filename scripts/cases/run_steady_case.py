@@ -18,7 +18,7 @@ from thermal_opd.heat_source import oblique_gaussian_heat_flux
 from thermal_opd.metrics import circular_aperture_mask, opd_metrics
 from thermal_opd.opd import transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
-from thermal_opd.validation import steady_boundary_residuals, steady_energy_balance
+from thermal_opd.steady_validation import steady_boundary_residuals, steady_energy_balance
 from thermal_opd.plotting import save_temperature_opd_figure
 
 
@@ -45,7 +45,7 @@ num_energy_r = 80
 num_energy_z = 64
 num_energy_phi = 180
 
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 def main():

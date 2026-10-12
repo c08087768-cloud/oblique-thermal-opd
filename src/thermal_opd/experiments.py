@@ -10,22 +10,22 @@ from thermal_opd.run_io import script_defaults
 
 ROOT=Path(__file__).resolve().parents[2]
 EXPERIMENTS={
-    'steady':('稳态温度与折射OPD','run_steady_case.py'),
-    'transient':('瞬态精细场或FEM诊断','run_transient_case.py'),
-    'convergence':('稳态联合截断选择','select_truncation.py'),
-    'transient-convergence':('瞬态联合截断选择','select_transient_truncation.py'),
-    'semi-verification':('半解析独立科学验证','verify_semi_analytical.py'),
-    'fem-verification':('FEM独立一维基准','verify_fem.py'),
-    'fem-comparison':('稳态FEM与半解析对照','compare_fem.py'),
-    'validate':('重读结果与验证证据','validate_run.py'),
-    'boundaries':('既有瞬态三面边界检查','check_transient_boundaries.py'),
-    'source':('热源投影检查','inspect_heat_source.py'),
-    'azimuthal':('单圆周方位角分解','inspect_azimuthal_modes.py'),
-    'temperature':('稳态温度与能量检查','inspect_steady_temperature.py'),
-    'opd':('折射OPD检查','inspect_opd.py'),
-    'sweeps':('逐参数收敛诊断','check_convergence.py'),
-    'replot':('从已保存场重绘','replot_case.py'),
-    'regression':('重构数值基线对照','compare_refactor_baseline.py'),
+    'steady':('稳态温度与折射OPD','cases/run_steady_case.py'),
+    'transient':('瞬态精细场或FEM诊断','cases/run_transient_case.py'),
+    'convergence':('稳态联合截断选择','convergence/select_steady_truncation.py'),
+    'transient-convergence':('瞬态联合截断选择','convergence/select_transient_truncation.py'),
+    'semi-validation':('半解析独立科学验证','verification/verify_semi_analytical.py'),
+    'fem-validation':('FEM独立一维基准','verification/verify_fem.py'),
+    'fem-comparison':('稳态FEM与半解析对照','verification/compare_steady_fem.py'),
+    'validate':('重读结果与验证证据','verification/validate_run.py'),
+    'boundaries':('既有瞬态三面边界检查','verification/check_transient_boundaries.py'),
+    'source':('热源投影检查','diagnostics/inspect_heat_source.py'),
+    'azimuthal':('单圆周方位角分解','diagnostics/inspect_azimuthal_modes.py'),
+    'temperature':('稳态温度与能量检查','diagnostics/inspect_steady_temperature.py'),
+    'opd':('折射OPD检查','diagnostics/inspect_opd.py'),
+    'sweeps':('逐参数收敛诊断','convergence/check_steady_convergence.py'),
+    'replot':('从已保存场重绘','tools/replot_case.py'),
+    'regression':('重构数值基线对照','tools/compare_refactor_baseline.py'),
 }
 
 

@@ -1,5 +1,7 @@
 import pytest
 from thermal_opd.experiments import main,experiment_configuration
+from thermal_opd.experiments import EXPERIMENTS
+from pathlib import Path
 
 
 def test_interactive_cancel_never_launches_an_experiment(monkeypatch):
@@ -28,3 +30,14 @@ def test_configuration_preview_does_not_create_output():
     config=experiment_configuration('steady')
     assert config['physical_parameters_SI']['radius']==.0127
     assert config['defaults']['max_azimuthal_order']==6
+
+
+@pytest.mark.parametrize('name',EXPERIMENTS)
+def test_every_experiment_entry_imports_and_previews_without_solving(name,monkeypatch):
+    from thermal_opd.model import ThermalModel
+    def forbidden(*args,**kwargs):
+        pytest.fail('Import/configuration preview started a physical computation')
+    monkeypatch.setattr(ThermalModel,'prepare',forbidden)
+    config=experiment_configuration(name)
+    assert Path(config['script']).is_file()
+    assert Path(config['script']).parent.name in ('cases','convergence','verification','diagnostics','tools')

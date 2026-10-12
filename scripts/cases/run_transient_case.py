@@ -15,7 +15,7 @@ from time import perf_counter
 
 import matplotlib
 matplotlib.use('Agg')
-from thermal_opd.plotting import save_transient_diagnostic_figure as save_figure
+from thermal_opd.plotting import save_transient_diagnostic_figure
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 
@@ -50,11 +50,10 @@ sanity_tolerance = 1e-7
 boundary_z_points = 65
 boundary_relative_tolerance,boundary_absolute_tolerance_W_per_m2 = 1e-10,1e-9
 point_chunk_size = 128
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
-def evaluate(model, times, r, phi, z, x, y, angle, ray_points):
-    p = model.parameters
+def evaluate(model, times, r, phi, z, x, y, *, ray_points=None):
     temperature = np.stack([np.stack([model.temperature(r[:,None],phi[None,:],plane,t)
                                       for plane in z]) for t in times])
     opd = model.opd_series(x, y, times, num_ray_points=ray_points, point_chunk_size=point_chunk_size)
@@ -124,7 +123,7 @@ def main():
         x,y = np.meshgrid(axis,axis)
         mask = (x*x+y*y<=(aperture_radius_ratio*p.radius)**2)&transmitted_ray_mask(x,y,p.radius,p.thickness,internal)
         ox,oy = x[mask],y[mask]
-        temperature,opd = evaluate(model,times,r,phi,z,ox,oy,internal,settings.ray_points)
+        temperature,opd = evaluate(model,times,r,phi,z,ox,oy)
         fields = {'times_s':times,'r_m':r,'phi_rad':phi,'z_m':z,'area_weights_m2':area_weights,
                   'opd_x_m':x,'opd_y_m':y,'opd_physical_mask':mask,
                   'temperature_sa_K':temperature,'opd_sa_m':opd,'orders':np.array(list(c),dtype=int)}
@@ -134,7 +133,7 @@ def main():
         thermal_args = (c,roots,p.conductivity,p.thickness,p.h_eff,p.h_eff)
         fields['steady_temperature_K'] = np.stack([steady.temperature(r[:,None],phi[None,:],plane) for plane in z])
         fields['steady_opd_m'] = steady.opd(ox,oy,point_chunk_size=point_chunk_size)
-        tl,ol = evaluate(model,[long_time],r,phi,z,ox,oy,internal,settings.ray_points)
+        tl,ol = evaluate(model,[long_time],r,phi,z,ox,oy)
         fields['long_time_temperature_K'],fields['long_time_opd_m'] = tl[0],ol[0]
         summary['long_time_errors_vs_steady'] = field_errors(tl[0].reshape(3,-1),fields['steady_temperature_K'].reshape(3,-1),
             area_weights.ravel(),ol[0],fields['steady_opd_m'])
@@ -146,7 +145,7 @@ def main():
             one_prepared = PreparedModel(p,args.angle,settings,cm,rm)
             one = one_prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
             one_steady = one_prepared.solve_steady()
-            tm,om = evaluate(one,times,r,phi,z,ox,oy,internal,settings.ray_points)
+            tm,om = evaluate(one,times,r,phi,z,ox,oy)
             order_t.append(tm); order_o.append(om)
             source_orders.append(reconstruct_cosine_field(cm,rm,r,phi))
             one_args = (cm,rm,p.conductivity,p.thickness,p.h_eff,p.h_eff)
@@ -182,17 +181,17 @@ def main():
         j_fields_t,j_fields_o = [],[]
         for count in axial_counts:
             candidate = prepared.solve_transient(num_axial_modes=count,history=history)
-            tc,oc = evaluate(candidate,times,r,phi,z,ox,oy,internal,settings.ray_points)
+            tc,oc = evaluate(candidate,times,r,phi,z,ox,oy)
             j_fields_t.append(tc);j_fields_o.append(oc)
         fields['axial_check_temperature_K'],fields['axial_check_opd_m'] = np.array(j_fields_t),np.array(j_fields_o)
         summary['axial_errors_vs_largest_J'] = [errors_by_time(tc,temperature,area_weights,oc,opd) for tc,oc in zip(j_fields_t,j_fields_o)]
         ref_prepared = ThermalModel(p,args.angle,reference_settings).prepare()
         ref = ref_prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
         # Same ray count isolates M/N/projection; then increase ray quadrature.
-        tr,orr = evaluate(ref,times,r,phi,z,ox,oy,internal,settings.ray_points)
+        tr,orr = evaluate(ref,times,r,phi,z,ox,oy,ray_points=settings.ray_points)
         fields['reference_temperature_K'],fields['reference_opd_m'] = tr,orr
         summary['transverse_errors_vs_finite_reference'] = errors_by_time(temperature,tr,area_weights,opd,orr)
-        tq,oq = evaluate(model,times,r,phi,z,ox,oy,internal,reference_settings.ray_points)
+        tq,oq = evaluate(model,times,r,phi,z,ox,oy,ray_points=reference_settings.ray_points)
         fields['higher_ray_quadrature_opd_m'] = oq
         summary['ray_quadrature_errors'] = errors_by_time(temperature,tq,area_weights,opd,oq)
         # Only diagnostics: no enlarged reference or joint transient selection yet.
@@ -260,11 +259,11 @@ def main():
             raise RuntimeError('Transient FEM energy/linear checks failed')
         np.savez_compressed(data_directory(directory)/'fields.npz',**fields)
         boundary = write_transient_boundary_check(directory,model,times,r,phi,np.linspace(0,p.thickness,boundary_z_points),
-            angle_deg=args.angle,relative_tolerance=boundary_relative_tolerance,
+            relative_tolerance=boundary_relative_tolerance,
             absolute_tolerance=boundary_absolute_tolerance_W_per_m2,provenance=summary['provenance'])
         if boundary['status']!='PASS':
             raise RuntimeError('Transient Robin boundary residual failed')
-        save_figure(directory,fields)
+        save_transient_diagnostic_figure(directory,fields)
         summary.update(status='COMPLETE',elapsed_seconds=perf_counter()-started)
         write_summary(directory, summary, defaults=script_defaults(globals()))
         print(f'COMPLETE: {directory}; transient/FEM final convergence remains unestablished.',flush=True)

@@ -1,7 +1,7 @@
 """Compare new model interfaces with a captured pre-refactor numerical baseline."""
 import argparse
 from pathlib import Path
-from thermal_opd.run_io import create_run, provenance, write_summary
+from thermal_opd.run_io import create_run, provenance, write_summary, relative_metadata_paths, data_directory
 import json
 import numpy as np
 from thermal_opd.model import ThermalModel,ModalResolution
@@ -11,7 +11,7 @@ from thermal_opd.transient import PowerHistory
 
 
 def main():
-    root=Path(__file__).resolve().parents[1]
+    root=Path(__file__).resolve().parents[2]
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline',required=True,type=Path)
     parser.add_argument('--output-dir',type=Path)
@@ -50,7 +50,7 @@ def main():
     report=dict(status='passed',baseline_directory=str(directory),comparisons=rows,
                 worst_absolute_difference=max(v['max_absolute_difference'] for v in rows),
                 worst_normalized_difference=max(v['max_difference_over_reference_peak'] for v in rows))
-    (output/'regression.json').write_text(json.dumps(report,indent=2)+'\n')
+    (data_directory(output)/'regression.json').write_text(json.dumps(relative_metadata_paths(report,output),indent=2)+'\n')
     write_summary(output,dict(kind='refactor_regression',status='COMPLETE',baseline_directory=str(directory),comparisons=rows,
         physical_parameters_SI=config['physical_parameters_SI'],numerical_settings=config['resolution'],
         worst_absolute_difference=report['worst_absolute_difference'],worst_normalized_difference=report['worst_normalized_difference'],provenance=provenance(root,__file__)))

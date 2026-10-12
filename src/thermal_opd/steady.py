@@ -6,7 +6,7 @@ Temperatures returned here are rises above ambient, in kelvin.
 
 import numpy as np
 from scipy.special import jv
-from thermal_opd.modal_evaluation import modal_temperature, modal_temperature_gradient
+import thermal_opd.modal_evaluation as modal_evaluation
 
 
 def axial_coefficients(lam, source_coefficient, conductivity, thickness, h_front, h_back):
@@ -81,7 +81,7 @@ def steady_temperature(r, phi, z, coefficients, eigenvalues, conductivity, thick
     def response(m, n, depths):
         return axial_response(depths, eigenvalues[m][n], coefficients[m][n],
                               conductivity, thickness, h_front, h_back)[0]
-    return modal_temperature(r, phi, z, coefficients, eigenvalues, response)
+    return modal_evaluation.modal_temperature(r, phi, z, coefficients, eigenvalues, response)
 
 
 def steady_temperature_gradient(r, phi, z, coefficients, eigenvalues, conductivity, thickness, h_front, h_back):
@@ -93,4 +93,4 @@ def steady_temperature_gradient(r, phi, z, coefficients, eigenvalues, conductivi
     def response(m,n,depths):
         return axial_response(depths,eigenvalues[m][n],coefficients[m][n],
                               conductivity,thickness,h_front,h_back)
-    return modal_temperature_gradient(r,phi,z,coefficients,eigenvalues,response)
+    return modal_evaluation.modal_temperature_gradient(r,phi,z,coefficients,eigenvalues,response)

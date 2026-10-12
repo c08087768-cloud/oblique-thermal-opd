@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import pytest
-from thermal_opd.run_validation import validate_saved_run
+from thermal_opd.transient_validation import validate_saved_transient_run
 
 
 def test_transient_selection_checker_recomputes_time_fields_and_rejects_false_gate(tmp_path):
@@ -29,14 +29,14 @@ def test_transient_selection_checker_recomputes_time_fields_and_rejects_false_ga
     fields['theta0_enlarged_continuous_pv_m'] = np.array([2.,2.])
     fields['theta0_selected_continuous_pv_m'] = np.array([2.,2.])
     np.savez(tmp_path/'fields.npz',**fields)
-    assert validate_saved_run(tmp_path)['status']=='PASS'
+    assert validate_saved_transient_run(tmp_path)['status']=='PASS'
     fields['theta0_selected_temperature_K'][0,0,0] += .1
     np.savez(tmp_path/'fields.npz',**fields)
     with pytest.raises(ValueError):
-        validate_saved_run(tmp_path)
+        validate_saved_transient_run(tmp_path)
     fields['theta0_selected_temperature_K'] = T
     np.savez(tmp_path/'fields.npz',**fields)
     case['sampling_errors_by_time'] = [.002,0.]
     (tmp_path/'summary.json').write_text(json.dumps(summary))
     with pytest.raises(ValueError):
-        validate_saved_run(tmp_path)
+        validate_saved_transient_run(tmp_path)

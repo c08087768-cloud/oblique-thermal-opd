@@ -12,7 +12,7 @@ from numpy.polynomial.legendre import leggauss
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.steady import steady_temperature
-from thermal_opd.validation import steady_boundary_residuals, steady_energy_balance
+from thermal_opd.steady_validation import steady_boundary_residuals, steady_energy_balance
 
 
 parameters = PhysicalParameters()
@@ -28,7 +28,7 @@ num_field_phi = 180
 num_energy_r = 80
 num_energy_z = 64
 
-repository_root = Path(__file__).resolve().parents[1]
+repository_root = Path(__file__).resolve().parents[2]
 
 
 def main():

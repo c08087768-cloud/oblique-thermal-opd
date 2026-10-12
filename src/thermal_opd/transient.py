@@ -14,7 +14,7 @@ from scipy.optimize import brentq
 
 from thermal_opd.steady import axial_response
 from thermal_opd.modal_evaluation import modal_temperature, modal_temperature_gradient
-from thermal_opd.opd import modal_refracted_opd, modal_refracted_opd_series, prepare_modal_ray_series
+from thermal_opd.opd import modal_refracted_opd, modal_refracted_opd_series, prepare_modal_ray_series, _ray_settings
 
 
 class AxialModes:
@@ -97,8 +97,9 @@ def _time(time):
     return float(time)
 
 
-class TransientModel:
-    """Prepared surface projections, radial roots and axial diffusion modes.
+@dataclass(frozen=True,init=False)
+class TransientSolution:
+    """Transient axial state and field evaluation on one prepared problem.
 
     A_inf_mnj = C_mn/[k*(lambda_mn^2+beta_j^2)*norm_j], since X_j(0)=1.
     C_mn is the existing front-flux projection, in W/m^2.  The response is
@@ -106,29 +107,36 @@ class TransientModel:
     Unretained fast modes are completed by g(t)*Z_steady; J convergence is
     required, especially close to step onset.  No time stepping is used.
     """
-    def __init__(self, parameters, coefficients, eigenvalues, *, num_axial_modes, history=None):
-        p = parameters
-        if not all(np.isfinite(v) and v > 0 for v in (p.density,p.specific_heat,p.conductivity)):
+    prepared: object
+    history: PowerHistory
+    axial: AxialModes
+    rates: dict
+    amplitudes: dict
+    slowest_decay_rate: float
+
+    def __init__(self, prepared, *, num_axial_modes, history=None):
+        p,coefficients,eigenvalues = prepared.parameters,prepared.coefficients,prepared.roots
+        # Geometry, conductivity and modal arrays are validated by PreparedModel.
+        if not all(np.isfinite(v) and v > 0 for v in (p.density,p.specific_heat)):
             raise ValueError('Thermal properties must be finite and positive')
-        if not coefficients or set(coefficients)!=set(eigenvalues):
-            raise ValueError('Source and radial mode keys must match')
-        self.parameters, self.coefficients, self.eigenvalues = p, coefficients, eigenvalues
-        self.history = PowerHistory() if history is None else history
-        self.axial = AxialModes(p.thickness,p.conductivity,p.h_eff,p.h_eff,num_axial_modes)
-        self.rates, self.amplitudes = {}, {}
+        axial = AxialModes(p.thickness,p.conductivity,p.h_eff,p.h_eff,num_axial_modes)
+        rates, amplitudes = {}, {}
         for m, values in coefficients.items():
-            lam = np.asarray(eigenvalues[m],dtype=float)
-            values = np.asarray(values,dtype=float)
-            if lam.ndim!=1 or values.shape!=lam.shape or not lam.size or not np.all(np.isfinite(values)) or not np.all(np.isfinite(lam) & (lam>0)):
-                raise ValueError('Require matching finite projections and positive radial roots')
-            squared = lam[:,None]**2 + self.axial.beta[None,:]**2
-            self.rates[m] = p.thermal_diffusivity*squared
-            self.amplitudes[m] = values[:,None]/(p.conductivity*squared*self.axial.norm[None,:])
-        self.slowest_decay_rate = float(min(np.min(rates) for rates in self.rates.values()))
+            lam = eigenvalues[m]
+            squared = lam[:,None]**2 + axial.beta[None,:]**2
+            rates[m] = p.thermal_diffusivity*squared
+            amplitudes[m] = values[:,None]/(p.conductivity*squared*axial.norm[None,:])
+        object.__setattr__(self,'prepared',prepared)
+        object.__setattr__(self,'history',PowerHistory() if history is None else history)
+        object.__setattr__(self,'axial',axial)
+        object.__setattr__(self,'rates',rates)
+        object.__setattr__(self,'amplitudes',amplitudes)
+        object.__setattr__(self,'slowest_decay_rate',float(min(np.min(v) for v in rates.values())))
 
     def _response(self, time, *, derivative=False):
         time = _time(time)
-        p, g = self.parameters, self.history.value(time)
+        prepared = self.prepared
+        p, g = prepared.parameters, self.history.value(time)
         deficits = {m:self.history.deficit(rates,time) for m,rates in self.rates.items()}
         cached_z, cached_basis = None, None
         def response(m,n,z):
@@ -138,43 +146,40 @@ class TransientModel:
             if cached_z is not z:
                 cached_z = z
                 cached_basis = self.axial.derivatives(z) if derivative else self.axial.values(z)
-            steady = axial_response(z,self.eigenvalues[m][n],self.coefficients[m][n],
+            steady = axial_response(z,prepared.roots[m][n],prepared.coefficients[m][n],
                                     p.conductivity,p.thickness,p.h_eff,p.h_eff)[int(derivative)]
             return g*steady - np.tensordot(self.amplitudes[m][n]*deficits[m][n],cached_basis,axes=(0,0))
         return response
 
     def temperature(self, r, phi, z, time):
-        return modal_temperature(r,phi,z,self.coefficients,self.eigenvalues,self._response(time))
+        return modal_temperature(r,phi,z,self.prepared.coefficients,self.prepared.roots,self._response(time))
 
     def temperature_gradient(self, r, phi, z, time):
         """Return analytic dT/dr and dT/dz (K/m), reusing the steady spatial sum."""
         value,dz = self._response(time),self._response(time,derivative=True)
-        return modal_temperature_gradient(r,phi,z,self.coefficients,self.eigenvalues,
+        return modal_temperature_gradient(r,phi,z,self.prepared.coefficients,self.prepared.roots,
                                           lambda m,n,depth:(value(m,n,depth),dz(m,n,depth)))
 
-    def refracted_opd(self, x0, y0, time, *, radius, refraction_angle, num_ray_points, point_chunk_size):
-        p = self.parameters
-        return modal_refracted_opd(x0,y0,self.coefficients,self.eigenvalues,self._response(time),
-                                  p.thickness,p.dn_dT,radius=radius,refraction_angle=refraction_angle,
-                                  num_ray_points=num_ray_points,point_chunk_size=point_chunk_size)
+    def opd(self, x, y, time, *, num_ray_points=None, point_chunk_size=512):
+        p = self.prepared.parameters
+        return modal_refracted_opd(x,y,self.prepared.coefficients,self.prepared.roots,self._response(time),
+                                  p.thickness,p.dn_dT,**_ray_settings(self.prepared,num_ray_points,point_chunk_size))
 
-    def refracted_opd_series(self,x0,y0,times,*,radius,refraction_angle,num_ray_points,point_chunk_size):
+    def opd_series(self,x,y,times,*,num_ray_points=None,point_chunk_size=512):
         """Evaluate (time,*point_shape) while sharing spatial ray work."""
         times = np.asarray(times,dtype=float)
         if times.ndim!=1 or not times.size:
             raise ValueError('Require a nonempty one-dimensional time array')
         responses = [self._response(t) for t in times]
-        p = self.parameters
-        return modal_refracted_opd_series(x0,y0,self.coefficients,self.eigenvalues,
+        p = self.prepared.parameters
+        return modal_refracted_opd_series(x,y,self.prepared.coefficients,self.prepared.roots,
             lambda m,n,z:np.stack([response(m,n,z) for response in responses]),times.size,
-            p.thickness,p.dn_dT,radius=radius,refraction_angle=refraction_angle,
-            num_ray_points=num_ray_points,point_chunk_size=point_chunk_size)
+            p.thickness,p.dn_dT,**_ray_settings(self.prepared,num_ray_points,point_chunk_size))
 
-    def prepare_refracted_opd(self,time,*,radius,refraction_angle,num_ray_points,point_chunk_size):
+    def prepare_opd(self,time,*,num_ray_points=None,point_chunk_size=512):
         """Prepared scalar-time optical field for numerical aperture extrema."""
-        p,response = self.parameters,self._response(time)
-        evaluator = prepare_modal_ray_series(self.coefficients,self.eigenvalues,
+        p,response = self.prepared.parameters,self._response(time)
+        evaluator = prepare_modal_ray_series(self.prepared.coefficients,self.prepared.roots,
             lambda m,n,z:response(m,n,z)[None,:],1,p.thickness,p.dn_dT,
-            radius=radius,refraction_angle=refraction_angle,num_ray_points=num_ray_points,
-            point_chunk_size=point_chunk_size)
+            **_ray_settings(self.prepared,num_ray_points,point_chunk_size))
         return lambda x,y:evaluator(x,y)[0]

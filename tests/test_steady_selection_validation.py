@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from thermal_opd import run_validation
+from thermal_opd import steady_validation
 
 
 def make_selection(tmp_path):
@@ -29,11 +29,11 @@ def make_selection(tmp_path):
 
 def test_saved_selection_checker_rejects_changed_fields(tmp_path):
     _, fields = make_selection(tmp_path)
-    assert run_validation.validate_saved_run(tmp_path)['status'] == 'PASS'
+    assert steady_validation.validate_saved_steady_run(tmp_path)['status'] == 'PASS'
     fields['theta0_selected_temperature_K'] = np.array([[3., 3.], [2., 3.], [2., 3.]])
     np.savez(tmp_path/'fields.npz', **fields)
     with pytest.raises(ValueError):
-        run_validation.validate_saved_run(tmp_path)
+        steady_validation.validate_saved_steady_run(tmp_path)
 
 
 def test_saved_selection_checker_rejects_incomplete_run_and_false_acceptance(tmp_path):
@@ -41,17 +41,17 @@ def test_saved_selection_checker_rejects_incomplete_run_and_false_acceptance(tmp
     summary['status'] = 'RUNNING'
     (tmp_path/'summary.json').write_text(json.dumps(summary))
     with pytest.raises(ValueError):
-        run_validation.validate_saved_run(tmp_path)
+        steady_validation.validate_saved_steady_run(tmp_path)
     summary['status'] = 'COMPLETE'
     summary['cases'][0]['denser_common_grid_errors']['opd_relative_pv'] = .01
     (tmp_path/'summary.json').write_text(json.dumps(summary))
     with pytest.raises(ValueError):
-        run_validation.validate_saved_run(tmp_path)
+        steady_validation.validate_saved_steady_run(tmp_path)
 
 
 def test_cli_replaces_stale_pass_report_when_later_validation_fails(tmp_path):
     summary, _ = make_selection(tmp_path)
-    script = Path(__file__).resolve().parents[1]/'scripts/validate_run.py'
+    script = Path(__file__).resolve().parents[1]/'scripts/verification/validate_run.py'
     first = subprocess.run([sys.executable, str(script), '--results', str(tmp_path)], capture_output=True)
     assert first.returncode == 0
     summary['status'] = 'RUNNING'

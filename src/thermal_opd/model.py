@@ -78,7 +78,7 @@ class PreparedModel:
         return SteadySolution(self)
 
     def solve_transient(self, *, num_axial_modes, history=None):
-        from thermal_opd.solutions import TransientSolution
+        from thermal_opd.transient import TransientSolution
         return TransientSolution(self,num_axial_modes=num_axial_modes,history=history)
 
 
