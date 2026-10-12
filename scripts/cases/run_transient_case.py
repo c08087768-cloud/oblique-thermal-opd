@@ -60,10 +60,11 @@ def evaluate(model, times, r, phi, z, x, y, *, ray_points=None):
     return temperature,opd
 
 
-def errors_by_time(temperature, reference, weights, opd, reference_opd):
+def errors_by_time(temperature, reference, weights, opd, reference_opd, *, times=None):
     # The zero field has no meaningful relative error or PV normalization.
     return [None if not np.any(reference[i]) else field_errors(temperature[i].reshape(3,-1),
-             reference[i].reshape(3,-1),weights.ravel(),opd[i],reference_opd[i])
+             reference[i].reshape(3,-1),weights.ravel(),opd[i],reference_opd[i],
+                 temperature_normalization='global' if times is not None and 0<times[i]<.625 else 'per_plane')
             for i in range(len(temperature))]
 
 
@@ -82,12 +83,15 @@ def main():
         run_fine_fields(args,p,repository_root)
         return
     settings = modal_settings
+    counts,ref_settings,observations=axial_counts,reference_settings,observation_times_s
     if args.selection is not None:
         from transient_fields import load_selection
         selected = load_selection(args.selection,p,args.angle,args.history)
-        if list(observation_times_s[1:])!=selected['times_s']:
-            raise ValueError('FEM observation times differ from the selected transient scope')
         settings = ModalResolution(**selected['selected_settings']['modal'])
+        selected_J=selected['selected_settings']['J']
+        counts=tuple(sorted(set(j for j in (*axial_counts,selected_J) if j<=selected_J)))
+        ref_settings=ModalResolution(**selected['reference']['modal'])
+        observations=(0.,*selected['times_s'])
     history = PowerHistory(args.history,args.ramp_time)
     internal = refracted_angle(np.deg2rad(args.angle),p.incident_refractive_index,p.substrate_refractive_index)
     directory = create_run(repository_root,f'transient_{args.mode}_theta{args.angle:g}_{args.history}',args.output_dir)
@@ -95,8 +99,8 @@ def main():
         'angle_deg':args.angle,'refraction_angle_deg':float(np.rad2deg(internal)),
         'physical_parameters_SI':asdict(p),'h_eff_W_per_m2_K':p.h_eff,
         'thermal_diffusivity_m2_per_s':p.thermal_diffusivity,'history':asdict(history),
-        'modal_settings':asdict(settings),'reference_settings':asdict(reference_settings),
-        'axial_counts':list(axial_counts),'aperture_radius_ratio':aperture_radius_ratio,
+        'modal_settings':asdict(settings),'reference_settings':asdict(ref_settings),
+        'axial_counts':list(counts),'aperture_radius_ratio':aperture_radius_ratio,
         'sanity_tolerance':sanity_tolerance,'transient_truncation_established':False,
         'fem_convergence_established':False,'boundary_validation_required':True,'provenance':provenance(repository_root,__file__),
         'selection_directory':str(args.selection.resolve()) if args.selection is not None else None}
@@ -107,8 +111,9 @@ def main():
         prepared = ThermalModel(p,args.angle,settings).prepare()
         c,roots = prepared.coefficients,prepared.roots
         steady = prepared.solve_steady()
-        model = prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
-        times = np.array(observation_times_s)
+        model = prepared.solve_transient(num_axial_modes=counts[-1],history=history)
+        times = np.array(observations)
+        summary['temperature_normalization_by_time']=['global' if 0<t<.625 else 'per_plane' for t in times]
         long_time = max(times[-1],long_time_decay_exponent/model.slowest_decay_rate,
                         long_time_decay_exponent*history.tau if history.kind!='step' else 0.)
         summary['long_time_s'] = float(long_time)
@@ -143,7 +148,7 @@ def main():
         for m in c:
             cm,rm = {m:c[m]},{m:roots[m]}
             one_prepared = PreparedModel(p,args.angle,settings,cm,rm)
-            one = one_prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
+            one = one_prepared.solve_transient(num_axial_modes=counts[-1],history=history)
             one_steady = one_prepared.solve_steady()
             tm,om = evaluate(one,times,r,phi,z,ox,oy)
             order_t.append(tm); order_o.append(om)
@@ -179,23 +184,24 @@ def main():
 
         print('Checking J, transverse truncation and ray quadrature separately',flush=True)
         j_fields_t,j_fields_o = [],[]
-        for count in axial_counts:
+        for count in counts:
             candidate = prepared.solve_transient(num_axial_modes=count,history=history)
             tc,oc = evaluate(candidate,times,r,phi,z,ox,oy)
             j_fields_t.append(tc);j_fields_o.append(oc)
         fields['axial_check_temperature_K'],fields['axial_check_opd_m'] = np.array(j_fields_t),np.array(j_fields_o)
-        summary['axial_errors_vs_largest_J'] = [errors_by_time(tc,temperature,area_weights,oc,opd) for tc,oc in zip(j_fields_t,j_fields_o)]
-        ref_prepared = ThermalModel(p,args.angle,reference_settings).prepare()
-        ref = ref_prepared.solve_transient(num_axial_modes=axial_counts[-1],history=history)
+        summary['axial_errors_vs_largest_J'] = [errors_by_time(tc,temperature,area_weights,oc,opd,times=times) for tc,oc in zip(j_fields_t,j_fields_o)]
+        ref_prepared = ThermalModel(p,args.angle,ref_settings).prepare()
+        ref = ref_prepared.solve_transient(num_axial_modes=counts[-1],history=history)
         # Same ray count isolates M/N/projection; then increase ray quadrature.
         tr,orr = evaluate(ref,times,r,phi,z,ox,oy,ray_points=settings.ray_points)
         fields['reference_temperature_K'],fields['reference_opd_m'] = tr,orr
-        summary['transverse_errors_vs_finite_reference'] = errors_by_time(temperature,tr,area_weights,opd,orr)
-        tq,oq = evaluate(model,times,r,phi,z,ox,oy,ray_points=reference_settings.ray_points)
+        summary['transverse_errors_vs_finite_reference'] = errors_by_time(temperature,tr,area_weights,opd,orr,times=times)
+        tq,oq = evaluate(model,times,r,phi,z,ox,oy,ray_points=ref_settings.ray_points)
         fields['higher_ray_quadrature_opd_m'] = oq
-        summary['ray_quadrature_errors'] = errors_by_time(temperature,tq,area_weights,opd,oq)
+        summary['ray_quadrature_errors'] = errors_by_time(temperature,tq,area_weights,opd,oq,times=times)
         # Only diagnostics: no enlarged reference or joint transient selection yet.
-        summary['truncation_note'] = 'Starting steady M/N checked against one finite reference; no final transient selection or certified reference.'
+        summary['truncation_note'] = ('Uses selected M/N/J and recorded times; FEM convergence is separate.'
+            if args.selection is not None else 'Diagnostic defaults; no final transient selection.')
 
         # FEM: spatial refinement at fixed dt, followed by dt refinement on
         # the finest spatial mesh. No duplicate steady assembly or ray formula.
@@ -237,7 +243,7 @@ def main():
             fem_t.append(tf);fem_o.append(of)
             st = temperature[...,thermal_mask]
             weights = area_weights[thermal_mask]
-            rows[i]['errors_vs_sa'] = [None if t==0 else field_errors(tf[j],st[j],weights,of[j],sa_common_o[j]) for j,t in enumerate(times)]
+            rows[i]['errors_vs_sa'] = [None if t==0 else field_errors(tf[j],st[j],weights,of[j],sa_common_o[j],temperature_normalization=summary['temperature_normalization_by_time'][j]) for j,t in enumerate(times)]
             # Rear rise can be tiny at early times: retain absolute errors
             # alongside relative norms so a large ratio is interpretable.
             rows[i]['temperature_absolute_max_difference_K'] = np.max(np.abs(tf-st),axis=-1).tolist()
@@ -252,7 +258,7 @@ def main():
         for i,row in enumerate(rows):
             reference_i = len(meshes)-1 if i<len(meshes) else len(rows)-1
             row['changes_vs_group_reference'] = [None if t==0 else field_errors(fem_t[i][j],fem_t[reference_i][j],
-                area_weights[thermal_mask],fem_o[i][j],fem_o[reference_i][j]) for j,t in enumerate(times)]
+                area_weights[thermal_mask],fem_o[i][j],fem_o[reference_i][j],temperature_normalization=summary['temperature_normalization_by_time'][j]) for j,t in enumerate(times)]
         summary['sanity_pass'] = all(row['max_energy_balance_error_relative_to_full_input']<sanity_tolerance
                                    and row['max_relative_linear_residual']<sanity_tolerance for row in rows)
         if not summary['sanity_pass']:

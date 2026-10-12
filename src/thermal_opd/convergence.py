@@ -4,12 +4,16 @@ import numpy as np
 from scipy.optimize import minimize
 
 
-def field_errors(temperature, reference_temperature, area_weights, opd, reference_opd):
+def field_errors(temperature, reference_temperature, area_weights, opd, reference_opd, *,
+                 temperature_normalization='per_plane'):
     """Compare temperature planes and raw OPD arrays on identical coordinates.
 
     Temperature shape is (plane, point), area_weights is (point,). OPD points
     have equal area weight (a uniform Cartesian grid). OPD shape errors remove
     the mean difference, and normalize by reference PV, never by its piston.
+    The default retains historical per-plane norms. 'global' uses the largest
+    reference plane norm for all planes, for early-time unheated depths whose
+    individual norms vanish. It does not change the acceptance threshold.
     """
     temperature, reference_temperature = np.asarray(temperature), np.asarray(reference_temperature)
     opd, reference_opd = np.asarray(opd), np.asarray(reference_opd)
@@ -25,6 +29,11 @@ def field_errors(temperature, reference_temperature, area_weights, opd, referenc
     difference = temperature - reference_temperature
     norm2 = np.sum(weights * reference_temperature**2, axis=1)
     norminf = np.max(np.abs(reference_temperature), axis=1)
+    if temperature_normalization == 'global':
+        norm2 = np.full_like(norm2,np.max(norm2))
+        norminf = np.full_like(norminf,np.max(norminf))
+    elif temperature_normalization != 'per_plane':
+        raise ValueError('Unknown temperature normalization')
     pv = np.ptp(reference_opd)
     if np.any(norm2 == 0) or np.any(norminf == 0) or pv == 0:
         raise ValueError('Reference norms and OPD PV must be nonzero')

@@ -89,6 +89,30 @@ def test_legacy_missing_boundary_files_is_explicitly_not_run(tmp_path):
     assert validate_transient_boundary_check(tmp_path,{})['status']=='NOT_RUN'
 
 
+def test_boundary_history_includes_every_snapshot_and_rejects_missing_history_time(tmp_path):
+    from thermal_opd.transient_validation import write_transient_boundary_check,validate_transient_boundary_check
+    from dataclasses import asdict
+    model=make_model();p=model.prepared.parameters
+    times=np.array([0.,.625,75.]);history_times=np.array([0.,.001,.2,.625,2.5,75.])
+    r,phi,z=np.linspace(0,p.radius,5),np.arange(8)*2*np.pi/8,np.linspace(0,p.thickness,7)
+    fields=dict(times_s=times,r_m=r,phi_rad=phi,orders=np.array(list(model.prepared.coefficients)))
+    fields['temperature_sa_K']=np.stack([np.stack([model.temperature(r[:,None],phi[None,:],zz,t)
+        for zz in (0.,p.thickness/2,p.thickness)]) for t in times])
+    for m in model.prepared.coefficients:
+        fields[f'source_coefficients_m{m}_W_per_m2']=model.prepared.coefficients[m]
+        fields[f'radial_roots_m{m}_per_m']=model.prepared.roots[m]
+    np.savez(tmp_path/'fields.npz',**fields)
+    np.savez(tmp_path/'history.npz',times_s=history_times)
+    summary=dict(kind='transient_modal_fem_study',times_s=times.tolist(),physical_parameters_SI=asdict(p),
+        history=asdict(model.history),axial_counts=[12],angle_deg=60.,modal_settings=asdict(model.prepared.resolution),
+        boundary_validation_required=True,boundary_history_required=True)
+    write_transient_boundary_check(tmp_path,model,history_times,r,phi,z,relative_tolerance=1e-10,absolute_tolerance=1e-9)
+    assert validate_transient_boundary_check(tmp_path,summary)['status']=='PASS'
+    np.savez(tmp_path/'history.npz',times_s=np.array([0.,.001,.625,2.5,75.]))
+    with pytest.raises(ValueError,match='history times'):
+        validate_transient_boundary_check(tmp_path,summary)
+
+
 def test_zero_source_boundary_normalization_stays_finite(tmp_path):
     from thermal_opd.transient_validation import write_transient_boundary_check
     model = make_model()

@@ -8,7 +8,6 @@ from thermal_opd.model import ThermalModel, PreparedModel
 from thermal_opd.run_io import data_directory, figure_directory
 import csv
 from dataclasses import asdict
-import json
 from pathlib import Path
 from time import perf_counter
 import numpy as np
@@ -17,7 +16,7 @@ from thermal_opd.model import ModalResolution
 from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.plotting import save_temperature_opd_figure,save_evolution,save_history,save_early_depths,save_modal_contribution_figure
 from thermal_opd.run_io import create_run,provenance,write_summary
-from thermal_opd.transient_validation import validate_saved_transient_run
+from thermal_opd.transient_validation import validate_saved_transient_run,load_transient_selection as load_selection
 from thermal_opd.transient_validation import write_transient_boundary_check
 from thermal_opd.metrics import opd_metrics
 
@@ -29,17 +28,6 @@ long_time_decay_exponent = 12.
 pv_seed_radius,pv_seed_phi = 9,48
 boundary_z_points = 65
 boundary_relative_tolerance,boundary_absolute_tolerance_W_per_m2 = 1e-10,1e-9
-
-
-def load_selection(directory,p,angle,history):
-    directory = Path(directory).resolve()
-    validate_saved_transient_run(directory)
-    s = json.loads((directory/'summary.json').read_text(encoding='utf-8'))
-    if s['kind']!='transient_joint_truncation_selection' or s['physical_parameters_SI']!=asdict(p):
-        raise ValueError('Need completed transient selection with identical physical parameters')
-    if angle not in s['angles_deg'] or history!='step' or s['history']['kind']!='step':
-        raise ValueError('Selected precision scope does not cover this angle/loading history')
-    return s
 
 
 def run_fine_fields(args,p,root):
@@ -147,12 +135,6 @@ def run_fine_fields(args,p,root):
         save_modal_contribution_figure(figures/'transient_modes.png',times,list(c),shares,saved['order_sampled_opd_pv_m'],sampled_pv)
         summary['figures'].append('transient_modes.png')
         np.savez_compressed(data_directory(directory)/'fields.npz',**saved)
-        print('Checking front/rear/side Robin residuals at every snapshot',flush=True)
-        boundary = write_transient_boundary_check(directory,model,times,r,phi,np.linspace(0,p.thickness,boundary_z_points),
-            relative_tolerance=boundary_relative_tolerance,
-            absolute_tolerance=boundary_absolute_tolerance_W_per_m2,provenance=summary['provenance'])
-        if boundary['status']!='PASS':
-            raise RuntimeError('Transient Robin boundary residual failed')
         print('Computing temperature histories and dense-aperture PV history',flush=True)
         ht = np.unique(np.r_[0.,times,np.geomspace(times[1],long_time,history_positive_points)])
         hx,hy = np.array([0.,p.radius/2,0.]),np.array([0.,0.,p.radius/2])
@@ -163,6 +145,12 @@ def run_fine_fields(args,p,root):
         np.savez_compressed(data_directory(directory)/'history.npz',times_s=ht,point_x_m=hx,point_y_m=hy,z_m=z,
             temperature_K=history_T,opd_m=history_O,sampled_pv_m=history_pv,steady_temperature_K=history_steady_T,
             steady_sampled_pv_m=np.ptp(saved['steady_opd_m'][mask]))
+        print('Checking front/rear/side Robin residuals at every snapshot and history time',flush=True)
+        summary['boundary_history_required']=True
+        boundary=write_transient_boundary_check(directory,model,ht,r,phi,np.linspace(0,p.thickness,boundary_z_points),
+            relative_tolerance=boundary_relative_tolerance,
+            absolute_tolerance=boundary_absolute_tolerance_W_per_m2,provenance=summary['provenance'])
+        if boundary['status']!='PASS':raise RuntimeError('Transient Robin boundary residual failed')
         with (data_directory(directory)/'snapshots.csv').open('w',newline='',encoding='utf-8') as stream:
             writer = csv.writer(stream)
             writer.writerow(['time_s','center_front_K','center_middle_K','center_rear_K','sampled_PV_nm','continuous_numerical_PV_nm'])

@@ -16,7 +16,7 @@ from thermal_opd.model import PreparedModel,ModalResolution
 from thermal_opd.transient import PowerHistory
 from scipy.linalg import eigh_tridiagonal
 from thermal_opd.projection import reconstruct_cosine_field
-from thermal_opd.run_io import figure_directory,resolve_run_path,read_json,read_numeric_data,write_json,validation_report
+from thermal_opd.run_io import figure_directory,resolve_run_path,read_json,read_numeric_data,write_json,validation_report,validation_check
 from thermal_opd.convergence import field_errors,within_tolerance
 from thermal_opd.validation_common import (require,validate_field_errors,mesh_boundary_edges,points_inside_polygon,
     finite_difference_laplacian,saved_validation_checks,saved_validation_result)
@@ -108,9 +108,15 @@ def validate_transient_boundary_check(directory,summary):
         require(report['physical_parameters_SI']==asdict(p) and report['history']==asdict(model.history)
                 and report['num_axial_modes']==len(model.axial.beta) and report['angle_deg']==summary['angle_deg'],
                 'Transient boundary model differs from saved run')
-        times = saved['times_s']
-        require(np.array_equal(times,summary['times_s']) and np.array_equal(f['times_s'],times)
+        snapshot_times=saved['times_s']
+        times=f['times_s']
+        indices=np.searchsorted(times,snapshot_times)
+        require(np.array_equal(snapshot_times,summary['times_s']) and np.all(indices<times.size)
+                and np.array_equal(times[indices],snapshot_times)
                 and np.array_equal(report['times_s'],times),'Transient boundary times differ')
+        if summary.get('boundary_history_required',False):
+            with read_numeric_data(data_directory(directory)/'history.npz') as history:
+                require(np.array_equal(times,history['times_s']),'Transient boundary history times differ')
         fine = summary['kind']=='transient_fine_fields'
         r,phi = (saved[key] for key in (('temperature_r_m','temperature_phi_rad') if fine else ('r_m','phi_rad')))
         require(np.array_equal(f['r_m'],r) and np.array_equal(f['phi_rad'],phi),'Transient boundary grid differs from saved fields')
@@ -122,7 +128,7 @@ def validate_transient_boundary_check(directory,summary):
                     and np.allclose(f[key],value,rtol=1e-11,atol=1e-9),f'Transient boundary array differs: {key}')
         T = saved['temperature_K'] if fine else saved['temperature_sa_K']
         for key,plane in (('front_temperature_K',0),('rear_temperature_K',2)):
-            require(np.allclose(f[key],T[:,plane],rtol=1e-11,atol=1e-12),'Transient boundary temperature differs from actual saved snapshot')
+            require(np.allclose(f[key][indices],T[:,plane],rtol=1e-11,atol=1e-12),'Transient boundary temperature differs from actual saved snapshot')
         residuals = transient_residual_fields(f,p)
         for key,value in residuals.items():
             require(np.allclose(f[key],value,rtol=1e-11,atol=1e-12),'Saved transient boundary residual differs from T/gradient/load')
@@ -206,6 +212,142 @@ def transient_pde_residual(temperature,p,r,phi,z,time,*,space_step,time_step):
     return p.density*p.specific_heat*temporal-p.conductivity*laplacian
 
 
+def transient_solution_acceptance(model, times, config):
+    """Physical gates shared by selection and independent result verification.
+
+    Numerical settings/thresholds are supplied by the caller. Analytic basis
+    relations establish retained-flux Robin constraints independently of time;
+    sampled residuals additionally check field assembly and roundoff. Neither
+    establishes projection accuracy against the untruncated Gaussian load.
+    """
+    from numpy.polynomial.legendre import leggauss
+    from scipy.special import jv,jvp
+    p,prepared = model.prepared.parameters,model.prepared
+    times = np.asarray(times,dtype=float)
+    require(times.ndim==1 and times.size>0 and np.all(np.isfinite(times))
+            and np.all(times>0) and np.all(np.diff(times)>0),'Require increasing positive acceptance times')
+    checks,fields = [],{}
+    def check(name,values,threshold,scope):
+        values=np.asarray(values)
+        fields[name]=values
+        metric=float(np.max(np.abs(values)))
+        checks.append(validation_check(name,'passed' if np.isfinite(metric) and metric<=threshold else 'failed',
+            metrics={'max_error':metric},threshold=threshold,scope=scope,evidence=name))
+    rr,pp,zz=np.meshgrid(np.linspace(.15*p.radius,.8*p.radius,5),np.arange(8)*2*np.pi/8,
+                        np.linspace(.15*p.thickness,.85*p.thickness,5),indexing='ij')
+    rr,pp,zz=rr.ravel(),pp.ravel(),zz.ravel()
+    fields['initial_temperature_K']=model.temperature(rr,pp,zz,0.)
+    fields['initial_opd_m']=model.opd([0.,p.radius/4],[0.,0.],0.)
+    check('initial_condition',np.r_[fields['initial_temperature_K'],fields['initial_opd_m']],0.,
+          'Volume and refracted-ray samples at t=0; early positive accuracy is checked separately')
+    radial=[]
+    for m,lam in prepared.roots.items():
+        radial.extend((p.h_eff*jv(m,lam*p.radius)+p.conductivity*lam*jvp(m,lam*p.radius))
+                      /np.maximum(p.h_eff,p.conductivity*lam))
+    X=model.axial.values(np.array([0.,p.thickness]))
+    dX=model.axial.derivatives(np.array([0.,p.thickness]))
+    scale=np.maximum(p.h_eff,p.conductivity*model.axial.beta)
+    scale=np.maximum(scale,np.finfo(float).tiny)
+    fields['basis_residuals']=np.r_[radial,(p.conductivity*dX[:,0]-p.h_eff*X[:,0])/scale,
+                                    (p.conductivity*dX[:,1]+p.h_eff*X[:,1])/scale]
+    check('boundary_basis',fields['basis_residuals'],config['basis_tolerance'],
+          'Dimensionless radial/axial Robin identities for every retained mode, independent of time')
+    long_time=max(times[-1],12/model.slowest_decay_rate,
+                  12*model.history.tau if model.history.kind!='step' else 0.)
+    boundary_times=np.unique(np.r_[0.,times,np.geomspace(times[0],long_time,41)])
+    bc=transient_boundary_fields(model,boundary_times,np.linspace(0,p.radius,25),
+                                 np.arange(32)*2*np.pi/32,np.linspace(0,p.thickness,33))
+    fields['boundary_times_s']=boundary_times
+    for key in RESIDUAL_KEYS:
+        fields[key]=bc[key]
+    check('thermal_boundaries',np.r_[tuple(bc[k].ravel() for k in RESIDUAL_KEYS)],
+          config['boundary_tolerance_W_per_m2'],'Three assembled Robin residuals; retained front heat flux')
+    if 'projection_tolerance' in config:
+        from thermal_opd.model import project_modal_source
+        r,phi=np.linspace(0,p.radius,25),np.arange(32)*2*np.pi/32
+        projected=[reconstruct_cosine_field(prepared.coefficients,prepared.roots,r,phi)]
+        for factor in (2,4):
+            c=project_modal_source(p,prepared.angle_deg,prepared.roots,
+                num_r=prepared.resolution.projection_r*factor,num_phi=prepared.resolution.projection_phi*factor)
+            projected.append(reconstruct_cosine_field(c,prepared.roots,r,phi))
+        fields['projection_grid_normalized_changes']=(np.array(projected[:-1])-projected[-1])/max(np.max(abs(projected[-1])),1e-30)
+        check('projection_quadrature_convergence',fields['projection_grid_normalized_changes'],config['projection_tolerance'],
+              'Fixed roots/M/N; projection quadrature factors 1/2/4; not Gaussian modal truncation error')
+    a,w=leggauss(48);rg=(a+1)*p.radius/2;zg=(a+1)*p.thickness/2
+    wr=w*p.radius/2*rg;wz=w*p.thickness/2;ph=np.arange(64)*2*np.pi/64
+    q=reconstruct_cosine_field(prepared.coefficients,prepared.roots,rg,ph)
+    input_power=2*np.pi*np.dot(wr,q.mean(axis=1))
+    peak=2*p.absorbed_power*np.cos(np.deg2rad(prepared.angle_deg))/(np.pi*p.beam_radius**2)
+    h=config['space_step_ratio']*min(p.radius,p.thickness)
+    pde,energy=[],[]
+    for t in times:
+        dt=min(config['time_step_s'],t/100)
+        pde.append(np.stack([transient_pde_residual(model.temperature,p,rr,pp,zz,t,
+            space_step=step,time_step=dt)/max(peak/p.thickness,1.) for step in (h,h/2)]))
+        Tp=model.temperature(rg[:,None,None],ph[None,:,None],zg[None,None,:],t+dt)
+        Tm=model.temperature(rg[:,None,None],ph[None,:,None],zg[None,None,:],t-dt)
+        storage=p.density*p.specific_heat*2*np.pi*np.einsum('rz,r,z->',((Tp-Tm)/(2*dt)).mean(axis=1),wr,wz)
+        faces=model.temperature(rg[:,None],ph[None,:],0.,t)+model.temperature(rg[:,None],ph[None,:],p.thickness,t)
+        side=model.temperature(p.radius,ph[None,:],zg[:,None],t)
+        loss=p.h_eff*2*np.pi*(np.dot(wr,faces.mean(axis=1))+p.radius*np.dot(wz,side.mean(axis=1)))
+        energy.append((storage+loss-model.history.value(t)*input_power)/max(abs(input_power),1e-30))
+    fields['pde_normalized_residuals']=np.asarray(pde)
+    fields['energy_normalized_residuals']=np.asarray(energy)
+    check('pde_residual',fields['pde_normalized_residuals'],config['pde_tolerance'],
+          'Independent interior finite differences at h/h2; dt<=min(configured dt,t/100)')
+    if 'early_space_step_ratio' in config:
+        early=[]
+        for t in times[times<config['early_pde_before_s']]:
+            diffusion_depth=np.sqrt(p.thermal_diffusivity*t)
+            er,ep,ez=np.meshgrid(np.array([.2,.6])*p.radius,np.array([0.,np.pi/4,np.pi/2]),
+                                np.array([.5,1.,2.])*diffusion_depth,indexing='ij')
+            eh=min(h,config['early_space_step_ratio']*diffusion_depth)
+            edt=min(config['time_step_s'],config['early_time_step_ratio']*t)
+            require(np.all(ez+eh<p.thickness),'Early PDE stencil exceeds slab; adjust depth samples')
+            early.append(np.stack([transient_pde_residual(model.temperature,p,er.ravel(),ep.ravel(),ez.ravel(),t,
+                space_step=step,time_step=edt)/max(peak/p.thickness,1.) for step in (eh,eh/2)]))
+        if early:
+            fields['early_pde_normalized_residuals']=np.asarray(early)
+            check('early_pde_residual',fields['early_pde_normalized_residuals'],config['pde_tolerance'],
+                  'Independent finite differences inside the moving front diffusion layer; h/h2')
+    check('energy_balance',fields['energy_normalized_residuals'],config['energy_tolerance'],
+          'Independent volume finite-time storage and three surface quadratures')
+    steady=prepared.solve_steady()
+    Ts=steady.temperature(rr,pp,zz)
+    fields['long_time_temperature_error']=(model.temperature(rr,pp,zz,long_time)-Ts)/max(np.max(abs(Ts)),1e-30)
+    Os=steady.opd([0.,p.radius/4],[0.,0.])
+    fields['long_time_opd_error']=(model.opd([0.,p.radius/4],[0.,0.],long_time)-Os)/max(np.max(abs(Os)),1e-30)
+    check('long_time_steady_limit',np.r_[fields['long_time_temperature_error'],fields['long_time_opd_error']],
+          config['limit_tolerance'],'Late temperature and OPD against the same retained steady solution')
+    report=validation_report(checks,config={**config,'times_s':times.tolist(),'long_time_s':long_time},run_directory='.')
+    return report,fields
+
+
+def load_transient_selection(directory, parameters, angle, history='step'):
+    """Read and validate a selected configuration shared by all consumers."""
+    directory=Path(directory).resolve()
+    validate_saved_transient_run(directory)
+    summary=read_json(directory/'summary.json')
+    require(summary['kind']=='transient_joint_truncation_selection'
+            and summary['physical_parameters_SI']==asdict(parameters),'Need selection with identical physical parameters')
+    require(angle in summary['angles_deg'] and history=='step' and summary['history']['kind']=='step',
+            'Angle/history is outside selected scope')
+    return summary
+
+
+def transient_selection_errors(T,R,weights,O,RO,gradient,reference_gradient,depth,reference_depth,*,normalization):
+    """Retain optical metrics and add gradient/front-layer accuracy evidence."""
+    errors=field_errors(T,R,weights,O,RO,temperature_normalization=normalization)
+    # Components have the same units: compare the gradient vector norm.
+    # Separately normalizing a nearly zero component can turn roundoff into
+    # a large relative error. Raw dr/dz fields remain available for review.
+    scale=max(np.max(np.linalg.norm(reference_gradient,axis=0)),np.finfo(float).tiny)
+    errors['gradient_relative_linf']=float(np.max(np.linalg.norm(gradient-reference_gradient,axis=0))/scale)
+    errors['depth_temperature_linf_over_reference_peak']=float(np.max(abs(depth-reference_depth))
+        /max(np.max(abs(reference_depth)),np.finfo(float).tiny))
+    return errors
+
+
 def transient_uniform_flux_1d_reference(thickness,conductivity,volumetric_capacity,flux,h_front,h_back,times,*,num_intervals):
     """Independent 1D finite-volume diffusion with exact-in-time step response.
 
@@ -263,15 +405,16 @@ def validate_transient_fem(path, summary):
         for j,t in enumerate(times):
             if t==0:
                 continue
+            normalization=summary.get('temperature_normalization_by_time',['per_plane']*len(times))[j]
             for i in range(len(summary['axial_counts'])):
                 err = field_errors(f['axial_check_temperature_K'][i,j].reshape(3,-1),temperature[j].reshape(3,-1),weights.ravel(),
-                                   f['axial_check_opd_m'][i,j],opd[j])
+                                   f['axial_check_opd_m'][i,j],opd[j],temperature_normalization=normalization)
                 validate_field_errors(err,summary['axial_errors_vs_largest_J'][i][j])
             err = field_errors(temperature[j].reshape(3,-1),f['reference_temperature_K'][j].reshape(3,-1),weights.ravel(),
-                               opd[j],f['reference_opd_m'][j])
+                               opd[j],f['reference_opd_m'][j],temperature_normalization=normalization)
             validate_field_errors(err,summary['transverse_errors_vs_finite_reference'][j])
             err = field_errors(temperature[j].reshape(3,-1),temperature[j].reshape(3,-1),weights.ravel(),
-                               opd[j],f['higher_ray_quadrature_opd_m'][j])
+                               opd[j],f['higher_ray_quadrature_opd_m'][j],temperature_normalization=normalization)
             validate_field_errors(err,summary['ray_quadrature_errors'][j])
         mask,common,tm = f['opd_physical_mask'],f['opd_fem_common_mask'],f['temperature_fem_common_mask']
         require(mask.dtype==common.dtype==tm.dtype==bool,'Bad transient masks')
@@ -296,7 +439,9 @@ def validate_transient_fem(path, summary):
             require(np.all(tf[0]==0) and np.all(of[0]==0),'Nonzero initial FEM field')
             for j,t in enumerate(times):
                 if t>0:
-                    err = field_errors(tf[j],temperature[j][...,tm],weights[tm],of[j],f['opd_sa_fem_common_m'][j])
+                    normalization=summary.get('temperature_normalization_by_time',['per_plane']*len(times))[j]
+                    err = field_errors(tf[j],temperature[j][...,tm],weights[tm],of[j],f['opd_sa_fem_common_m'][j],
+                                       temperature_normalization=normalization)
                     validate_field_errors(err,row['errors_vs_sa'][j])
             with read_numeric_data(data_directory(path)/f'fem_run{i}.npz') as mesh:
                 xy,tri,z,T = (mesh[key] for key in ('disk_nodes_xy_m','disk_triangles','axial_nodes_z_m','temperature_K'))
@@ -348,15 +493,29 @@ def validate_transient_selection(path,summary):
                 for left,right,pv_left,pv_right,stored,limit in (
                     ('reference','enlarged','reference','enlarged',case['reference_errors_by_time'],summary['reference_stability_tolerance']),
                     ('selected','reference','selected','reference',selected['errors_by_time'],summary['tolerance'])):
-                    err = field_errors(f[label+'_'+left+'_temperature_K'][j],f[label+'_'+right+'_temperature_K'][j],weights,
-                                       f[label+'_'+left+'_opd_m'][j],f[label+'_'+right+'_opd_m'][j])
+                    if summary.get('acceptance_version')==1:
+                        err = transient_selection_errors(f[label+'_'+left+'_temperature_K'][j],f[label+'_'+right+'_temperature_K'][j],weights,
+                            f[label+'_'+left+'_opd_m'][j],f[label+'_'+right+'_opd_m'][j],
+                            f[label+'_'+left+'_gradient_K_per_m'][j],f[label+'_'+right+'_gradient_K_per_m'][j],
+                            f[label+'_'+left+'_depth_temperature_K'][j],f[label+'_'+right+'_depth_temperature_K'][j],
+                            normalization=summary['temperature_normalization_by_time'][j])
+                    else:
+                        err = field_errors(f[label+'_'+left+'_temperature_K'][j],f[label+'_'+right+'_temperature_K'][j],weights,
+                                           f[label+'_'+left+'_opd_m'][j],f[label+'_'+right+'_opd_m'][j])
                     a,b = f[label+'_'+pv_left+'_continuous_pv_m'][j],f[label+'_'+pv_right+'_continuous_pv_m'][j]
                     require(a>0 and b>0,'Invalid continuous transient PV')
                     err['opd_relative_pv'] = abs(a-b)/b
                     validate_field_errors(err,stored[j])
                     require(within_tolerance(err,limit),'Transient reference/candidate above target')
-                err = field_errors(f[label+'_selected_temperature_K'][j],f[label+'_reference_temperature_K'][j],weights,
-                                   f[label+'_fine_selected_opd_m'][j],f[label+'_fine_reference_opd_m'][j])
+                if summary.get('acceptance_version')==1:
+                    err = transient_selection_errors(f[label+'_selected_temperature_K'][j],f[label+'_reference_temperature_K'][j],weights,
+                        f[label+'_fine_selected_opd_m'][j],f[label+'_fine_reference_opd_m'][j],
+                        f[label+'_selected_gradient_K_per_m'][j],f[label+'_reference_gradient_K_per_m'][j],
+                        f[label+'_selected_depth_temperature_K'][j],f[label+'_reference_depth_temperature_K'][j],
+                        normalization=summary['temperature_normalization_by_time'][j])
+                else:
+                    err = field_errors(f[label+'_selected_temperature_K'][j],f[label+'_reference_temperature_K'][j],weights,
+                                       f[label+'_fine_selected_opd_m'][j],f[label+'_fine_reference_opd_m'][j])
                 err['opd_relative_pv'] = abs(f[label+'_selected_continuous_pv_m'][j]-f[label+'_reference_continuous_pv_m'][j])/f[label+'_reference_continuous_pv_m'][j]
                 validate_field_errors(err,case['denser_errors_by_time'][j])
                 require(within_tolerance(err,summary['tolerance']),'Dense transient comparison above target')
@@ -364,6 +523,30 @@ def validate_transient_selection(path,summary):
                 sampling = abs(np.ptp(f[label+'_figure_opd_m'][j])-pv)/pv
                 require(np.isclose(sampling,case['sampling_errors_by_time'][j],rtol=1e-9,atol=1e-12),'Transient sampling metric differs')
                 require(sampling<=summary['tolerance'],'Transient figure sampling above target')
+    if 'acceptance_version' in summary:
+        require(summary['acceptance_version']==1,'Unsupported transient acceptance version')
+        from thermal_opd.model import ThermalModel
+        p=PhysicalParameters(**summary['physical_parameters_SI'])
+        settings=ModalResolution(**summary['selected_settings']['modal'])
+        with read_numeric_data(data_directory(path)/'acceptance.npz') as evidence:
+            for case in summary['cases']:
+                label=f'theta{case["angle_deg"]:g}'
+                model=ThermalModel(p,case['angle_deg'],settings).prepare().solve_transient(
+                    num_axial_modes=summary['selected_settings']['J'],history=PowerHistory(**summary['history']))
+                report,actual=transient_solution_acceptance(model,summary['times_s'],summary['acceptance_config'])
+                require(report['status']=='passed' and case['physical_validation']['status']=='passed',
+                        'Transient acceptance gate failed')
+                stored_checks=case['physical_validation']['checks']
+                require(len(stored_checks)==len(report['checks']),'Transient acceptance checks missing')
+                for current,stored in zip(report['checks'],stored_checks):
+                    require(current['name']==stored['name'] and current['status']==stored['status']
+                        and current['threshold']==stored['threshold']
+                        and np.isclose(current['metrics']['max_error'],stored['metrics']['max_error'],rtol=1e-8,atol=1e-12),
+                        'Transient acceptance report differs')
+                for key,value in actual.items():
+                    require(label+'_'+key in evidence and evidence[label+'_'+key].shape==value.shape
+                        and np.allclose(evidence[label+'_'+key],value,rtol=1e-10,atol=1e-12),
+                        f'Transient acceptance data differs: {key}')
 
 
 def validate_transient_fields(path,summary):
@@ -436,6 +619,23 @@ def transient_saved_validation_report(directory,summary,boundary_check=None):
     kind=summary.get('kind')
     if kind=='transient_joint_truncation_selection' or summary.get('transient_truncation_established',False):
         checks['joint_modal_truncation']['status']='passed'
+    if kind=='transient_joint_truncation_selection' and summary.get('acceptance_version')==1:
+        for name in ('initial_condition','thermal_boundaries','pde_residual','long_time_steady_limit'):
+            rows=[next(c for c in case['physical_validation']['checks'] if c['name']==name) for case in summary['cases']]
+            checks[name].update(status='passed',evidence='data/acceptance.npz',threshold=rows[0]['threshold'],
+                metrics={'max_error':max(c['metrics']['max_error'] for c in rows)},
+                scope='Recomputed selected-solution physical gates at recorded scope')
+        for name in ('boundary_basis','energy_balance','early_pde_residual'):
+            rows=[c for case in summary['cases'] for c in case['physical_validation']['checks'] if c['name']==name]
+            if rows:
+                checks[name]=validation_check(name,'passed',threshold=rows[0]['threshold'],
+                    metrics={'max_error':max(c['metrics']['max_error'] for c in rows)},
+                    evidence='data/acceptance.npz',scope=rows[0]['scope'])
+        checks['initial_neighborhood'].update(status='passed',evidence='data/fields.npz',
+            threshold=summary['tolerance'],scope=f'Finite-reference temperature/gradient/OPD/depth samples from {summary["times_s"][0]} s; not t->0+')
+        if 'projection_tolerance' in summary['acceptance_config']:
+            checks['projection_quadrature_convergence'].update(status='passed',evidence='data/acceptance.npz',
+                threshold=summary['acceptance_config']['projection_tolerance'],scope='Recomputed fixed-root quadrature factors 1/2/4')
     if kind in ('transient_fine_fields','transient_modal_fem_study'):
         checks['initial_condition'].update(status='passed',metrics={'max_initial_temperature_K':0.,'max_initial_opd_m':0.},threshold=0.)
     long_errors=summary.get('long_time_errors_vs_same_modes_steady',summary.get('long_time_errors_vs_steady'))

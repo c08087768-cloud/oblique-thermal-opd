@@ -28,7 +28,11 @@ def main():
     with np.load(data_directory(directory)/'fields.npz',allow_pickle=False) as saved:
         model = solution_from_saved_transient(summary,saved)
         keys = ('temperature_r_m','temperature_phi_rad') if summary['kind']=='transient_fine_fields' else ('r_m','phi_rad')
-        write_transient_boundary_check(directory,model,saved['times_s'],saved[keys[0]],saved[keys[1]],
+        times=saved['times_s']
+        if summary.get('boundary_history_required',False):
+            with np.load(data_directory(directory)/'history.npz',allow_pickle=False) as history:
+                times=history['times_s'].copy()
+        write_transient_boundary_check(directory,model,times,saved[keys[0]],saved[keys[1]],
             np.linspace(0,model.prepared.parameters.thickness,side_z_points),
             relative_tolerance=relative_tolerance,absolute_tolerance=absolute_tolerance_W_per_m2,
             provenance=provenance(repository_root,__file__))

@@ -39,6 +39,34 @@ def test_smoke_plan_does_not_launch_selection_full_fem_or_dense_fields(suite):
     assert not any('full' in s['args'] or 'fields' in s['args'] for s in stages)
 
 
+@pytest.mark.parametrize('name',('azimuthal','source','temperature','opd','sweeps'))
+def test_diagnostic_scripts_accept_the_batch_output_category(suite,name,tmp_path,monkeypatch):
+    # Exercise each real entry up to directory allocation, then stop before
+    # any physical calculation. Mocked batch executors do not check this.
+    from thermal_opd.experiments import EXPERIMENTS
+    from thermal_opd.run_io import create_run
+    stage=next(s for s in suite.build_plan('full',[60.]) if s['name']==name)
+    path=ROOT/'scripts'/EXPERIMENTS[name][1]
+    spec=importlib.util.spec_from_file_location('_batch_category_'+name,path)
+    module=importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules,spec.name,module)
+    spec.loader.exec_module(module)
+    output=tmp_path/'outputs'/stage['category']/'category_test'
+    class Allocated(Exception):
+        pass
+    def allocate_only(root,prefix,directory):
+        # Substitute only the sandbox root; use the script's actual prefix,
+        # CLI output path and production path-validation implementation.
+        result=create_run(tmp_path,prefix,directory)
+        assert result==output
+        raise Allocated
+    monkeypatch.setattr(module,'create_run',allocate_only)
+    monkeypatch.setattr(sys,'argv',[str(path),'--output-dir',str(output)])
+    with pytest.raises(Allocated):
+        module.main()
+    assert (output/'run.json').is_file()
+
+
 def test_plan_only_does_not_create_outputs_or_launch_commands(suite,tmp_path,monkeypatch,capsys):
     monkeypatch.setattr(suite,'ROOT',tmp_path)
     monkeypatch.setattr(suite,'_run_command',lambda *a,**kw:pytest.fail('plan started a command'))

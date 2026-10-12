@@ -32,10 +32,11 @@ def build_plan(mode, angles):
     add('software_tests',validate=False)
     add('fem_reference','fem-validation',category='fem_verification')
     if mode=='full':
-        for angle in angles:
-            add(f'semi_reference_theta{angle:g}','semi-validation',('--angle',str(angle)),category='semi_analytical_verification')
         add('steady_selection','convergence',category='convergence')
         add('transient_selection','transient-convergence',category='convergence')
+        for angle in angles:
+            add(f'semi_reference_theta{angle:g}','semi-validation',('--angle',str(angle),'--selection','@transient_selection'),
+                category='semi_analytical_verification',needs=('transient_selection',))
         for angle in angles:
             add(f'steady_theta{angle:g}','steady',('--angle',str(angle)),category='steady_case',needs=('steady_selection',))
             add(f'transient_fields_theta{angle:g}','transient',('--mode','fields','--angle',str(angle),
@@ -50,7 +51,7 @@ def build_plan(mode, angles):
         add(f'transient_fem_theta{angle:g}','transient',args,category='fem_comparison',needs=needs)
     if mode=='full':
         for name,category in (('azimuthal','azimuthal_inspection'),('source','heat_source_inspection'),
-                              ('temperature','steady_temperature_inspection'),('opd','opd_inspection'),
+                              ('temperature','temperature_inspection'),('opd','opd_inspection'),
                               ('sweeps','convergence_diagnostic')):
             add(name,name,category=category,validate=False)
     fields=[s['name'] for s in stages if s['name'].startswith(('transient_fields_','transient_fem_'))]
@@ -150,7 +151,7 @@ def run_suite(mode, angles, *, output_dir=None, resume=None, runner=None):
             stages=[dict(name=s['name'],status='PENDING',attempts=[]) for s in plan],
             limits=['Existing experimental settings/thresholds are unchanged.',
                     'Current transient full mode does not establish final FEM space/time convergence.',
-                    'Independent semi-analytical checks use their recorded fixed settings and may fail at early time.',
+                    'Independent semi-analytical checks use this batch selection; unresolved checks retain failed/not_run states.',
                     'Intermediate transient history times are not individually precision-certified.',
                     'Development baselines are not needed or available on a fresh scientific checkout.'])
     print(f'Batch: {directory}',flush=True)
