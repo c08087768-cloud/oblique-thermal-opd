@@ -25,20 +25,20 @@ Entrance-pupil radius $a$ & $0.9R$\\\bottomrule
 \newcommand{\SteadyFieldTable}{%
 \begin{table}[htbp]
 \centering
-\caption{Steady temperature rises and continuous numerical OPD-PV.}\label{tab:steadyfields}
+\caption{Steady temperature rises and sampled OPD-PV.}\label{tab:steadyfields}
 \begin{tabular}{lrrrr}\toprule
 $\theta$ & Front center (K) & Midplane center (K) & Rear center (K) & OPD-PV (nm)\\\midrule
 $0^\circ$ & 11.921 & 7.656 & 6.716 & 166.503\\
 $30^\circ$ & 11.336 & 7.537 & 6.656 & 168.771\\
 $60^\circ$ & 9.303 & 6.959 & 6.314 & 154.105\\\bottomrule
 \end{tabular}
-\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize OPD extrema are obtained by a multistart numerical search over the physical transmitted pupil. FEM comparison metrics below use discrete common-domain samples.\end{minipage}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize OPD-PV uses the saved $201\times201$ physical transmitted-pupil grid. Continuous numerical extrema are reported separately in Supplement 1; FEM comparisons use their own discrete common domain.\end{minipage}
 \end{table}}
 
 \newcommand{\TransientRefinementTable}{%
 \begin{table}[htbp]
 \centering
-\caption{Transient FEM refinement: largest gated change across temperature and OPD metrics (percent).}\label{tab:refinement}
+\caption{Largest transient FEM refinement changes across temperature and OPD metrics (percent).}\label{tab:refinement}
 \begin{tabular}{lrrrr}\toprule
 $\theta$ & Transverse & Axial & Time & Joint\\\midrule
 $0^\circ$ & 0.104616 & 0.029993 & 0.025763 & 0.125259\\
@@ -52,15 +52,12 @@ Target & $0.5$ & $0.5$ & $0.1$ & $0.5$\\\bottomrule
 \newcommand{\ValidationTable}{%
 \begin{table}[htbp]
 \centering
-\caption{Differences between FEM and the semianalytical solution (percent).}\label{tab:comparison}
-\begin{tabular}{llrrr}\toprule
-Case & $\theta$ & Temperature $L^\infty$ & OPD $L^\infty$/PV & OPD-PV\\\midrule
-Steady & $0^\circ$ & 0.031420 & 0.005848 & 0.004220\\
-Steady & $30^\circ$ & 0.023828 & 0.004131 & 0.000523\\
-Steady & $60^\circ$ & 0.111849 & 0.071199 & 0.005440\\
-Transient & $0^\circ$ & 0.136599 & 0.092695 & 0.071263\\
-Transient & $30^\circ$ & 0.128643 & 0.094190 & 0.054394\\
-Transient & $60^\circ$ & 0.119119 & 0.095786 & 0.046821\\\bottomrule
+\caption{Optical differences between FEM and the semi-analytical calculation (percent).}\label{tab:comparison}
+\begin{tabular}{lrrr}\toprule
+$\theta$ & Steady $E_V$ & Transient $E_V$ & Transient $E_{W,\infty}$\\\midrule
+$0^\circ$ & 0.004220 & 0.071263 & 0.090254\\
+$30^\circ$ & 0.000523 & 0.054394 & 0.085118\\
+$60^\circ$ & 0.005440 & 0.046821 & 0.082570\\\bottomrule
 \end{tabular}
-\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize Steady rows use the finest FEM solution; transient rows use the accepted FEM candidate and maximize over all positive comparison times, including $1$ ms. The semianalytical solution supplies the reference denominators. These differences are reported without imposing a separate cross-method pass threshold.\end{minipage}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize Steady values use the finest FEM mesh. Transient values are maxima over sampled times from $2.5$ ms to $75$ s and use the FEM candidate examined by the separate refinements. All denominators are the semi-analytical PV on the common pupil. Supplement 1 retains full temperature and optical statistics, including $1$ ms diagnostics.\end{minipage}
 \end{table}}
