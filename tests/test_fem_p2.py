@@ -201,4 +201,3 @@ def test_mirror_raw_pass_never_enters_extended_path_and_bad_solver_is_bounded(mo
     with pytest.raises(RuntimeError,match='original full-space'):
         fem._mirror_cg(system,A,wrong)(A,b,rtol=1e-12)
     assert len(calls)==4  # One initial solve plus at most three corrections.
-
