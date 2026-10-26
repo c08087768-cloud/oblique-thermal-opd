@@ -186,7 +186,8 @@ def main():
             for key,value in physical_fields.items():acceptance_saved[label+'_'+key]=value
         np.savez_compressed(data_directory(directory)/'fields.npz',**saved)
         np.savez_compressed(data_directory(directory)/'acceptance.npz',**acceptance_saved)
-        summary.update(status='COMPLETE',elapsed_seconds=perf_counter()-started)
+        summary.update(status='COMPLETE',transient_truncation_established=True,
+                       elapsed_seconds=perf_counter()-started)
         write_summary(directory,summary,defaults=script_defaults(globals()))
         print(f'COMPLETE: selected {summary["selected_settings"]}; {directory}',flush=True)
     except BaseException as error:

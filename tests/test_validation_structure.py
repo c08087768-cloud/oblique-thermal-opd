@@ -70,6 +70,7 @@ def test_pde_residuals_match_the_original_shared_implementation_exactly():
     ('transient_joint_truncation_selection','validate_saved_transient_run'),
     ('transient_modal_fem_study','validate_saved_transient_run'),
     ('transient_fine_fields','validate_saved_transient_run'),
+    ('transient_fem_convergence_validation','validate_saved_transient_run'),
     ('scientific_verification','validate_saved_evidence_run')])
 def test_cli_dispatches_by_saved_experiment_kind_without_running_other_validators(tmp_path,monkeypatch,kind,target):
     cli=load_cli()

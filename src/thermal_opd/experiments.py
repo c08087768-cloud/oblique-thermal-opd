@@ -17,6 +17,8 @@ EXPERIMENTS={
     'semi-validation':('半解析独立科学验证','verification/verify_semi_analytical.py'),
     'fem-validation':('FEM独立一维基准','verification/verify_fem.py'),
     'fem-comparison':('稳态FEM与半解析对照','verification/compare_steady_fem.py'),
+    'transient-fem-validation':('已保存瞬态FEM网格与时间步验收','verification/verify_transient_fem_convergence.py'),
+    'transient-fem-convergence':('瞬态P2 FEM空间时间联合实验','convergence/check_transient_fem_convergence.py'),
     'validate':('重读结果与验证证据','verification/validate_run.py'),
     'boundaries':('既有瞬态三面边界检查','verification/check_transient_boundaries.py'),
     'source':('热源投影检查','diagnostics/inspect_heat_source.py'),

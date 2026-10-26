@@ -8,7 +8,7 @@ from thermal_opd.steady import steady_temperature,steady_temperature_gradient
 from thermal_opd.run_io import data_directory,figure_directory,read_json,read_numeric_data,validation_report
 from thermal_opd.convergence import field_errors,within_tolerance
 from thermal_opd.validation_common import (require,validate_field_errors,mesh_boundary_edges,points_inside_polygon,
-    finite_difference_laplacian,saved_validation_checks,saved_validation_result)
+    finite_difference_laplacian,saved_validation_checks,saved_validation_result,quadratic_fem_integral_weights)
 
 STEADY_RUN_KINDS=frozenset(('steady_joint_truncation_selection','steady_prismatic_fem_comparison',
                           'complete_representative_steady_refracted_ray_case'))
@@ -114,6 +114,50 @@ def validate_steady_selection(path, summary):
             require(row['relative_pv_sampling_error'] <= summary['tolerance'], 'Figure sampling failed')
 
 
+def steady_fem_directional_checks(rows, temperatures, opds, target, *, mesh_coordinates=None):
+    """Compare candidate to separately identified xy, z and joint refinements.
+
+    An order change or a simultaneous axis change cannot certify an isolated
+    direction, even when the saved fields happen to agree exactly.
+    """
+    roles=('candidate','xy_reference','z_reference','joint_reference')
+    indices={}
+    for role in roles:
+        found=[j for j,row in enumerate(rows) if row.get('mesh_role')==role]
+        require(len(found)==1, f'Missing or duplicate steady FEM refinement role: {role}')
+        indices[role]=found[0]
+    candidate=indices['candidate'];base=rows[candidate]
+    require(len(temperatures)==len(rows) and len(opds)==len(rows), 'Missing directional FEM sample fields')
+    checks={}
+    for direction,role in zip(('xy','z','joint'),roles[1:]):
+        reference=indices[role];row=rows[reference]
+        same_degree=(base.get('field_degree_xy',1)==row.get('field_degree_xy',1)==2
+                     and base.get('field_degree_z',1)==row.get('field_degree_z',1)==2)
+        xy_changed=row['disk_refinements']>base['disk_refinements']
+        z_changed=row['axial_layers']>base['axial_layers']
+        xy_same=row['disk_refinements']==base['disk_refinements']
+        z_same=row['axial_layers']==base['axial_layers']
+        valid=same_degree and {'xy':xy_changed and z_same,
+                               'z':xy_same and z_changed,
+                               'joint':xy_changed and z_changed}[direction]
+        if mesh_coordinates is not None:
+            require(len(mesh_coordinates)==len(rows), 'Missing actual directional FEM coordinates')
+            a,b=mesh_coordinates[candidate],mesh_coordinates[reference]
+            same_xy=np.array_equal(a['xy'],b['xy']) and np.array_equal(a['tri'],b['tri'])
+            same_z=np.array_equal(a['z'],b['z'])
+            more_xy=b['xy'].shape[1]>a['xy'].shape[1] and b['tri'].shape[1]>a['tri'].shape[1]
+            more_z=b['z'].size>a['z'].size
+            valid=valid and {'xy':more_xy and same_z,
+                             'z':same_xy and more_z,
+                             'joint':more_xy and more_z}[direction]
+        errors=field_errors(temperatures[candidate],temperatures[reference],
+                            np.ones(np.shape(temperatures)[-1]),opds[candidate],opds[reference])
+        checks[direction]={'candidate_index':candidate,'reference_index':reference,
+                           'configuration_valid':bool(valid),'errors':errors,
+                           'passed':bool(valid and within_tolerance(errors,target))}
+    return checks
+
+
 def validate_steady_fem(path, summary):
     p, h = summary['physical_parameters_SI'], summary['h_eff_W_per_m2_K']
     require(summary['sanity_pass'], 'FEM sanity failed')
@@ -132,6 +176,7 @@ def validate_steady_fem(path, summary):
             require(np.all(np.isnan(fields['opd_fem_m'][..., ~om])), 'Unexpected exterior FEM OPD')
             require(np.allclose(np.ptp(os), case['sa_opd_pv_common_aperture_m'], rtol=1e-10, atol=1e-20), 'SA PV mismatch')
             require(tf.shape[0]==len(case['meshes']), 'Missing FEM mesh field')
+            loaded_mesh_settings=[];loaded_mesh_coordinates=[]
             for j, row in enumerate(case['meshes']):
                 actual = field_errors(tf[j], ts, np.ones(ts.shape[1]), of[j], os)
                 validate_field_errors(actual, row['errors_vs_sa'])
@@ -141,16 +186,39 @@ def validate_steady_fem(path, summary):
                 require(row['relative_linear_residual'] <= summary['sanity_tolerance'], 'FEM linear residual failed')
                 with read_numeric_data(data_directory(path)/f'{label}_mesh{j}.npz') as mesh:
                     xy, tri, z, t = (mesh[k] for k in ('disk_nodes_xy_m', 'disk_triangles', 'axial_nodes_z_m', 'temperature_K'))
-                    require(t.shape==(z.size, xy.shape[1]) and np.all(np.isfinite(t)), 'Bad FEM nodal temperature')
+                    degree=row.get('field_degree_xy',1)
+                    require(degree in (1,2) and row.get('field_degree_z',degree)==degree, 'Invalid steady FEM field degree')
+                    require('field_degree' not in mesh or mesh['field_degree'].item()==degree, 'Saved FEM field degree differs')
+                    coordinates=mesh['xy_dof_coordinates_m'] if 'xy_dof_coordinates_m' in mesh else xy
+                    require(t.shape==(z.size, coordinates.shape[1]) and np.all(np.isfinite(t)), 'Bad FEM nodal temperature')
                     require(np.all(np.diff(z)>0) and z[0]==0 and z[-1]==p['thickness'], 'Bad FEM axial coordinates')
                     require(tri.min()>=0 and tri.max()<xy.shape[1], 'Bad FEM topology')
                     edges = mesh_boundary_edges(tri)
-                    v1, v2 = xy[:, tri[1]]-xy[:, tri[0]], xy[:, tri[2]]-xy[:, tri[0]]
-                    areas = np.abs(v1[0]*v2[1]-v1[1]*v2[0])/2
-                    lengths = np.linalg.norm(xy[:, edges[:, 1]]-xy[:, edges[:, 0]], axis=0)
-                    losses = (h*np.sum(areas*t[0, tri].mean(axis=0)),
-                              h*np.sum(areas*t[-1, tri].mean(axis=0)),
-                              h*np.trapezoid(np.sum(t[:, edges].mean(axis=2)*lengths, axis=1), x=z))
+                    if degree==2:
+                        require('field_degree' in mesh and 'xy_dof_coordinates_m' in mesh, 'Missing quadratic FEM DOF metadata')
+                        area_weights,side_weights,z_weights=quadratic_fem_integral_weights(xy,tri,z,coordinates)
+                        losses=(h*(t[0]@area_weights),h*(t[-1]@area_weights),h*(z_weights@t@side_weights))
+                        layers=(z.size-1)//2
+                    else:
+                        require(coordinates.shape==xy.shape and np.array_equal(coordinates,xy), 'P1 FEM DOF coordinates differ')
+                        v1, v2 = xy[:, tri[1]]-xy[:, tri[0]], xy[:, tri[2]]-xy[:, tri[0]]
+                        areas = np.abs(v1[0]*v2[1]-v1[1]*v2[0])/2
+                        lengths = np.linalg.norm(xy[:, edges[:, 1]]-xy[:, edges[:, 0]], axis=0)
+                        losses = (h*np.sum(areas*t[0, tri].mean(axis=0)),
+                                  h*np.sum(areas*t[-1, tri].mean(axis=0)),
+                                  h*np.trapezoid(np.sum(t[:, edges].mean(axis=2)*lengths, axis=1), x=z))
+                        layers=z.size-1
+                    from skfem import MeshTri
+                    if degree==2:
+                        require(row['axial_layers']==layers, 'Saved FEM axial layer count differs')
+                        # New P2 direction claims use the actual circle topology;
+                        # historical P1 files retain their established reader.
+                        expected=MeshTri.init_circle(nrefs=row['disk_refinements'])
+                        require(tri.shape==expected.t.shape and np.array_equal(tri,expected.t), 'Saved FEM disk refinement topology differs')
+                        radius=np.max(np.linalg.norm(xy,axis=0))
+                        require(np.allclose(xy,expected.p*radius,rtol=1e-12,atol=1e-15), 'Saved FEM disk refinement coordinates differ')
+                    loaded_mesh_settings.append({**row,'field_degree_xy':degree,'field_degree_z':degree})
+                    loaded_mesh_coordinates.append(dict(xy=xy,tri=tri,z=z))
                     for name, value in zip(('front_loss_W', 'rear_loss_W', 'side_loss_W'), losses):
                         require(np.isclose(value, row[name], rtol=1e-10, atol=1e-14), f'Nodal heat loss mismatch: {name}')
                     require(abs(sum(losses)-row['input_W'])/abs(row['input_W']) <= summary['sanity_tolerance'], 'Reloaded FEM energy failed')
@@ -159,6 +227,16 @@ def validate_steady_fem(path, summary):
                     shift = p['thickness']*np.tan(np.deg2rad(case['refraction_angle_deg']))
                     require(np.all(points_inside_polygon(tx, ty, xy, edges)), 'Temperature point outside FEM polygon')
                     require(np.all(points_inside_polygon(ox, oy, xy, edges) & points_inside_polygon(ox, oy+shift, xy, edges)), 'Ray outside FEM polygon')
+                    if degree==2:
+                        # This is a saved-field consistency check, not a new
+                        # solve.  Analytic heat-loss integrals above remain
+                        # independent of the production sampler/assembler.
+                        from thermal_opd.fem import FemSolution
+                        frame=FemSolution(MeshTri(xy,tri,sort_t=False),z,t,{},field_degree=2)
+                        sampled_t=np.stack([frame.temperature_at(tx,ty,plane) for plane in fields['temperature_z_m']])
+                        require(np.allclose(sampled_t,tf[j],rtol=1e-11,atol=1e-13), 'Saved FEM temperature sample differs from nodal field')
+                        sampled_o=frame.refracted_opd(ox,oy,np.deg2rad(case['refraction_angle_deg']),p['dn_dT'],point_chunk_size=128)
+                        require(np.allclose(sampled_o,of[j],rtol=1e-11,atol=1e-20), 'Saved FEM OPD sample differs from nodal field')
             q_check = case['load_quadrature_check']
             actual_q = field_errors(fields['temperature_higher_quadrature_K'][..., tm], tf[-1], np.ones(ts.shape[1]),
                                     fields['opd_higher_quadrature_m'][om], of[-1])
@@ -166,9 +244,24 @@ def validate_steady_fem(path, summary):
             require(q_check['passed'] and within_tolerance(q_check['errors'], summary['mesh_change_target']/10), 'FEM load quadrature failed')
             expected_change = within_tolerance(case['meshes'][-2]['changes_vs_finest_fem'], summary['mesh_change_target'])
             require(case['finest_mesh_change_within_target']==expected_change, 'Incorrect FEM convergence flag')
+            if summary.get('mesh_refinement_protocol')=='p2_xy_z_joint_v1':
+                actual_directional=steady_fem_directional_checks(loaded_mesh_settings,tf,of,summary['mesh_change_target'],
+                                                               mesh_coordinates=loaded_mesh_coordinates)
+                require(set(case.get('directional_mesh_checks',{}))==set(actual_directional), 'Missing directional FEM convergence evidence')
+                for direction,actual in actual_directional.items():
+                    recorded=case['directional_mesh_checks'][direction]
+                    validate_field_errors(actual['errors'],recorded['errors'])
+                    require(all(recorded[k]==actual[k] for k in ('candidate_index','reference_index','configuration_valid','passed')),
+                            f'Incorrect directional FEM convergence flag: {direction}')
+            elif any(row.get('field_degree_xy',1)==2 for row in case['meshes']):
+                require(not summary['mesh_convergence_established'], 'P2 convergence requires separate xy/z/joint evidence')
         require((figure_directory(path)/f'{label}_comparison.png').is_file(), 'Missing FEM comparison figure')
     require((data_directory(path)/'comparison.csv').is_file(), 'Missing FEM comparison table')
     established = summary['mode']=='full' and all(c['finest_mesh_change_within_target'] for c in summary['cases'])
+    if summary.get('mesh_refinement_protocol')=='p2_xy_z_joint_v1':
+        established=established and all(all(check['passed'] for check in c['directional_mesh_checks'].values()) for c in summary['cases'])
+    elif any(row.get('field_degree_xy',1)==2 for c in summary['cases'] for row in c['meshes']):
+        established=False
     require(summary['mesh_convergence_established']==established, 'Incorrect full mesh-convergence flag')
 
 

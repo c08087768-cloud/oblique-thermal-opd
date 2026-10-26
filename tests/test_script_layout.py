@@ -15,6 +15,8 @@ EXPECTED_ENTRIES = {
     'semi-validation':'verification/verify_semi_analytical.py',
     'fem-validation':'verification/verify_fem.py',
     'fem-comparison':'verification/compare_steady_fem.py',
+    'transient-fem-validation':'verification/verify_transient_fem_convergence.py',
+    'transient-fem-convergence':'convergence/check_transient_fem_convergence.py',
     'validate':'verification/validate_run.py',
     'boundaries':'verification/check_transient_boundaries.py',
     'source':'diagnostics/inspect_heat_source.py',
@@ -82,7 +84,9 @@ def test_transient_entry_reaches_its_sibling_before_any_solve(mode,tmp_path,monk
     spec.loader.exec_module(entry)
     monkeypatch.chdir(tmp_path)
     selection=tmp_path/'saved-selection'
-    monkeypatch.setattr(sys,'argv',[str(cases/'run_transient_case.py'),'--mode',mode,'--selection',str(selection)])
+    arguments=[str(cases/'run_transient_case.py'),'--mode',mode,'--selection',str(selection)]
+    if mode=='full':arguments+=['--fem-convergence',str(tmp_path/'saved-fem-certificate')]
+    monkeypatch.setattr(sys,'argv',arguments)
     class ReachedSelection(Exception):
         pass
     calls=[]

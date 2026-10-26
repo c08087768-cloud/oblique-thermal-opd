@@ -24,6 +24,49 @@ def mesh_boundary_edges(triangles):
     return edges[counts==1]
 
 
+def quadratic_fem_integral_weights(xy, tri, z, xy_dof_coordinates):
+    """Analytically integrate saved P2 fields on a linear triangular prism mesh.
+
+    Returns disk-area (m²), polygon-boundary (m), and sorted axial (m)
+    weights.  These integrate the actual quadratic nodal shape functions;
+    they are not lumped P1 weights.  Basis is used only to identify DOFs,
+    never to assemble a form or rerun a thermal solver.  Corrupt coordinates
+    or axial nodes that are not vertex/midpoint pairs are rejected.
+    """
+    from skfem import MeshTri, Basis, ElementTriP2
+    xy, tri = np.asarray(xy), np.asarray(tri)
+    z, coordinates = np.asarray(z), np.asarray(xy_dof_coordinates)
+    require(xy.ndim==2 and xy.shape[0]==2 and np.all(np.isfinite(xy)), 'Invalid FEM vertex coordinates')
+    require(tri.ndim==2 and tri.shape[0]==3 and tri.shape[1]>0
+            and np.issubdtype(tri.dtype,np.integer) and tri.min()>=0 and tri.max()<xy.shape[1], 'Invalid FEM topology')
+    require(z.ndim==1 and z.size>=3 and z.size%2==1 and np.all(np.isfinite(z))
+            and np.all(np.diff(z)>0), 'Invalid quadratic FEM axial coordinates')
+    require(np.allclose(z[1::2], (z[:-2:2]+z[2::2])/2, rtol=0,
+                        atol=64*np.finfo(float).eps*max(np.max(np.abs(z)),np.finfo(float).tiny)),
+            'Quadratic FEM axial midpoint coordinates differ')
+    mesh=MeshTri(xy,tri,sort_t=False)
+    basis=Basis(mesh,ElementTriP2())
+    tolerance=64*np.finfo(float).eps*max(np.max(np.abs(xy)),np.finfo(float).tiny)
+    require(coordinates.shape==basis.doflocs.shape and np.all(np.isfinite(coordinates))
+            and np.allclose(coordinates,basis.doflocs,rtol=0,atol=tolerance), 'Quadratic FEM DOF coordinates differ')
+    v1,v2=xy[:,tri[1]]-xy[:,tri[0]],xy[:,tri[2]]-xy[:,tri[0]]
+    areas=np.abs(v1[0]*v2[1]-v1[1]*v2[0])/2
+    require(np.all(areas>0), 'Degenerate FEM triangle')
+    area_weights=np.zeros(basis.N)
+    # Integral of each P2 vertex shape is zero; each edge shape is A/3.
+    np.add.at(area_weights,basis.element_dofs[3:].ravel(),np.tile(areas/3,3))
+    side_weights=np.zeros(basis.N)
+    facets=mesh.boundary_facets();edges=mesh.facets[:,facets]
+    lengths=np.linalg.norm(xy[:,edges[1]]-xy[:,edges[0]],axis=0)
+    np.add.at(side_weights,edges.ravel(),np.tile(lengths/6,2))
+    np.add.at(side_weights,basis.facet_dofs[0,facets],2*lengths/3)
+    axial_weights=np.zeros(z.size);widths=z[2::2]-z[:-2:2]
+    axial_weights[:-2:2]+=widths/6
+    axial_weights[1::2]+=2*widths/3
+    axial_weights[2::2]+=widths/6
+    return area_weights,side_weights,axial_weights
+
+
 def points_inside_polygon(x, y, p, edges):
     inside = np.ones(np.broadcast_shapes(np.shape(x), np.shape(y)), dtype=bool)
     scale = np.max(np.abs(p))

@@ -17,11 +17,13 @@ from thermal_opd.transient import PowerHistory
 from scipy.linalg import eigh_tridiagonal
 from thermal_opd.projection import reconstruct_cosine_field
 from thermal_opd.run_io import figure_directory,resolve_run_path,read_json,read_numeric_data,write_json,validation_report,validation_check
+from thermal_opd.run_io import relative_metadata_paths,file_sha256
 from thermal_opd.convergence import field_errors,within_tolerance
 from thermal_opd.validation_common import (require,validate_field_errors,mesh_boundary_edges,points_inside_polygon,
-    finite_difference_laplacian,saved_validation_checks,saved_validation_result)
+    finite_difference_laplacian,saved_validation_checks,saved_validation_result,quadratic_fem_integral_weights)
 
-TRANSIENT_RUN_KINDS=frozenset(('transient_modal_fem_study','transient_joint_truncation_selection','transient_fine_fields'))
+TRANSIENT_RUN_KINDS=frozenset(('transient_modal_fem_study','transient_joint_truncation_selection','transient_fine_fields',
+                             'transient_fem_convergence_validation'))
 
 
 BOUNDARY_FILES = ('boundary_checks.npz','boundary_summary.json','boundary_residuals.csv')
@@ -324,14 +326,23 @@ def transient_solution_acceptance(model, times, config):
 
 
 def load_transient_selection(directory, parameters, angle, history='step'):
-    """Read and validate a selected configuration shared by all consumers."""
+    """Read a revalidated selection; derive a missing legacy flag in memory only."""
     directory=Path(directory).resolve()
-    validate_saved_transient_run(directory)
+    reviewed=validate_saved_transient_run(directory)
     summary=read_json(directory/'summary.json')
     require(summary['kind']=='transient_joint_truncation_selection'
             and summary['physical_parameters_SI']==asdict(parameters),'Need selection with identical physical parameters')
     require(angle in summary['angles_deg'] and history=='step' and summary['history']['kind']=='step',
             'Angle/history is outside selected scope')
+    joint=next((row for row in reviewed['verification']['checks']
+                if row['name']=='joint_modal_truncation'),None)
+    require(reviewed['status']=='PASS' and joint is not None and joint['status']=='passed',
+            'Selected transient truncation is not established by saved checks')
+    require('transient_truncation_established' not in summary
+            or summary['transient_truncation_established'] is True,
+            'Selected transient truncation explicitly not established')
+    # The legacy producer omitted this field; no original JSON is rewritten.
+    summary['transient_truncation_established']=True
     return summary
 
 
@@ -383,8 +394,22 @@ def validate_transient_fem(path, summary):
     p,h = summary['physical_parameters_SI'],summary['h_eff_W_per_m2_K']
     tolerance = summary['sanity_tolerance']
     require(summary['sanity_pass'],'Transient sanity failed')
-    require(not summary['transient_truncation_established'] and not summary['fem_convergence_established'],
-            'Diagnostic study cannot claim final convergence')
+    evidence=None
+    if summary['fem_convergence_established']:
+        evidence=load_transient_fem_certificate(resolve_run_path(path,summary['fem_convergence_directory']),
+            PhysicalParameters(**p),summary['angle_deg'],PowerHistory(**summary['history']),summary['times_s'])
+        require(evidence['certificate_summary_sha256']==summary['fem_convergence_summary_sha256']
+            and evidence['certificate_verification_sha256']==summary['fem_convergence_verification_sha256'],
+            'Formal FEM certificate changed since case generation')
+    if summary['transient_truncation_established']:
+        selection=load_transient_selection(resolve_run_path(path,summary['selection_directory']),
+            PhysicalParameters(**p),summary['angle_deg'],summary['history']['kind'])
+        require(selection.get('transient_truncation_established') is True,'Selected transient truncation is not established')
+        require(summary['modal_settings']==selection['selected_settings']['modal']
+            and summary['axial_counts'][-1]==selection['selected_settings']['J'],
+            'Saved transient case does not use selected modal settings')
+        require(all(t==0 or t in selection['times_s'] for t in summary['times_s']),
+            'Transient selection time scope does not cover every saved positive time')
     with read_numeric_data(data_directory(path)/'fields.npz') as f:
         require(all(np.all(np.isfinite(f[key])) for key in f.files),'Nonfinite transient field')
         times,weights = f['times_s'],f['area_weights_m2']
@@ -443,6 +468,25 @@ def validate_transient_fem(path, summary):
                     err = field_errors(tf[j],temperature[j][...,tm],weights[tm],of[j],f['opd_sa_fem_common_m'][j],
                                        temperature_normalization=normalization)
                     validate_field_errors(err,row['errors_vs_sa'][j])
+            if evidence is not None:
+                require(len(summary['fem_runs'])==1,'Formal case must reuse exactly the accepted FEM candidate')
+                header=_transient_fem_case_header(path,dict(source_run=str(path),case_index=i))
+                require(header['file']==evidence['header']['file'] and header['sha256']==evidence['header']['sha256'],
+                    'Formal case did not reuse the certificate candidate nodes')
+                require(np.array_equal(header['times'],evidence['header']['times']),
+                    'Formal FEM source time schedule differs')
+                tx=f['r_m'][:,None]*np.cos(f['phi_rad']);ty=f['r_m'][:,None]*np.sin(f['phi_rad'])
+                depths=np.broadcast_to(f['z_m'],(header['times'].size,f['z_m'].size))
+                samples=_transient_fem_case_samples(header,tx[tm],ty[tm],x[common],y[common],depths,angle)
+                indices=[int(np.flatnonzero(header['times']==t)[0]) for t in times]
+                require(np.allclose(samples['temperature'][indices],tf,rtol=1e-10,atol=1e-12),
+                    'Saved formal FEM sampled temperature differs from candidate nodes')
+                require(np.allclose(samples['opd'][indices],of,rtol=1e-10,atol=1e-20),
+                    'Saved formal FEM sampled OPD differs from candidate nodes')
+                require(samples['initial']==0 and samples['energy_error']<1e-7 and samples['linear_residual']<1e-7
+                    and all(samples[key]<=1 for key in ('nodal_energy_ratio','storage_ratio','loss_ratio','load_ratio','balance_ratio')),
+                    'Formal FEM saved nodal physical checks failed')
+                continue
             with read_numeric_data(data_directory(path)/f'fem_run{i}.npz') as mesh:
                 xy,tri,z,T = (mesh[key] for key in ('disk_nodes_xy_m','disk_triangles','axial_nodes_z_m','temperature_K'))
                 require(T.shape==(times.size,z.size,xy.shape[1]) and np.all(np.isfinite(T)),'Bad transient FEM nodal fields')
@@ -465,7 +509,6 @@ def validate_transient_fem(path, summary):
                 balance = abs(actual_storage+steps['heat_loss_W']-steps['input_W'])
                 scale = max(abs(row['full_input_W']),np.finfo(float).tiny)
                 require(np.max(balance)/scale<tolerance,'Saved transient energy failed')
-                from thermal_opd.transient import PowerHistory
                 history = PowerHistory(**summary['history'])
                 expected_input = row['full_input_W']*np.array([history.value(t) for t in steps['time_s']])
                 require(np.allclose(steps['input_W'],expected_input,rtol=1e-12,atol=1e-14),'Time-dependent load differs')
@@ -477,10 +520,14 @@ def validate_transient_fem(path, summary):
                               +np.trapezoid(np.sum(T[j,:,edges].mean(axis=1)*lengths[:,None],axis=0),x=z))
                     require(np.isclose(loss,steps['heat_loss_W'][k[0]],rtol=1e-9,atol=1e-12),'Nodal heat loss mismatch')
         require((figure_directory(path)/'transient_modes.png').is_file() and (data_directory(path)/'modal_contributions.csv').is_file(),'Missing modal study artifacts')
+    return evidence['verification'] if evidence is not None else None
 
 
 def validate_transient_selection(path,summary):
     require(len(summary['cases'])==len(summary['angles_deg']),'Missing transient selection angle')
+    angles=summary['angles_deg'];actual=[case['angle_deg'] for case in summary['cases']]
+    require(len(set(angles))==len(angles) and len(set(actual))==len(actual)
+            and set(angles)==set(actual),'Transient selection angle scope differs from saved cases')
     with read_numeric_data(data_directory(path)/'fields.npz') as f:
         require(all(np.all(np.isfinite(f[key])) for key in f.files),'Nonfinite transient selection field')
         weights = f['temperature_area_weights']
@@ -613,7 +660,7 @@ def validate_transient_fields(path,summary):
         require((figure_path/filename).is_file(),'Missing fine transient figure')
 
 
-def transient_saved_validation_report(directory,summary,boundary_check=None):
+def transient_saved_validation_report(directory,summary,boundary_check=None,*,fem_validation=None):
     """Record initial, time, long-time and FEM evidence in the original report schema."""
     checks=saved_validation_checks(directory,summary)
     kind=summary.get('kind')
@@ -649,10 +696,441 @@ def transient_saved_validation_report(directory,summary,boundary_check=None):
     if kind=='transient_modal_fem_study':
         checks['fem_energy_balance']['status']='passed'
         checks['fem_weak_equation_residual']['status']='passed'
+        if fem_validation is not None:
+            prefix=f'theta{summary["angle_deg"]:g}_'
+            for name,directions in (('fem_space_convergence',('xy','z','joint')),('fem_time_convergence',('time',))):
+                rows=[c for c in fem_validation['checks'] if c['name'] in {prefix+d+'_convergence' for d in directions}]
+                states=[row['status'] for row in rows]
+                status=('failed' if 'failed' in states else
+                    'passed' if len(rows)==len(directions) and all(s=='passed' for s in states) else 'not_run')
+                checks[name].update(status=status,metrics={'reread_certificate_checks':rows},
+                    evidence=summary.get('fem_convergence_directory'),
+                    scope='Independent saved FEM certificate, including its diagnostic-only 1ms policy')
+            checks['fem_independent_reference'].update(status=fem_validation['status'],
+                evidence=summary.get('fem_convergence_directory'),scope='Independently reread FEM refinement certificate')
     if summary.get('mesh_convergence_established',False):
         checks['fem_space_convergence']['status']='passed'
     return validation_report(list(checks.values()),config={'physical_parameters_SI':summary.get('physical_parameters_SI'),
         'kind':kind,'scope':summary.get('precision_scope')},run_directory=directory)
+
+
+def _transient_fem_case_header(directory,reference):
+    """Read mesh/schedule metadata; large nodal arrays are sampled one case at a time."""
+    source=resolve_run_path(directory,reference['source_run'])
+    summary=read_json(source/'summary.json')
+    for relative,sha in summary.get('birth_evidence_files',{}).items():
+        require(file_sha256(resolve_run_path(source,relative))==sha,'FEM birth evidence hash differs')
+    index=reference['case_index']
+    require(isinstance(index,int) and not isinstance(index,bool) and index>=0,'Invalid FEM case index')
+    rows=summary.get('fem_runs',summary.get('cases',[]))
+    row=next((row for i,row in enumerate(rows) if row.get('index',i)==index),None)
+    require(row is not None,'Missing FEM case diagnostics')
+    diagnostics=row.get('diagnostics',row)
+    file=(resolve_run_path(source,row['data_file']) if 'data_file' in row
+          else data_directory(source)/f'fem_run{index}.npz')
+    data_format=row.get('data_format','thermal_opd_fem')
+    require(data_format in ('thermal_opd_fem','thermal_opd_probe_nodes_v1'),'Unsupported FEM data format')
+    mesh_keys=(('disk_nodes_xy_m','disk_triangles','axial_nodes_z_m') if data_format=='thermal_opd_fem'
+               else ('xy_vertices_m','triangles','z_dofs_m'))
+    degree=diagnostics.get('field_degree_xy',1)
+    require(degree in (1,2) and diagnostics.get('field_degree_z',degree)==degree,'Invalid FEM field degree')
+    if row.get('data_sha256'):require(file_sha256(file)==row['data_sha256'],'Source FEM data hash differs')
+    with read_numeric_data(file) as f:
+        xy,tri,z=(f[k] for k in mesh_keys)
+        times=f['times_s'] if 'times_s' in f else np.asarray(summary['times_s'])
+        keys=f['step_keys'].tolist();values=f['steps']
+        xy_dofs=f['xy_dof_coordinates_m'] if 'xy_dof_coordinates_m' in f else xy
+        require('field_degree' not in f or f['field_degree'].item()==degree,'Saved FEM field degree differs')
+    require(xy.ndim==2 and xy.shape[0]==2 and np.all(np.isfinite(xy)),'Invalid FEM xy nodes')
+    require(tri.ndim==2 and tri.shape[0]==3 and tri.dtype.kind in 'iu'
+        and tri.min()>=0 and tri.max()<xy.shape[1],'Invalid FEM triangles')
+    require(z.ndim==1 and z.size>=2 and np.all(np.isfinite(z)) and np.all(np.diff(z)>0),'Invalid FEM z nodes')
+    require(xy_dofs.ndim==2 and xy_dofs.shape[0]==2 and np.all(np.isfinite(xy_dofs)),'Invalid FEM DOF coordinates')
+    require(times.ndim==1 and times.size>=2 and times[0]==0 and np.all(np.isfinite(times))
+        and np.all(np.diff(times)>0),'Saved FEM must include zero and increasing times')
+    require(len(keys)==len(set(keys)) and values.ndim==2 and values.shape[1]==len(keys)
+        and values.shape[0]>0 and np.all(np.isfinite(values)),'Invalid FEM step data')
+    steps={key:values[:,i] for i,key in enumerate(keys)}
+    required={'time_s','dt_s','input_W','storage_rate_W','stored_energy_J','heat_loss_W',
+              'balance_absolute_error_W','relative_linear_residual'}
+    require(required<=set(steps),'Missing FEM step evidence')
+    require(np.all(steps['dt_s']>0) and steps['time_s'][-1]==times[-1]
+        and np.allclose(np.diff(np.r_[0.,steps['time_s']]),steps['dt_s'],rtol=1e-10,atol=1e-12),
+        'Invalid FEM integration schedule')
+    require(np.all(steps['relative_linear_residual']>=0),'Invalid FEM linear residual')
+    p=PhysicalParameters(**summary['physical_parameters_SI'])
+    require(z[0]==0 and z[-1]==p.thickness,'FEM axial domain differs from physics')
+    require(diagnostics['axial_layers']*degree==z.size-1
+        and diagnostics['degrees_of_freedom']==z.size*xy_dofs.shape[1],'FEM mesh diagnostics differ from saved nodes')
+    if degree==2:
+        from skfem import MeshTri,Basis,ElementTriP2
+        require(diagnostics.get('geometry_degree',1)==1,'Only affine P2 polygon geometry is supported')
+        basis=Basis(MeshTri(xy,tri),ElementTriP2())
+        require(xy_dofs.shape==basis.doflocs.shape and np.allclose(xy_dofs,basis.doflocs,rtol=0,atol=1e-14*p.radius),
+            'Saved P2 DOF coordinates differ from quadratic mesh')
+        require(np.allclose(z[1::2],(z[:-2:2]+z[2::2])/2,rtol=1e-14,atol=0),'Invalid P2 axial midpoint DOFs')
+        require(diagnostics['quadrature_order']>=4,'P2 mass/Robin quadrature is underintegrated')
+    method=diagnostics['time_integrator']
+    require(method in ('backward_euler','bdf2'),'Unsupported FEM time integrator')
+    if method=='bdf2':
+        extra={'bdf_storage_rate_W','bdf_balance_absolute_error_W','bdf_alpha0','bdf_alpha1','bdf_alpha2','time_order'}
+        require(extra<=set(steps),'Missing BDF2 evidence')
+        require(diagnostics.get('bdf2_startup')=='backward_euler'
+            and diagnostics.get('bdf2_max_step_ratio')==1.5,'Unsupported BDF2 startup/ratio policy')
+        dt=steps['dt_s'];prior=np.r_[dt[0],dt[:-1]]
+        restart=np.r_[True,(dt[1:]/dt[:-1])>1.5*(1+16*np.finfo(float).eps)]
+        require(np.array_equal(steps['time_order'],np.where(restart,1,2)),'Invalid BDF2 method order')
+        a0,a1,a2=(steps['bdf_alpha'+str(i)] for i in range(3))
+        require(np.all(a0[restart]==1.) and np.all(a1[restart]==-1.) and np.all(a2[restart]==0.),
+            'Invalid BDF2 startup/restart coefficients')
+        # Independent polynomial exactness at t_n, t_n-h, t_n-h-p; no solver helper.
+        use=~restart;offset=1+prior[use]/dt[use]
+        require(np.allclose(a0[use]+a1[use]+a2[use],0.,rtol=0,atol=1e-12)
+            and np.allclose(-a1[use]-a2[use]*offset,1.,rtol=0,atol=1e-12)
+            and np.allclose(a1[use]+a2[use]*offset**2,0.,rtol=0,atol=1e-12),
+            'BDF2 coefficients do not differentiate quadratic polynomials correctly')
+    else:
+        require(not any(key.startswith('bdf_') for key in steps),'BE metadata contains BDF2 evidence')
+    a,b=xy[:,tri[1]]-xy[:,tri[0]],xy[:,tri[2]]-xy[:,tri[0]]
+    areas=np.abs(a[0]*b[1]-a[1]*b[0])/2
+    require(np.all(areas>0),'Degenerate FEM triangle')
+    edges=mesh_boundary_edges(tri)
+    require(np.all(np.linalg.norm(xy,axis=0)<=p.radius*(1+1e-12))
+        and np.allclose(np.linalg.norm(xy[:,np.unique(edges)],axis=0),p.radius,rtol=1e-12,atol=1e-14),
+        'FEM polygon differs from the physical cylinder radius')
+    lengths=np.linalg.norm(xy[:,edges[:,1]]-xy[:,edges[:,0]],axis=0)
+    area_weights=np.bincount(tri.ravel(),weights=np.tile(areas/3,3),minlength=xy.shape[1])
+    side_weights=np.bincount(edges.ravel(),weights=np.repeat(lengths/2,2),minlength=xy.shape[1])
+    z_weights=None
+    if degree==2:
+        area_weights,side_weights,z_weights=quadratic_fem_integral_weights(xy,tri,z,xy_dofs)
+    max_edge=max(float(np.max(np.linalg.norm(xy[:,tri[j]]-xy[:,tri[k]],axis=0))) for j,k in ((0,1),(1,2),(2,0)))
+    interval_dt=[];observation_steps=[]
+    for left,right in zip(times[:-1],times[1:]):
+        ids=np.flatnonzero((steps['time_s']>left)&(steps['time_s']<=right))
+        require(ids.size>0 and steps['time_s'][ids[-1]]==right,'FEM missed observation time')
+        interval_dt.append(float(np.max(steps['dt_s'][ids])));observation_steps.append(int(ids[-1]))
+    return dict(source=source,file=file,summary=summary,diagnostics=diagnostics,p=p,xy=xy,tri=tri,z=z,
+        times=times,steps=steps,areas=areas,area_weights=area_weights,side_weights=side_weights,
+        max_xy_edge_m=max_edge,interval_dt=np.array(interval_dt),observation_steps=observation_steps,
+        sha256=file_sha256(file),field_degree=degree,xy_dof_coordinates=xy_dofs,z_integration_weights=z_weights)
+
+
+def _transient_fem_case_samples(header,tx,ty,ox,oy,depths,internal):
+    from thermal_opd.fem import FemSolution
+    from skfem import MeshTri,Basis,ElementTriP1,ElementTriP2
+    p=header['p'];mesh=MeshTri(header['xy'],header['tri']);times=header['times']
+    with read_numeric_data(header['file']) as f:
+        nodal=f['temperature_K']
+        if nodal.ndim==2:
+            require(times.size==2 and 'temperature_initial_K' in f,'Missing historical FEM initial nodes')
+            nodal=np.stack((f['temperature_initial_K'],nodal))
+        require(nodal.shape==(times.size,header['z'].size,header['xy_dof_coordinates'].shape[1])
+            and np.all(np.isfinite(nodal)),'Invalid saved FEM temperatures')
+        temperature,opd,energy,loss=[],[],[],[]
+        for i,field in enumerate(nodal):
+            frame=FemSolution(mesh,header['z'],field,{},field_degree=header['field_degree'])
+            temperature.append(np.stack([frame.temperature_at(tx,ty,z) for z in depths[i]]))
+            opd.append(frame.refracted_opd(ox,oy,internal,p.dn_dT,point_chunk_size=128))
+            # Integral of the actual linear shape functions. These weights only
+            # integrate saved fields; they do not lump the solver's capacity.
+            planar=field@header['area_weights']
+            if header['field_degree']==1:
+                energy.append(p.density*p.specific_heat*np.trapezoid(planar,x=header['z']))
+                loss.append(p.h_eff*(planar[0]+planar[-1]+np.trapezoid(field@header['side_weights'],x=header['z'])))
+            else:
+                weights=header['z_integration_weights']
+                energy.append(p.density*p.specific_heat*(weights@planar))
+                loss.append(p.h_eff*(planar[0]+planar[-1]+weights@(field@header['side_weights'])))
+        initial=float(np.max(np.abs(nodal[0])))
+    require(file_sha256(header['file'])==header['sha256'],
+            'Source FEM data changed during validation')
+    basis=Basis(mesh,ElementTriP1() if header['field_degree']==1 else ElementTriP2(),intorder=header['diagnostics']['quadrature_order'])
+    xyq=basis.global_coordinates()
+    power=float(np.sum(oblique_gaussian_heat_flux(xyq[0],xyq[1],p.beam_radius,
+        np.deg2rad(header['summary']['angle_deg']),p.absorbed_power)*basis.dx))
+    require(power>0,'Validation requires nonzero prescribed Gaussian power')
+    steps=header['steps'];ids=header['observation_steps'];energy=np.asarray(energy);loss=np.asarray(loss)
+    stored_rate=np.diff(np.r_[energy[0],steps['stored_energy_J']])/steps['dt_s']
+    history=PowerHistory(**header['summary']['history'])
+    expected_input=power*np.array([history.value(t) for t in steps['time_s']])
+    nodal_energy_ratio=np.max(abs(energy[1:]-steps['stored_energy_J'][ids])/(1e-12+1e-10*abs(steps['stored_energy_J'][ids])))
+    storage_ratio=np.max(abs(stored_rate-steps['storage_rate_W'])/(1e-12+1e-8*abs(steps['storage_rate_W'])))
+    energy_error=max(float(np.max(abs(stored_rate+steps['heat_loss_W']-expected_input))/power),
+        float(np.max(abs(steps['storage_rate_W'][ids]+loss[1:]-expected_input[ids]))/power))
+    loss_ratio=float(np.max(abs(loss[1:]-steps['heat_loss_W'][ids])/(1e-12+1e-9*abs(steps['heat_loss_W'][ids]))))
+    load_ratio=float(np.max(abs(steps['input_W']-expected_input)/(1e-14+1e-12*abs(expected_input))))
+    load_ratio=max(load_ratio,float(abs(header['diagnostics']['full_input_W']-power)/(1e-14+1e-12*power)))
+    recorded_balance=abs(steps['storage_rate_W']+steps['heat_loss_W']-steps['input_W'])
+    balance_ratio=float(np.max(abs(steps['balance_absolute_error_W']-recorded_balance)/(1e-12+1e-8*recorded_balance)))
+    if header['diagnostics']['time_integrator']=='bdf2':
+        previous=np.r_[energy[0],steps['stored_energy_J'][:-1]]
+        older=np.r_[energy[0],previous[:-1]]
+        bdf_rate=(steps['bdf_alpha0']*(steps['stored_energy_J']-previous)
+                  +steps['bdf_alpha2']*(older-previous))/steps['dt_s']
+        bdf_ratio=float(np.max(abs(bdf_rate-steps['bdf_storage_rate_W'])
+            /(1e-12+1e-8*abs(steps['bdf_storage_rate_W']))))
+        require(bdf_ratio<=1.,'Recorded BDF2 energy derivative differs from saved energies')
+        bdf_balance=abs(steps['bdf_storage_rate_W']+steps['heat_loss_W']-steps['input_W'])
+        bdf_balance_ratio=float(np.max(abs(steps['bdf_balance_absolute_error_W']-bdf_balance)
+            /(1e-12+1e-8*bdf_balance)))
+        require(bdf_balance_ratio<=1.,'Recorded BDF2 balance error differs from step evidence')
+        balance_ratio=max(balance_ratio,bdf_balance_ratio)
+        storage_ratio=max(float(storage_ratio),bdf_ratio)
+        energy_error=max(float(np.max(abs(bdf_rate+steps['heat_loss_W']-expected_input))/power),
+            float(np.max(abs(steps['bdf_storage_rate_W'][ids]+loss[1:]-expected_input[ids]))/power))
+    return dict(temperature=np.array(temperature),opd=np.array(opd),energy=energy,loss=loss,
+        initial=initial,energy_error=energy_error,nodal_energy_ratio=float(nodal_energy_ratio),
+        storage_ratio=float(storage_ratio),loss_ratio=loss_ratio,load_ratio=load_ratio,
+        balance_ratio=balance_ratio,linear_residual=float(np.max(steps['relative_linear_residual'])))
+
+
+def transient_fem_convergence_report(directory,manifest):
+    """Recompute four isolated/joint refinement gates from independent saved FEM.
+
+    Missing references/coverage are not_run. P1 FEM Robin boundaries are assessed
+    in their weak form and via independent surface integrals, not pointwise flux.
+    Thresholds and early/late temperature normalizations retain existing rules.
+    New manifests can record 1ms as diagnostic-only; missing policy replays the
+    historical gates, and all-step physical checks always remain mandatory.
+    """
+    from thermal_opd.fem import FemSolution
+    from skfem import MeshTri
+    from thermal_opd.opd import refracted_angle,transmitted_ray_mask
+    require(manifest.get('tolerance',1e-3)==1e-3,'Legacy single FEM tolerance must remain 0.1%; use explicit space/joint/time limits')
+    # The legacy single tolerance retains its original meaning when replaying
+    # old reports. New runs record the approved space/joint/time limits apart.
+    space_tolerance=manifest.get('space_tolerance',manifest.get('tolerance',1e-3))
+    time_tolerance=manifest.get('time_tolerance',manifest.get('tolerance',1e-3))
+    joint_tolerance=manifest.get('joint_tolerance',space_tolerance)
+    require(space_tolerance in (1e-3,5e-3) and joint_tolerance==space_tolerance,
+        'Supported FEM spatial policies are legacy 0.1% or approved 0.5%, with the same joint limit')
+    require(time_tolerance==1e-3,'FEM time tolerance must remain 0.1%')
+    require(manifest.get('sanity_tolerance',1e-7)==1e-7,'FEM sanity tolerance must remain 1e-7')
+    requested=np.asarray(manifest['times_s'],dtype=float);angles=manifest['angles_deg']
+    require(requested.ndim==1 and requested.size>=2 and requested[0]==0
+        and np.all(np.isfinite(requested)) and np.all(np.diff(requested)>0),'Invalid requested FEM times')
+    # Missing policy replays historical reports exactly. New CLI runs record
+    # the user's explicit 1ms diagnostic-only policy in their manifest.
+    diagnostic_times=np.asarray(manifest.get('diagnostic_only_times_s',[]),dtype=float)
+    require(diagnostic_times.ndim==1 and (diagnostic_times.size==0 or
+        (diagnostic_times.size==1 and diagnostic_times[0]==.001)),
+        'Only 0.001 s may be excluded as a diagnostic convergence time')
+    gate_requested=requested[~np.isin(requested,diagnostic_times)]
+    require(angles and len(set(angles))==len(angles) and all(np.isfinite(a) and abs(a)<90 for a in angles),
+            'Invalid requested FEM angles')
+    cases=manifest['cases'];case_angles=[c['angle_deg'] for c in cases]
+    require(len(set(case_angles))==len(cases) and set(case_angles)<=set(angles),'Invalid FEM case angles')
+    nt=manifest.get('temperature_xy_points',201);no=manifest.get('opd_xy_points',101)
+    require(all(isinstance(n,int) and not isinstance(n,bool) and n>=5 for n in (nt,no)),'Invalid sampling resolution')
+    checks=[];fields={};hashes={};coverage=set(case_angles)==set(angles)
+    roles=('candidate','xy_reference','z_reference','time_reference','joint_reference')
+    for case in cases:
+        angle=case['angle_deg'];label=f'theta{angle:g}'
+        require(isinstance(case.get('candidate'),dict),'Missing candidate FEM case')
+        headers={role:_transient_fem_case_header(directory,case[role]) for role in roles if case.get(role) is not None}
+        base=headers['candidate'];p=base['p'];times=base['times']
+        coverage &= all(np.all(np.isin(gate_requested,h['times'])) for h in headers.values())
+        for role,h in headers.items():
+            require(h['summary']['angle_deg']==angle,'Source FEM angle differs from manifest')
+            require(h['summary']['physical_parameters_SI']==base['summary']['physical_parameters_SI']
+                and h['summary']['history']==base['summary']['history'],'FEM references have different physics/history')
+            require(np.array_equal(h['times'],times),'FEM references cover different observation times')
+            hashes[label+'_'+role]=dict(source_run=str(h['source']),case_index=case[role]['case_index'],
+                sha256=h['sha256'],summary_sha256=file_sha256(h['source']/'summary.json'))
+        internal=refracted_angle(np.deg2rad(angle),p.incident_refractive_index,p.substrate_refractive_index)
+        ta=np.linspace(-p.radius,p.radius,nt);tx,ty=np.meshgrid(ta,ta);tm=tx*tx+ty*ty<=p.radius**2
+        oa=np.linspace(-.9*p.radius,.9*p.radius,no);ox,oy=np.meshgrid(oa,oa)
+        om=(ox*ox+oy*oy<=(.9*p.radius)**2)&transmitted_ray_mask(ox,oy,p.radius,p.thickness,internal)
+        for h in headers.values():
+            mesh=MeshTri(h['xy'],h['tri'])
+            geometry=FemSolution(mesh,np.array([0.,p.thickness]),np.zeros((2,mesh.nvertices)),{})
+            tm &= geometry.transmitted_mask(tx,ty,0.);om &= geometry.transmitted_mask(ox,oy,internal)
+        require(tm.sum()>1 and om.sum()>1,'Insufficient common thermal/optical points')
+        depths=np.array([np.r_[0.,p.thickness/2,p.thickness,
+            np.clip(np.array([0.,.25,.5,1.,2.,4.,8.])*np.sqrt(p.thermal_diffusivity*t),0.,p.thickness)] for t in times])
+        fields.update({label+'_times_s':times,label+'_temperature_x_m':tx[tm],label+'_temperature_y_m':ty[tm],
+            label+'_opd_x_m':ox[om],label+'_opd_y_m':oy[om],label+'_temperature_z_by_time_m':depths})
+        samples={}
+        for role,h in headers.items():
+            samples[role]=_transient_fem_case_samples(h,tx[tm],ty[tm],ox[om],oy[om],depths,internal)
+            for key,unit in (('temperature','temperature_K'),('opd','opd_m'),('energy','nodal_energy_J'),('loss','nodal_loss_W')):
+                fields[label+'_'+role+'_'+unit]=samples[role][key]
+        def add(name,passed,metrics,threshold,scope):
+            checks.append(validation_check(label+'_'+name,'passed' if passed else 'failed',metrics=metrics,
+                threshold=threshold,scope=scope,evidence='data/comparison_fields.npz'))
+        states=[h['summary']['status'] for h in headers.values()]
+        state='passed' if all(s=='COMPLETE' for s in states) else ('failed' if 'FAILED' in states else 'not_run')
+        checks.append(validation_check(label+'_source_completion',state,metrics={'source_states':states},
+            scope='Saved source runs must be complete; incomplete/failed source data are not a final certificate'))
+        initial=max(s['initial'] for s in samples.values())
+        add('initial_condition',initial==0,{'max_initial_node_temperature_K':initial},0.,'All saved FEM nodes at t=0')
+        energy=max(s['energy_error'] for s in samples.values());storage=max(s['storage_ratio'] for s in samples.values())
+        nodal=max(s['nodal_energy_ratio'] for s in samples.values())
+        balance=max(s['balance_ratio'] for s in samples.values())
+        add('energy_balance',energy<1e-7 and storage<=1 and nodal<=1 and balance<=1,
+            {'max_input_normalized_error':energy,'storage_rate_consistency_ratio':storage,
+             'nodal_storage_consistency_ratio':nodal,'balance_diagnostic_consistency_ratio':balance},
+            1e-7,'Recorded secant storage and method-specific discrete energy derivative; independent Robin losses at saved observations')
+        linear=max(s['linear_residual'] for s in samples.values())
+        add('weak_equation_residual',linear<1e-7,{'max_recorded_relative_residual':linear},1e-7,
+            'Solver-recorded discrete weak residual at all steps, including natural Robin boundaries; not pointwise flux')
+        loss=max(s['loss_ratio'] for s in samples.values())
+        add('robin_loss_diagnostics',loss<=1,{'max_consistency_ratio':loss},1.,
+            'Independent nodal boundary integral vs recorded loss; original rtol=1e-9 and atol=1e-12 W retained')
+        load=max(s['load_ratio'] for s in samples.values())
+        add('prescribed_load',load<=1,{'max_consistency_ratio':load},1.,
+            'Independent XY Gaussian quadrature and power history vs all saved step loads; rtol=1e-12, atol=1e-14 W')
+        if diagnostic_times.size:
+            missing={role:diagnostic_times[~np.isin(diagnostic_times,h['times'])].tolist()
+                for role,h in headers.items()}
+            checks.append(validation_check(label+'_diagnostic_recording',
+                'not_run' if any(missing.values()) else 'passed',
+                metrics={'diagnostic_only_times_s':diagnostic_times.tolist(),'missing_times_by_role_s':missing},
+                scope='Required saved diagnostic frames; their numerical differences do not gate convergence',
+                evidence='data/comparison_fields.npz'))
+        for direction in ('xy','z','time','joint'):
+            role=direction+'_reference';name=label+'_'+direction+'_convergence'
+            tolerance=time_tolerance if direction=='time' else (joint_tolerance if direction=='joint' else space_tolerance)
+            if role not in headers:
+                checks.append(validation_check(name,'not_run',threshold=tolerance,scope='Missing '+role));continue
+            ref=headers[role]
+            same_xy=np.array_equal(base['xy'],ref['xy']) and np.array_equal(base['tri'],ref['tri'])
+            same_z=np.array_equal(base['z'],ref['z'])
+            same_dt=np.array_equal(base['steps']['time_s'],ref['steps']['time_s']) and np.array_equal(base['steps']['dt_s'],ref['steps']['dt_s'])
+            finer_xy=ref['xy'].shape[1]>base['xy'].shape[1] and ref['tri'].shape[1]>base['tri'].shape[1] and ref['max_xy_edge_m']<base['max_xy_edge_m']
+            finer_z=ref['z'].size>base['z'].size and np.max(np.diff(ref['z']))<np.max(np.diff(base['z']))
+            finer_dt=bool(np.all(ref['interval_dt']<base['interval_dt']))
+            isolated={'xy':finer_xy and same_z and same_dt,'z':same_xy and finer_z and same_dt,
+                'time':same_xy and same_z and finer_dt,'joint':finer_xy and finer_z and finer_dt}[direction]
+            isolated=bool(isolated and base['diagnostics']['quadrature_order']==ref['diagnostics']['quadrature_order']
+                          and base['diagnostics']['time_integrator']==ref['diagnostics']['time_integrator']
+                          and base['field_degree']==ref['field_degree'])
+            errors=[]
+            ids=np.flatnonzero((times>0)&(np.isin(times,requested)|np.isin(times,diagnostic_times)))
+            check_times=times[ids];used_for_gate=~np.isin(check_times,diagnostic_times)
+            for j in ids:
+                t=times[j]
+                errors.append(field_errors(samples['candidate']['temperature'][j],samples[role]['temperature'][j],np.ones(tm.sum()),
+                    samples['candidate']['opd'][j],samples[role]['opd'][j],temperature_normalization='global' if t<.625 else 'per_plane'))
+            gate_errors=[e for e,used in zip(errors,used_for_gate) if used]
+            passed=isolated and all(within_tolerance(e,tolerance) for e in gate_errors)
+            status=('passed' if passed else 'failed') if gate_errors else 'not_run'
+            metrics={'isolated_parameter_change':isolated,'times_s':check_times.tolist(),
+                'temperature_normalization_by_time':['global' if t<.625 else 'per_plane' for t in check_times],
+                'errors_by_time':errors,'temperature_points':int(tm.sum()),'opd_points':int(om.sum())}
+            if diagnostic_times.size:
+                metrics.update(used_for_gate_by_time=used_for_gate.tolist(),
+                    diagnostic_only_times_s=diagnostic_times.tolist(),
+                    diagnostic_times_not_recorded_s=diagnostic_times[~np.isin(diagnostic_times,times)].tolist())
+            checks.append(validation_check(name,status,threshold=tolerance,
+                metrics=metrics,
+                scope='Same common full thermal disk, three planes and moving diffusion depths; separate refracted optical pupil',
+                evidence='data/comparison_fields.npz'))
+    scope_metrics={'requested_angles_deg':angles,'requested_times_s':requested.tolist()}
+    if diagnostic_times.size:
+        scope_metrics.update(acceptance_times_s=gate_requested.tolist(),diagnostic_only_times_s=diagnostic_times.tolist())
+    checks.append(validation_check('requested_scope','passed' if coverage else 'not_run',
+        metrics=scope_metrics,
+        scope=('Every requested angle and acceptance time must be present; 0.001 s is recorded as diagnostic only'
+            if diagnostic_times.size else 'Every requested angle and time must be present in all provided comparisons')))
+    report=validation_report(checks,config=manifest,run_directory=directory)
+    report.update(fem_convergence_established=report['status']=='passed',evidence_hashes=hashes,
+        limitations=['Finite recorded time/depth/XY sampling; no claim for every continuous point or t approaching zero.',
+            'Robin boundaries assessed in weak form and integral balance, not pointwise normal flux.',
+            'Gaussian load quadrature order is fixed during refinement; its separate convergence is not established here.',
+            'This FEM certificate does not establish semi-analytical truncation or cross-method agreement.'])
+    if diagnostic_times.size:
+        report['limitations'].append('0.001 s field changes are recorded as diagnostics and excluded from refinement gates; all-step physical checks remain required.')
+    return relative_metadata_paths(report,directory),fields
+
+
+def _transient_fem_records_equal(actual,stored):
+    if isinstance(actual,dict):
+        return isinstance(stored,dict) and actual.keys()==stored.keys() and all(_transient_fem_records_equal(v,stored[k]) for k,v in actual.items())
+    if isinstance(actual,list):
+        return isinstance(stored,list) and len(actual)==len(stored) and all(_transient_fem_records_equal(a,b) for a,b in zip(actual,stored))
+    if isinstance(actual,(int,float)) and not isinstance(actual,bool):
+        return isinstance(stored,(int,float)) and not isinstance(stored,bool) and np.isclose(actual,stored,rtol=1e-8,atol=1e-12)
+    return actual==stored
+
+
+def validate_saved_transient_fem_convergence(path,summary):
+    report,fields=transient_fem_convergence_report(path,summary['config'])
+    stored=read_json(path/'verification.json')
+    require(report['evidence_hashes']==stored['evidence_hashes'],'FEM source evidence changed')
+    require(report['status']==stored['status'] and report['counts']==stored['counts']
+        and _transient_fem_records_equal(report['checks'],stored['checks']),'Saved FEM convergence metric/status differs')
+    require(summary['fem_convergence_established']==report['fem_convergence_established'],
+            'FEM convergence flag differs from complete scientific gates')
+    with read_numeric_data(data_directory(path)/'comparison_fields.npz') as saved:
+        require(set(saved.files)==set(fields),'Missing FEM convergence sampled field')
+        for key,value in fields.items():
+            atol=1e-20 if key.endswith('opd_m') else 1e-12
+            require(saved[key].shape==value.shape and np.allclose(saved[key],value,rtol=1e-10,atol=atol),
+                    f'Saved FEM convergence field differs: {key}')
+    return saved_validation_result(summary,report)
+
+
+def load_transient_fem_certificate(directory,parameters,angle,history,times,*,repository_root=None):
+    """Independently review a formal certificate and restore its candidate nodes.
+
+    This consumer reuses the original FEM interpolation and refracted ray
+    integrator. It neither solves a PDE nor copies the source nodal archive.
+    Solver-source hashes describe applicability; source metadata/hashes retain
+    the actual birth lineage of reused, independently checked probe nodes.
+    """
+    from skfem import MeshTri
+    from thermal_opd.fem import FemSolution,TransientFemSolution
+    directory=Path(directory).resolve();summary=read_json(directory/'summary.json')
+    summary_hash=file_sha256(directory/'summary.json');verification_hash=file_sha256(directory/'verification.json')
+    require(summary.get('kind')=='transient_fem_convergence_validation'
+        and summary.get('status')=='COMPLETE','Need a complete FEM convergence certificate')
+    reviewed=validate_saved_transient_fem_convergence(directory,summary)
+    report=reviewed['verification']
+    require(summary.get('fem_convergence_established') is True
+        and reviewed.get('fem_convergence_established') is True
+        and report.get('status')=='passed' and report.get('fem_convergence_established') is True,
+        'Formal FEM convergence certificate must be independently reread and passed')
+    manifest=summary['config'];requested=np.asarray(times,dtype=float)
+    require(angle in manifest['angles_deg'],'Requested angle is outside FEM certificate scope')
+    require(np.all(np.isin(requested,manifest['times_s'])),'Requested times are outside FEM certificate scope')
+    root=Path(repository_root) if repository_root is not None else Path(__file__).resolve().parents[2]
+    expected={f'src/thermal_opd/{name}' for name in ('fem.py','parameters.py','heat_source.py','transient.py')}
+    hashes={str(k).replace('\\','/'):v for k,v in manifest.get('solver_source_sha256',{}).items()}
+    require(expected<=hashes.keys(),'FEM certificate is missing solver source applicability hashes')
+    require(all(file_sha256(root/key)==hashes[key] for key in expected),
+        'FEM certificate solver source applicability differs from current production source')
+    case=next(case for case in manifest['cases'] if case['angle_deg']==angle)
+    reference=case['candidate'];header=_transient_fem_case_header(directory,reference)
+    evidence=report['evidence_hashes'][f'theta{angle:g}_candidate']
+    require(header['sha256']==evidence['sha256']
+        and file_sha256(header['source']/'summary.json')==evidence['summary_sha256'],
+        'FEM candidate evidence changed after independent certificate review')
+    require(header['summary']['physical_parameters_SI']==asdict(parameters),'FEM certificate physical parameters differ')
+    require(header['summary']['history']==asdict(history),'FEM certificate history differs')
+    require(header['summary']['angle_deg']==angle,'FEM candidate angle differs')
+    require(header['field_degree']==2,'Formal FEM candidate requires quadratic P2 fields')
+    require(np.all(np.isin(requested,header['times'])),'FEM candidate is missing requested times')
+    indices=[int(np.flatnonzero(header['times']==t)[0]) for t in requested]
+    mesh=MeshTri(header['xy'],header['tri'])
+    with read_numeric_data(header['file']) as saved:
+        nodal=saved['temperature_K']
+        require(nodal.shape==(header['times'].size,header['z'].size,header['xy_dof_coordinates'].shape[1])
+            and np.all(np.isfinite(nodal)),'Invalid formal FEM nodal fields')
+        frames=[FemSolution(mesh,header['z'],nodal[index],header['diagnostics'],field_degree=2) for index in indices]
+    require(file_sha256(header['file'])==header['sha256'],'Source FEM data changed during candidate restoration')
+    require(file_sha256(directory/'summary.json')==summary_hash
+        and file_sha256(directory/'verification.json')==verification_hash,'FEM certificate changed during candidate restoration')
+    steps=[dict(zip(header['steps'],values)) for values in zip(*header['steps'].values())]
+    solution=TransientFemSolution(requested,frames,steps,header['diagnostics'])
+    source_rows=header['summary'].get('fem_runs',header['summary'].get('cases',[]))
+    row=next(row for i,row in enumerate(source_rows) if row.get('index',i)==reference['case_index'])
+    return dict(header=header,solution=solution,verification=report,
+        certificate_directory=str(directory),certificate_summary_sha256=summary_hash,
+        certificate_verification_sha256=verification_hash,
+        source_run=str(header['source']),case_index=reference['case_index'],data_file=str(header['file']),
+        data_format=row.get('data_format','thermal_opd_fem'),data_sha256=header['sha256'])
 
 
 def validate_saved_transient_run(directory,summary=None):
@@ -661,8 +1139,11 @@ def validate_saved_transient_run(directory,summary=None):
     summary=read_json(path/'summary.json') if summary is None else summary
     kind=summary.get('kind')
     require(summary.get('status')=='COMPLETE','Run is not complete')
+    if kind=='transient_fem_convergence_validation':
+        return validate_saved_transient_fem_convergence(path,summary)
+    fem_validation=None
     if kind=='transient_modal_fem_study':
-        validate_transient_fem(path,summary)
+        fem_validation=validate_transient_fem(path,summary)
     elif kind=='transient_joint_truncation_selection':
         validate_transient_selection(path,summary)
     elif kind=='transient_fine_fields':
@@ -672,4 +1153,5 @@ def validate_saved_transient_run(directory,summary=None):
     boundary_check=None
     if kind in ('transient_modal_fem_study','transient_fine_fields'):
         boundary_check=validate_transient_boundary_check(path,summary)
-    return saved_validation_result(summary,transient_saved_validation_report(path,summary,boundary_check),boundary_check)
+    return saved_validation_result(summary,transient_saved_validation_report(path,summary,boundary_check,
+        fem_validation=fem_validation),boundary_check)
