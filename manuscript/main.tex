@@ -1,0 +1,281 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=24mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,amsmath,amssymb,bm,graphicx,booktabs,microtype}
+\usepackage{caption,float,placeins}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\setlength{\emergencystretch}{2em}
+\numberwithin{equation}{section}
+\graphicspath{{figures/}}
+\newcommand{\OPD}{\mathrm{OPD}}
+\newcommand{\dd}{\,\mathrm{d}}
+\input{tables.tex}
+\title{A Fourier--Bessel semi-analytical model for steady and transient thermo-optic response of finite cylindrical optics under oblique Gaussian surface heating}
+\author{Zhongwei Yang, Jing Wen, Wei Li, Tingrui Li, Bohui Chen, and Liang Yang}
+\date{First draft for author review: 18 October 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+% para:abstract-p01
+Absorption of an obliquely incident Gaussian beam at the coated surface of a cylindrical optic produces non-axisymmetric heating and spatially varying refractive-index changes. Predicting the resulting thermo-optic response requires resolving the three-dimensional temperature field and evaluating the optical-path difference (OPD) along refracted rays. We derive a Fourier--Bessel semi-analytical solution for steady and transient heat conduction in a finite cylindrical substrate with Robin boundary conditions. Azimuthal and radial expansions represent the non-axisymmetric temperature field, while axial eigenmodes enable direct evaluation of its transient evolution. The refractive-index contribution to OPD is then obtained by integrating the temperature field along fixed refracted reference rays. Comparisons with independently refined three-dimensional finite-element solutions at incidence angles of $0^\circ$, $30^\circ$, and $60^\circ$ yield maximum differences in OPD peak-to-valley values of 0.00544\% in steady state and 0.0713\% across the sampled transient times.
+\end{abstract}
+
+\section{Introduction}
+% para:intro-p01
+Absorption of laser power in coated optical components produces nonuniform heating, which changes the refractive index of the substrate and consequently affects the optical path of transmitted beams. Such thermo-optic effects are relevant to high-power optical systems, including dichroic mirrors used in wavelength beam combining, where absorption and thermal behavior can influence optical performance \cite{li2024,li2025}. Under oblique Gaussian irradiation, the projected heating footprint becomes elliptical rather than circular. Predicting the resulting optical-path difference (OPD) therefore requires knowledge of the three-dimensional temperature field and the paths followed by refracted rays through the substrate.
+
+% para:intro-p02
+Analytical and semi-analytical approaches have been widely used to study laser-induced thermal effects in optical substrates. Peng et al. \cite{peng2001} applied Green's function methods to calculate transient temperature distributions and thermal deformations in finite cylindrical mirrors. Kim et al. \cite{kim2017} developed a Bessel-function-based analytical description of thermal effects in cylindrical optics. Vinet \cite{vinet2009} derived non-axisymmetric Fourier--Bessel representations for steady temperature fields in finite cylindrical mirrors and also investigated axisymmetric transient thermal responses and thermal lensing. For oblique illumination, Reitzle et al. \cite{reitzle2021} obtained a semi-analytical transient temperature solution for a laterally infinite, layered scattering and absorbing slab. These studies provide established mathematical approaches for thermal modeling under different geometries, source distributions, and boundary conditions.
+
+% para:intro-p03
+The combination of oblique surface heating, finite cylindrical boundaries, and refracted optical paths is not directly addressed by these formulations as a single calculation. Oblique Gaussian irradiation introduces angular variation in the surface heat flux, while heat exchange at the circular sidewall and the two end faces determines the spatial and temporal evolution of the temperature field. Furthermore, transmitted rays change their transverse positions as they propagate through the substrate, so the refractive-index contribution to OPD must be evaluated along these displaced paths. A semi-analytical treatment of this configuration must therefore account for the non-axisymmetric heat load, the finite thermal boundaries, and the refracted-ray optical integral within a consistent calculation.
+
+% para:intro-p04
+In this work, we derive a Fourier--Bessel semi-analytical solution for steady and transient heat conduction in a finite cylindrical substrate subjected to an oblique Gaussian surface heat flux. The angular dependence of the heat source is represented by azimuthal Fourier harmonics, while radial Bessel eigenfunctions satisfy the sidewall Robin boundary condition. The steady temperature field is obtained from the corresponding axial solutions, and homogeneous axial eigenmodes are used to construct the transient response, allowing direct evaluation at specified times without thermal time stepping. The resulting three-dimensional temperature field is then integrated along fixed refracted reference rays to calculate the thermo-optic OPD.
+
+% para:intro-p05
+The contributions of this work are threefold. First, we provide steady and transient Fourier--Bessel temperature solutions for a finite cylindrical substrate under non-axisymmetric oblique Gaussian surface heating. Second, we connect the resulting temperature fields to transmitted thermo-optic OPD through integration along refracted reference rays. Third, we assess the numerical convergence of the semi-analytical formulation and validate the temperature and OPD distributions against independently constructed three-dimensional finite-element solutions. For incidence angles of $0^\circ$, $30^\circ$, and $60^\circ$, the maximum differences in OPD peak-to-valley values are 0.00544\% in steady state and 0.0713\% across the sampled transient times. The modal representation is further used to examine the evolution of non-axisymmetric thermal contributions.
+
+\section{Physical Model}
+\subsection{Geometry and oblique Gaussian heating}
+% para:model-p01
+The substrate occupies $0\leq r\leq R$, $0\leq\phi<2\pi$, and $0\leq z\leq L$. The coated front face is at $z=0$, and the rear face is at $z=L$. We use $x=r\cos\phi$ and $y=r\sin\phi$, with the incident beam in the $y$--$z$ plane at an external angle $\theta$ to the surface normal. The beam has a $1/e^2$ intensity radius $w_0$ in a plane perpendicular to propagation. Its absorbed surface heat flux is
+\begin{equation}
+ q_s(x,y)=\frac{2P_{\rm abs}\cos\theta}{\pi w_0^2}
+ \exp\!\left[-\frac{2(x^2+y^2\cos^2\theta)}{w_0^2}\right].
+ \label{eq:source}
+\end{equation}
+The footprint widths are $w_0$ along $x$ and $w_0/\cos\theta$ along $y$. The normalization is $\int_{\mathbb R^2}q_s\dd A=P_{\rm abs}$. The power intercepted by the finite substrate is instead $P_{\mathcal D}=\int_{r\leq R}q_s\dd A$; the flux is not renormalized after clipping to the disk. A prescribed normalized history $g(t)$ gives the applied flux $g(t)q_s$.
+
+\begin{figure}[htbp]
+\centering\includegraphics[width=.95\linewidth]{geometry.pdf}
+\caption{Thermal geometry and fixed reference ray. Left: front-face heating footprint on the circular substrate. Right: coating absorption at $z=0$, environmental heat loss, and refraction through the substrate in the $y$--$z$ plane. The drawing is schematic.}
+\label{fig:geometry}
+\end{figure}
+
+\subsection{Heat-transfer model}
+% para:model-p02
+Let $\Theta=T-T_\infty$ be the temperature rise above ambient. With thermal conductivity $k$, density $\rho$, and specific heat $c_p$, the substrate satisfies
+\begin{equation}
+ \rho c_p\frac{\partial\Theta}{\partial t}=k\nabla^2\Theta,
+ \qquad \Theta(r,\phi,z,0)=0.
+ \label{eq:heat}
+\end{equation}
+There is no volumetric heat source in this model. The surface conditions are
+\begin{align}
+ h_f\Theta-k\partial_z\Theta&=g(t)q_s, &&z=0,\label{eq:front}\\
+ h_b\Theta+k\partial_z\Theta&=0, &&z=L,\label{eq:rear}\\
+ h_s\Theta+k\partial_r\Theta&=0, &&r=R.\label{eq:side}
+\end{align}
+Thus heating and environmental loss act simultaneously on the front face. These signs follow from the outward normal on each surface. In the nominal calculation all three heat-transfer coefficients equal
+\begin{equation}
+ h_{\rm eff}=h_{\rm conv}+4\epsilon\sigma T_\infty^3,
+ \label{eq:heff}
+\end{equation}
+where $\sigma$ is the Stefan--Boltzmann constant and the second term is the linearization of radiative exchange about ambient. Under constant loading, the steady field satisfies $\nabla^2\Theta_{\rm ss}=0$ with the corresponding stationary surface conditions.
+
+\subsection{Model assumptions}
+% para:model-p03
+The substrate is homogeneous and isotropic, and its material properties are treated as constants. The coating thickness is unresolved: coating absorption supplies the prescribed front-face heat flux, while bulk absorption is omitted. Uniform Robin coefficients describe environmental heat loss. The model does not resolve a mount, spatially varying contact conductance, or nonlinear radiative exchange. The beam position, width, angle, and spatial profile are fixed during each thermal history. We demonstrate an ideal step, with $g(0)=0$ and $g(t)=1$ for $t>0$. Other histories can enter the modal convolution derived in Sec.~\ref{sec:transient}, but the reported three-dimensional comparisons concern this step-loading case.
+
+% para:model-p04
+Table~\ref{tab:parameters} specifies the nominal numerical example. The thermal values are consistent with the cited quartz-glass data~\cite{heraeus}; $c_p$ is used as a constant equal to the tabulated mean over $0$--$100\,{}^\circ$C. The optical coefficient $\gamma_T=\mathrm dn/\mathrm dT=9.6\times10^{-6}\,\mathrm{K}^{-1}$ is retained as a nominal input tabulated at $643.8$ nm, rather than a measured coefficient at the stated $1064$ nm reference wavelength. The reference refractive index is $n_s=1.44963$. For fixed thermal parameters, the calculated OPD scales linearly with the adopted $\gamma_T$.
+\NominalTable
+
+\subsection{Optical-path model}
+% para:model-p05
+The reference ray is refracted according to $n_i\sin\theta=n_s\sin\theta_t$. A ray entering at $(x_0,y_0,0)$ follows
+\begin{equation}
+ x(z)=x_0,\quad y(z)=y_0+z\tan\theta_t,\quad \dd s=\frac{\dd z}{\cos\theta_t}.
+ \label{eq:ray}
+\end{equation}
+Its first-order thermo-optic OPD relative to the unheated substrate is
+\begin{equation}
+ W(x_0,y_0,t)=\frac{\gamma_T}{\cos\theta_t}
+ \int_0^L\Theta\!\left(x_0,y_0+z\tan\theta_t,z,t\right)\dd z.
+ \label{eq:opd}
+\end{equation}
+Entrance coordinates label the field. We restrict them to $x_0^2+y_0^2\leq a^2$, with $a=0.9R$, and require $x_0^2+(y_0+L\tan\theta_t)^2\leq R^2$. Convexity then keeps the full ray inside the cylinder. Comparisons additionally use the common domain of the finite-element meshes. The peak-to-valley value is $V=\max W-\min W$ over the specified pupil. A spatially uniform piston is removed for field-difference norms, while the raw OPD remains available. Equation~\eqref{eq:opd} holds the reference ray fixed and includes the temperature dependence of refractive index; deformation, stress-optic changes, and thermal ray bending require additional models.
+
+\section{Semi-analytical Formulation}
+\subsection{Azimuthal decomposition}
+% para:method-p01
+We express the spatial source in angular Fourier components,
+\begin{equation}
+ q_s(r,\phi)=q_0(r)+\sum_{m=1}^{\infty}q_m(r)\cos(m\phi),
+ \label{eq:fourier}
+\end{equation}
+where $q_0=(2\pi)^{-1}\int_0^{2\pi}q_s\dd\phi$ and $q_m=\pi^{-1}\int_0^{2\pi}q_s\cos(m\phi)\dd\phi$ for $m>0$. For the centered source in Eq.~\eqref{eq:source}, reflection symmetry removes sine terms, and $\pi$-periodicity removes odd cosine orders. The retained set is therefore $m=0,2,4,\ldots,M$. Normal incidence leaves only $m=0$. At oblique incidence, the higher even orders encode the elliptical footprint without changing the circular substrate geometry.
+
+\subsection{Fourier--Bessel eigenfunctions}
+% para:method-p02
+The radial functions are $J_m(\lambda_{mn}r)$, where the positive roots satisfy the sidewall condition,
+\begin{equation}
+ k\lambda_{mn}J_m'(\lambda_{mn}R)+h_sJ_m(\lambda_{mn}R)=0.
+ \label{eq:radial}
+\end{equation}
+Define $N_{mn}=\int_0^R J_m^2(\lambda_{mn}r)r\dd r$ and $A_m=2\pi$ for $m=0$, $A_m=\pi$ otherwise. The surface-flux coefficients are
+\begin{equation}
+ C_{mn}=\frac{\displaystyle\int_0^R\!\int_0^{2\pi}
+ q_s(r,\phi)J_m(\lambda_{mn}r)\cos(m\phi)r\dd\phi\dd r}{A_mN_{mn}}.
+ \label{eq:projection}
+\end{equation}
+These coefficients have units of heat flux. The radial norm can be evaluated as
+\begin{equation}
+ N_{mn}=\frac{R^2}{2}\left[J_m^2(\lambda_{mn}R)
+       -J_{m-1}(\lambda_{mn}R)J_{m+1}(\lambda_{mn}R)\right].
+\end{equation}
+With finite truncation, the reconstructed source is $q_{MN}=\sum_{m,n}C_{mn}J_m\cos(m\phi)$. Root accuracy, source quadrature, and truncation are checked separately; satisfying the retained modal boundary condition alone does not establish convergence to the prescribed Gaussian flux.
+
+\subsection{Steady-state solution}
+% para:method-p03
+For each transverse mode, the steady axial amplitude satisfies $Z_{mn}''-\lambda_{mn}^2Z_{mn}=0$ and the two plane-face conditions. Setting $\lambda=\lambda_{mn}$ gives
+\begin{equation}
+ Z_{mn}^{\rm ss}(z)=C_{mn}\frac{\cosh[\lambda(L-z)]+\frac{h_b}{k\lambda}\sinh[\lambda(L-z)]}
+ {(k\lambda+\frac{h_fh_b}{k\lambda})\sinh(\lambda L)+(h_f+h_b)\cosh(\lambda L)}.
+ \label{eq:steadyaxial}
+\end{equation}
+The assembled steady temperature is
+\begin{equation}
+ \Theta_{\rm ss}(r,\phi,z)=\sum_{m,n}J_m(\lambda_{mn}r)\cos(m\phi)Z_{mn}^{\rm ss}(z).
+ \label{eq:steady}
+\end{equation}
+The implementation evaluates an equivalent decaying-exponential form of Eq.~\eqref{eq:steadyaxial} to avoid large hyperbolic intermediate values. Temperature and analytical radial and axial derivatives follow from the same expansion. The optical integral in Eq.~\eqref{eq:opd} is evaluated at the displaced ray coordinates, rather than replacing the ray by a fixed transverse position.
+
+\subsection{Transient extension}\label{sec:transient}
+% para:method-p04
+The transverse basis and source coefficients remain unchanged in the transient problem. We introduce homogeneous axial Robin eigenfunctions
+\begin{equation}
+ X_j(z)=\cos(\beta_jz)+\frac{h_f}{k\beta_j}\sin(\beta_jz),\qquad
+ \mathcal N_j=\int_0^L X_j^2(z)\dd z,
+ \label{eq:axialmodes}
+\end{equation}
+normalized by $X_j(0)=1$. Their positive roots obey
+\begin{equation}
+ \left(\frac{h_fh_b}{k^2}-\beta_j^2\right)\sin(\beta_jL)
+  +\frac{h_f+h_b}{k}\beta_j\cos(\beta_jL)=0.
+ \label{eq:axialroots}
+\end{equation}
+Writing $\alpha=k/(\rho c_p)$, the decay rate of a complete thermal mode is
+\begin{equation}
+ d_{mnj}=\alpha(\lambda_{mn}^2+\beta_j^2).
+ \label{eq:rate}
+\end{equation}
+The indices $n$ and $j$ describe independent radial and axial resolutions. In particular, one decay rate per radial mode does not represent the full finite-thickness transient.
+
+% para:method-p05
+For the surface forcing, projection onto the homogeneous axial functions yields the causal amplitude
+\begin{equation}
+ Z_{mn}(z,t)=\frac{C_{mn}}{\rho c_p}
+ \sum_{j=0}^{\infty}\frac{X_j(z)}{\mathcal N_j}
+ \int_0^t e^{-d_{mnj}(t-s)}g(s)\dd s.
+ \label{eq:convolution}
+\end{equation}
+For a unit step and $t>0$, the exact steady amplitude is the sum of the stationary modal terms. The response can consequently be written
+\begin{align}
+ Z_{mn}(z,t)&=Z_{mn}^{\rm ss}(z)
+       -\sum_{j=0}^{\infty}B_{mnj}X_j(z)e^{-d_{mnj}t},\label{eq:completion}\\
+ B_{mnj}&=\frac{C_{mn}}{k\mathcal N_j(\lambda_{mn}^2+\beta_j^2)}.\nonumber
+\end{align}
+The evaluated approximation retains the first $J$ decaying terms in Eq.~\eqref{eq:completion} and keeps $Z_{mn}^{\rm ss}$ in its exact modal form. The rapidly decaying axial tail is thereby completed by the steady response. At $t=0$ the specified zero initial field is returned exactly. At positive times, $J$ is selected against enlarged references, including the earliest requested time; finite $J$ does not guarantee uniform accuracy as $t\to0^+$.
+
+% para:method-p06
+The resulting temperature has the same spatial sum as Eq.~\eqref{eq:steady}, with $Z_{mn}^{\rm ss}$ replaced by $Z_{mn}(z,t)$. Each requested time is evaluated directly from the decay factors. For the step response, $t\to\infty$ removes the decaying terms and recovers the same retained steady solution. The decaying correction satisfies homogeneous Robin conditions, while the steady term carries the nonhomogeneous front-face load. This separation preserves the boundary structure at every evaluated positive time and permits reuse of the steady projection, spatial evaluation, derivatives, and ray integration.
+
+\section{Results and Discussion}
+\subsection{Representative temperature and OPD fields}
+% para:results-p01
+The numerical examples use the geometry and material inputs in Table~\ref{tab:parameters} and external angles $0^\circ$, $30^\circ$, and $60^\circ$. Steady resolution selection gives $M=6$, $N=8$, with a $400\times32$ source-projection grid and 16 ray-quadrature points. The transient selection gives $M=10$, $N=20$, $J=256$, a $1200\times128$ projection grid, and 32 ray points. Both selections compare temperature and OPD with enlarged finite references at a $0.1\%$ target. The transient checks additionally resolve temperature gradients and diffusion-layer depths. Their positive reference times are $0.001$, $0.0025$, $0.01$, $0.05$, $0.1$, $0.625$, $2.5$, $20$, $50$, and $75$ s. Zero initial conditions and a separate long-time limit are checked independently.
+
+% para:results-p02
+Figure~\ref{fig:steadyfields} shows the representative $30^\circ$ steady field. Surface-localized heating gives the largest temperature rise at the front face, while conduction broadens the distribution through the thickness. The front, middle, and rear center rises are $11.336$, $7.537$, and $6.656$ K. The optical field integrates the whole temperature distribution along the refracted path, so its entrance-pupil structure reflects both thermal spreading and the transverse displacement of the ray. Table~\ref{tab:steadyfields} compares the three angles. The steady center-front rise decreases from $11.921$ K at normal incidence to $9.303$ K at $60^\circ$, whereas the OPD-PV is not monotonic across these three cases. At fixed full-plane absorbed power, the footprint broadening, lower peak heat flux, and longer refracted path affect these observables differently.
+\SteadyFieldTable
+\begin{figure}[htbp]
+\centering\includegraphics[width=.83\linewidth]{representative_steady.png}
+\caption{Representative $30^\circ$ steady temperature rises on the front, middle, and rear planes, and transmitted thermo-optic OPD. OPD is shown relative to its pupil minimum for visualization. Coordinates on the optical panel are entrance coordinates.}
+\label{fig:steadyfields}
+\end{figure}
+
+% para:results-p03
+Figure~\ref{fig:evolution} follows step turn-on. Early heating is concentrated near the illuminated face; diffusion subsequently spreads the temperature into the substrate. At $0.625$ s the continuous numerical OPD-PV values are $14.922$, $13.932$, and $9.700$ nm for $0^\circ$, $30^\circ$, and $60^\circ$, respectively. At $75$ s they reach $156.347$, $156.966$, and $140.781$ nm. This last comparison time is not assumed to be steady. A separate evaluation at approximately $2447$ s agrees with the same-mode steady OPD-PV to within $7.6\times10^{-5}\%$ across the three angles. That limit uses the transient resolution for both solutions, avoiding a comparison between different truncations.
+\begin{figure}[htbp]
+\centering\includegraphics[width=.98\linewidth]{transient_evolution.pdf}
+\caption{Time development under step loading: (a) center-front temperature rise and (b) pupil OPD-PV for the three incidence angles. Curves show sampled direct modal evaluations. Circles identify the finite-reference comparison times; dashed lines in (b) show the respective same-mode steady limits.}
+\label{fig:evolution}
+\end{figure}
+
+\subsection{Comparison with FEM}
+% para:validation-p01
+The independent finite-element model uses the same prescribed Gaussian flux, geometry, material parameters, and Robin losses. It employs quadratic functions on a triangular transverse mesh and quadratic axial elements, with a consistent mass matrix for transient diffusion. It does not use the Fourier--Bessel source coefficients to construct the applied load. The steady checks vary the transverse mesh, axial mesh, and both together, giving maximum changes below $0.081\%$ at all three angles against a $0.1\%$ target. Temperature and OPD are compared on common physical domains, excluding locations outside the inscribed finite-element boundary. Figure~\ref{fig:steadyfem} displays the reconstructed distributions and signed field differences for $60^\circ$.
+\begin{figure}[htbp]
+\centering\includegraphics[width=\linewidth]{steady_fem_comparison.png}
+\caption{Steady $60^\circ$ distribution comparison on the common domain: semianalytical field, finest finite-element field, and finite-element minus semianalytical difference. Top: front-plane temperature rise. Bottom: refracted-ray OPD, with piston removed from the difference. The two methods use independent thermal representations.}
+\label{fig:steadyfem}
+\end{figure}
+
+% para:validation-p02
+Transient finite-element calculations use BDF2 time integration with backward-Euler starts or restarts in the recorded time plan. Spatial and temporal convergence are examined independently before a joint refinement. The candidate, transverse reference, axial reference, time reference, and joint reference are evaluated at the same eleven observation times, including zero. Table~\ref{tab:refinement} gives the maximum changes across the recorded temperature and OPD metrics. The spatial and joint targets are $0.5\%$, while the time target is $0.1\%$. The $1$ ms frame is retained as an early-time diagnostic and is excluded from these finite-element refinement gates; it remains part of the semianalytical truncation selection and of the reported cross-method comparisons. Initial conditions, energy balance, weak-equation residuals, Robin-loss diagnostics, and applied-load quadrature are checked separately. The refinement comparisons use a $201\times201$ Cartesian thermal grid and a $101\times101$ optical grid within their respective common masks.
+\TransientRefinementTable
+
+% para:validation-p02b
+The steady meshes have $2113$ or $8321$ transverse degrees of freedom and $32$ or $64$ uniform quadratic axial elements, giving $137345$, $540865$, $272577$, and $1073409$ total degrees of freedom for the candidate, transverse, axial, and joint configurations. For the transient problem, the corresponding transverse counts are unchanged. Two-face axial grading gives $88$ elements ($177$ axial degrees of freedom) for the candidate and $174$ elements ($349$ axial degrees of freedom) for the axial reference. Thus the transient candidate has $374001$ total degrees of freedom and the joint reference has $2904029$. The ten successive observation intervals use $128$ steps each, except $0.1$--$0.625$ s, which uses $1024$, for $2176$ steps in total. Time and joint references halve every interval step. A backward-Euler step starts the calculation and restarts BDF2 when the step ratio exceeds $1.5$. The Gaussian load uses quadrature order 10 and is checked against order 14; the resulting changes satisfy the $10^{-5}$ relative target. Refracted-ray FEM integrals are split at crossed element boundaries and use three-point Gauss quadrature on each segment. The tensor-product quadratic field is quartic along a straight segment, so this optical integration is exact for the represented field up to arithmetic error.
+
+% para:validation-p03
+For cross-method temperature comparison, weighted $L^2$ differences are divided by the reference $L^2$ norm and maximum differences by the reference maximum magnitude. At $t\geq0.625$ s each section uses its own denominator; at earlier positive times each norm uses its largest reference value across the three sections, avoiding division by the vanishing norm of an almost unheated rear plane. For OPD, let $\widetilde W=W-\langle W\rangle$ on the common pupil. The reported field and scalar metrics are
+\begin{equation}
+ E_{W,\infty}=\frac{\max|\widetilde W_{\rm FEM}-\widetilde W_{\rm SA}|}{V_{\rm SA}},\quad
+ E_{W,2}=\frac{\operatorname{rms}(\widetilde W_{\rm FEM}-\widetilde W_{\rm SA})}{V_{\rm SA}},\quad
+ E_V=\frac{|V_{\rm FEM}-V_{\rm SA}|}{V_{\rm SA}}.
+ \label{eq:errors}
+\end{equation}
+The normalization by OPD-PV is distinct from a pointwise relative error and remains meaningful at locations where the piston-removed OPD crosses zero.
+
+% para:validation-p04
+Table~\ref{tab:comparison} reports the cross-method differences. For the steady comparisons, the OPD-PV difference is at most $0.00544\%$ and the piston-removed maximum field difference is at most $0.0712\%$ of the reference PV. For the transient comparisons over all recorded positive times, including $1$ ms, the corresponding maxima are $0.0713\%$ and $0.0958\%$. The largest normalized transient temperature maximum difference is $0.137\%$. These are measured differences between two separately resolved representations; they are not estimates of error relative to an exact three-dimensional device solution. Figure~\ref{fig:transientfem} additionally shows the spatial OPD differences at an early and a later time.
+\ValidationTable
+\begin{figure}[htbp]
+\centering\includegraphics[width=\linewidth]{transient_fem_comparison.pdf}
+\caption{Refracted-ray OPD at $60^\circ$ and $t=0.625$ s (top) and $75$ s (bottom): semianalytical field, refined-candidate FEM field, and their piston-removed difference. Each row uses a shared scale for the two optical fields.}
+\label{fig:transientfem}
+\end{figure}
+
+% para:validation-p05
+The computational structure separates modal construction from field evaluation. Once radial roots, flux projections, and axial amplitudes have been prepared, the semianalytical response can be queried at additional times without integrating through intervening times. Ray sampling and the requested number of field points determine the remaining evaluation work. The recorded steady field-plus-OPD evaluations take $0.19$, $1.73$, and $1.68$ s at the three angles, excluding modal preparation. For comparison, the finest steady FEM assembly, solution, and sampling totals are $6.66$, $7.74$, and $7.78$ s; the accepted coarser FEM is less expensive. These component timings describe the recorded implementation and output scope rather than an end-to-end speed ratio. The modal representation's reusable state and explicit time dependence are particularly useful when the same thermal configuration is sampled repeatedly.
+
+\subsection{Oblique-incidence effects and azimuthal modal analysis}
+% para:modes-p01
+Obliquity first changes the source through its $y$-direction width and its angular Fourier content. The circular sidewall and uniform loss coefficients preserve the independence of the azimuthal thermal orders, so each source order can be propagated through the substrate separately. For a spatial temperature component $\Theta_m(r,z,t)\cos(m\phi)$, define its section-wise squared-$L^2$ share as
+\begin{equation}
+ S_m(z,t)=\frac{\displaystyle\int_0^{2\pi}\!\int_0^R
+ |\Theta_m(r,z,t)\cos(m\phi)|^2r\dd r\dd\phi}
+ {\displaystyle\sum_\ell\int_0^{2\pi}\!\int_0^R
+ |\Theta_\ell(r,z,t)\cos(\ell\phi)|^2r\dd r\dd\phi}.
+ \label{eq:share}
+\end{equation}
+Orthogonality makes these shares additive on the full circular section. They describe temperature-field magnitude, not stored thermal energy, whose integral is linear in temperature.
+
+% para:modes-p02
+Figure~\ref{fig:modes} identifies $m=2$ as the largest non-axisymmetric contribution in the reported cases. At $30^\circ$, its front-surface share decreases from $0.513\%$ at $1$ ms to $0.0521\%$ at $75$ s. At $60^\circ$, the corresponding values are $9.92\%$ and $1.34\%$, while $m=4$ decreases from $0.827\%$ to $0.0486\%$. In these examples, the relative non-axisymmetric surface structure is most pronounced near turn-on and becomes less prominent as the temperature field spreads and the axisymmetric contribution accumulates. The mode-dependent rates in Eq.~\eqref{eq:rate} provide the corresponding diffusion description.
+
+% para:modes-p03
+The optical contributions obey linear superposition, $W=\sum_m W_m$, but their peak-to-valley values are not additive. We therefore report $V_m=\max W_m-\min W_m$ as an individual diagnostic amplitude. At $60^\circ$, $m=2$ has $V_2=4.203$ nm at $0.625$ s and $28.752$ nm at $75$ s, compared with sampled total values of $9.700$ and $140.778$ nm. Its thermal share falls over this interval even as its absolute optical contribution grows. The distinction follows from the depth integral, the changing thermal profile, and the pupil extrema. Moreover, an axisymmetric thermal order $m=0$ can produce a non-axisymmetric entrance-pupil OPD when Eq.~\eqref{eq:ray} displaces the optical path. The thermal order label therefore identifies the origin of an optical contribution; it is not an angular Fourier decomposition of the final optical pupil.
+\begin{figure}[htbp]
+\centering\includegraphics[width=\linewidth]{azimuthal_evolution.pdf}
+\caption{Azimuthal interpretation of the transient response. (a) Front-surface squared-$L^2$ share of thermal order $m=2$ at the three angles. (b) Individual $m=2$ OPD-PV divided by the sampled total PV. Ratios in (b) are diagnostic amplitudes and are not additive fractions. The zero $m=2$ contribution at normal incidence follows from the centered-source symmetry.}
+\label{fig:modes}
+\end{figure}
+
+\subsection{Model assumptions and limitations}
+% para:scope-p01
+The model applies to coating-dominated absorption in a homogeneous cylinder with approximately constant properties and linear surface losses. A measured or calculated absorbed-power history can replace the ideal step through Eq.~\eqref{eq:convolution}. Bulk absorption would require a distributed source term, and a thermally conducting mount would require an appropriate contact-boundary model. Temperature-dependent properties and nonlinear radiation would couple the retained modes and change the linear response. The nominal thermo-optic coefficient used here sets the OPD scale; device-specific predictions require a coefficient appropriate to the actual material and wavelength.
+
+% para:scope-p02
+The optical calculation concerns the first-order refractive-index contribution on the fixed transmitted reference ray. Thermoelastic changes in surface position, stress-optic effects, and the coating's optical phase can contribute to the measured wavefront and should be included when those quantities are required. The present three-angle comparisons assess the stated nominal thermal problem numerically. They do not replace a temperature or wavefront measurement for a particular mounted component. The demonstrated early-time range starts at $1$ ms, with its explicitly reported numerical settings; the formulas also distinguish the exact initial condition from convergence of the finite expansion at positive times.
+
+\section{Conclusion}
+% para:conclusion-p01
+A Fourier--Bessel formulation has been developed for the non-axisymmetric steady and transient thermo-optic response of a finite cylindrical substrate under oblique Gaussian surface heating. The steady modal response and homogeneous axial decay modes provide a common construction for temperature, gradients, and refracted-ray OPD. Independent, separately refined FEM calculations support the reported distributions: steady and transient OPD-PV differences remain below $0.00544\%$ and $0.0713\%$, respectively, for the nominal three-angle comparisons. The azimuthal decomposition shows how the leading $m=2$ thermal structure evolves during diffusion and how its optical contribution differs from its surface temperature share. Together, direct time evaluation and mode-resolved optical integration provide a useful description of the thermal and transmitted-phase response of obliquely heated cylindrical optics.
+
+\FloatBarrier
+\input{references.tex}
+\end{document}

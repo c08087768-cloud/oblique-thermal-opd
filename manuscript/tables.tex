@@ -1,0 +1,66 @@
+\newcommand{\NominalTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Nominal inputs for the reported calculations.}\label{tab:parameters}
+\begin{tabular}{ll}\toprule
+Quantity & Value\\\midrule
+Substrate radius $R$ & $12.7$ mm\\
+Substrate thickness $L$ & $5.0$ mm\\
+Beam radius $w_0$ & $3.81$ mm ($0.3R$)\\
+Full-plane absorbed power $P_{\rm abs}$ & $0.110$ W\\
+Thermal conductivity $k$ & $1.38$ W\,m$^{-1}$\,K$^{-1}$\\
+Density $\rho$ & $2203$ kg\,m$^{-3}$\\
+Specific heat $c_p$ & $772$ J\,kg$^{-1}$\,K$^{-1}$\\
+Ambient temperature $T_\infty$ & $300$ K\\
+Convection coefficient $h_{\rm conv}$ & $10$ W\,m$^{-2}$\,K$^{-1}$\\
+Emissivity $\epsilon$ & $0.85$\\
+Linearized total loss $h_{\rm eff}$ & $15.2054$ W\,m$^{-2}$\,K$^{-1}$\\
+Thermo-optic coefficient $\gamma_T$ & $9.6\times10^{-6}$ K$^{-1}$\\
+Reference wavelength; refractive indices & $1064$ nm; $n_i=1$, $n_s=1.44963$\\
+Entrance-pupil radius $a$ & $0.9R$\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize $\gamma_T$ is a retained nominal value tabulated at $643.8$ nm, not a wavelength-specific measurement at $1064$ nm. The intercepted disk power is obtained by integrating the prescribed flux on the finite face.\end{minipage}
+\end{table}}
+
+\newcommand{\SteadyFieldTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Steady temperature rises and continuous numerical OPD-PV.}\label{tab:steadyfields}
+\begin{tabular}{lrrrr}\toprule
+$\theta$ & Front center (K) & Midplane center (K) & Rear center (K) & OPD-PV (nm)\\\midrule
+$0^\circ$ & 11.921 & 7.656 & 6.716 & 166.503\\
+$30^\circ$ & 11.336 & 7.537 & 6.656 & 168.771\\
+$60^\circ$ & 9.303 & 6.959 & 6.314 & 154.105\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize OPD extrema are obtained by a multistart numerical search over the physical transmitted pupil. FEM comparison metrics below use discrete common-domain samples.\end{minipage}
+\end{table}}
+
+\newcommand{\TransientRefinementTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Transient FEM refinement: largest gated change across temperature and OPD metrics (percent).}\label{tab:refinement}
+\begin{tabular}{lrrrr}\toprule
+$\theta$ & Transverse & Axial & Time & Joint\\\midrule
+$0^\circ$ & 0.104616 & 0.029993 & 0.025763 & 0.125259\\
+$30^\circ$ & 0.099671 & 0.029973 & 0.025837 & 0.118577\\
+$60^\circ$ & 0.088451 & 0.029925 & 0.026017 & 0.105834\\
+Target & $0.5$ & $0.5$ & $0.1$ & $0.5$\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize Maxima include the positive observation times from $0.0025$ to $75$ s. The $0.001$ s frame is recorded separately as a diagnostic; the exact zero initial condition and all-step physical checks remain independent requirements.\end{minipage}
+\end{table}}
+
+\newcommand{\ValidationTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Differences between FEM and the semianalytical solution (percent).}\label{tab:comparison}
+\begin{tabular}{llrrr}\toprule
+Case & $\theta$ & Temperature $L^\infty$ & OPD $L^\infty$/PV & OPD-PV\\\midrule
+Steady & $0^\circ$ & 0.031420 & 0.005848 & 0.004220\\
+Steady & $30^\circ$ & 0.023828 & 0.004131 & 0.000523\\
+Steady & $60^\circ$ & 0.111849 & 0.071199 & 0.005440\\
+Transient & $0^\circ$ & 0.136599 & 0.092695 & 0.071263\\
+Transient & $30^\circ$ & 0.128643 & 0.094190 & 0.054394\\
+Transient & $60^\circ$ & 0.119119 & 0.095786 & 0.046821\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize Steady rows use the finest FEM solution; transient rows use the accepted FEM candidate and maximize over all positive comparison times, including $1$ ms. The semianalytical solution supplies the reference denominators. These differences are reported without imposing a separate cross-method pass threshold.\end{minipage}
+\end{table}}
