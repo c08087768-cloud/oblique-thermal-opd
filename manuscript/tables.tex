@@ -1,25 +1,27 @@
 \newcommand{\NominalTable}{%
 \begin{table}[htbp]
 \centering
-\caption{Nominal inputs for the reported calculations.}\label{tab:parameters}
+\caption{Nominal parameters used in the numerical calculations.}\label{tab:parameters}
 \begin{tabular}{ll}\toprule
 Quantity & Value\\\midrule
 Substrate radius $R$ & $12.7$ mm\\
 Substrate thickness $L$ & $5.0$ mm\\
 Beam radius $w_0$ & $3.81$ mm ($0.3R$)\\
-Full-plane absorbed power $P_{\rm abs}$ & $0.110$ W\\
+Absorbed-power parameter $P_{\rm abs}$ & $0.110$ W\\
 Thermal conductivity $k$ & $1.38$ W\,m$^{-1}$\,K$^{-1}$\\
 Density $\rho$ & $2203$ kg\,m$^{-3}$\\
 Specific heat $c_p$ & $772$ J\,kg$^{-1}$\,K$^{-1}$\\
 Ambient temperature $T_\infty$ & $300$ K\\
 Convection coefficient $h_{\rm conv}$ & $10$ W\,m$^{-2}$\,K$^{-1}$\\
 Emissivity $\epsilon$ & $0.85$\\
-Linearized total loss $h_{\rm eff}$ & $15.2054$ W\,m$^{-2}$\,K$^{-1}$\\
+Effective heat-transfer coefficient $h_{\rm eff}$ & $15.2054$ W\,m$^{-2}$\,K$^{-1}$\\
 Thermo-optic coefficient $\gamma_T$ & $9.6\times10^{-6}$ K$^{-1}$\\
-Reference wavelength; refractive indices & $1064$ nm; $n_i=1$, $n_s=1.44963$\\
+Reference wavelength & $1064$ nm\\
+Incident refractive index $n_i$ & $1$\\
+Substrate refractive index $n_s$ & $1.44963$\\
 Entrance-pupil radius $a$ & $0.9R$\\\bottomrule
 \end{tabular}
-\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize $\gamma_T$ is a retained nominal value tabulated at $643.8$ nm, not a wavelength-specific measurement at $1064$ nm. The intercepted disk power is obtained by integrating the prescribed flux on the finite face.\end{minipage}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize $\gamma_T$ is a retained nominal value tabulated at $643.8$ nm, not a wavelength-specific measurement at $1064$ nm.\end{minipage}
 \end{table}}
 
 \newcommand{\SteadyFieldTable}{%

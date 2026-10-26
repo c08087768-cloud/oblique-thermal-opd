@@ -26,69 +26,58 @@
 \maketitle
 \begin{abstract}
 % para:abstract-p01
-Oblique Gaussian irradiation produces an elliptical surface heat load, while transmitted rays sample different transverse positions as they cross the heated substrate.
-We develop a Fourier--Bessel semi-analytical model that retains the finite cylindrical thermal boundaries and evaluates the resulting steady and transient thermo-refractive optical-path difference (OPD).
-The two thermal solutions share the surface-flux projections and transverse eigenfunctions; axial diffusion modes supply the time dependence, so the response is evaluated directly at requested times.
-Integration along fixed refracted reference rays then connects the three-dimensional temperature field to the transmitted OPD.
-For nominal fused-silica cases at $0^\circ$, $30^\circ$, and $60^\circ$, comparisons with independent finite-element solutions give maximum OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ at the sampled transient times from $2.5$ ms to $75$ s, relative to the semi-analytical values.
-The same modal solution also evaluates the OPD produced by each azimuthal temperature component, linking the evolution of thermal structure to the transmitted optical response.
+Oblique Gaussian irradiation produces an elliptical surface heat load on a transmissive optic, and the transmitted rays traverse the substrate obliquely, passing through different transverse positions at different depths.
+We develop a Fourier--Bessel semi-analytical model for the steady and transient thermo-refractive optical-path difference (OPD) of a finite cylindrical substrate under this load.
+Steady and transient responses share a common transverse eigenfunction expansion, with the time dependence carried by axial diffusion modes, so the response is evaluated directly at any requested time without time stepping.
+Integrating the three-dimensional temperature field along fixed refracted reference rays gives the transmitted OPD.
+For nominal fused-silica cases at $0^\circ$, $30^\circ$, and $60^\circ$ incidence, comparison with independent finite-element solutions gives maximum OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ over the sampled transient times from $2.5$ ms to $75$ s, relative to the semi-analytical values.
+Carrying the azimuthal decomposition through the optical integral also resolves the OPD contributed by each thermal order, linking the evolution of the thermal structure to the transmitted optical response.
 
 \end{abstract}
 
 \section{Introduction}
 % para:intro-p01
-Coated optical elements in high-power laser systems must transmit or redirect light while dissipating the power absorbed in their coatings.
-Dichroic mirrors used in wavelength beam combining are one example: absorption-driven temperature rise and thermal deformation have been investigated because of their effects on optical performance \cite{li2024,li2025}.
-For transmitted light, a nonuniform temperature field also changes the refractive index and the optical path through the substrate.
-Under oblique incidence, the Gaussian heating footprint becomes elliptical and the refracted rays traverse the substrate obliquely.
-The resulting OPD depends on where the heat is deposited, how it spreads through the finite optic, and which parts of the temperature field each ray samples.
+Thermal effects in optical components are an important concern in high-power laser systems, where absorbed optical power produces nonuniform temperature distributions and consequently distorts transmitted wavefronts \cite{li2024,dobek2022}.
+Under oblique Gaussian irradiation, the surface heating profile becomes elliptical, while transmitted rays follow refracted paths through the substrate.
+The resulting thermo-refractive optical-path difference (OPD) therefore depends on both the three-dimensional temperature distribution and the optical paths through it.
+Accurate prediction of this response requires the heating geometry, thermal boundaries, and refracted-ray propagation to be considered together.
 
 % para:intro-p02
-Eigenfunction methods offer a natural description of heat conduction in cylindrical optics because the thermal boundary conditions determine the spatial basis.
-Peng et al.\ \cite{peng2001} used Green's functions to calculate temperature distributions and thermal deformations of finite mirror substrates under Gaussian absorption.
-Vinet \cite{vinet2009} developed non-axisymmetric Fourier--Bessel representations for steady temperatures in finite mirrors and treated axisymmetric transient thermal responses and thermal lensing.
-Kim et al.\ \cite{kim2017} used Bessel functions to describe steady heating and thermal lensing in cylindrical optics.
-For oblique illumination, Reitzle et al.\ \cite{reitzle2021} derived a semi-analytical transient temperature solution for a laterally infinite, layered scattering and absorbing slab.
-These studies provide thermal descriptions for finite optics and oblique illumination.
-For a transmitting cylindrical substrate, we use these approaches to formulate a calculation that retains the finite thermal boundaries and follows the optical path through the evolving temperature field.
+Analytical methods have provided important tools for studying thermal effects in cylindrical optics.
+Hello and Vinet \cite{hellovinet1990} developed analytical models for steady and transient thermal aberrations in finite mirror substrates, while Lee and Reitze \cite{lee2015} investigated time-dependent heating and OPD in finite laser rods.
+Non-axisymmetric thermal distributions have also been treated using angular Fourier expansions \cite{vinet2009}.
+Building on these approaches, the present work addresses a specific coupled thermal--optical problem: calculating the steady and transient OPD of a finite cylindrical substrate under oblique Gaussian surface heating, while retaining its non-axisymmetric temperature distribution and depth-dependent refracted optical paths.
 
 % para:intro-p03
-The modelling task is to represent the elliptical surface load on a circular substrate, evolve the resulting temperature through its finite thickness, and evaluate that field along refracted rays.
-The circular sidewall determines the radial eigenfunctions, while angular harmonics describe the non-axisymmetric load.
-The optical integral must then retain the depth dependence of the transverse sampling position.
-Using the same spatial expansion in the steady solution, transient solution, and optical integral connects these parts of the calculation and preserves the optical contribution of each temperature order.
-
-% para:intro-p04
-In this work, we construct a Fourier--Bessel formulation for the steady and transient thermo-refractive response of a finite cylindrical substrate heated by a single oblique Gaussian surface flux.
-The steady axial solution carries the prescribed front-face load, and homogeneous axial diffusion modes supply the transient correction.
-Their common transverse representation permits direct time evaluation and thermal-order-resolved integration along fixed refracted rays.
-We compare the temperature and OPD fields with independently assembled three-dimensional finite-element method (FEM) solutions, then use the modal results to examine how angle and diffusion affect the transmitted response.
+Here, we develop a Fourier--Bessel semi-analytical model that incorporates the finite cylindrical thermal boundaries and evaluates the three-dimensional temperature field under steady and transient heating.
+The resulting thermo-refractive OPD is obtained by integrating the temperature-induced refractive-index perturbation along refracted reference rays.
+The formulation permits direct evaluation at specified times and retains the contributions of individual azimuthal temperature modes to the optical response.
+Comparisons with independently assembled three-dimensional finite-element solutions at incidence angles of $0^\circ$, $30^\circ$, and $60^\circ$ show maximum relative OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ over the sampled transient interval from $2.5$ ms to $75$ s.
+The model thus provides a unified semi-analytical framework for predicting and analyzing the steady and transient thermo-refractive response of obliquely heated cylindrical optics.
 
 \section{Physical Model and Thermo-Optic OPD}
 \subsection{Geometry and Oblique Gaussian Heating}
 % para:model-p01
-The substrate is a cylinder of radius $R$ and thickness $L$, with $0\leq r\leq R$, $0\leq\phi<2\pi$, and $0\leq z\leq L$.
-The origin lies at the center of the coated front face, $z=0$; the rear face is at $z=L$.
-We use $x=r\cos\phi$ and $y=r\sin\phi$.
-A collimated Gaussian beam is centered on the front face and incident in the $y$--$z$ plane at an external angle $\theta$ to the $+z$ normal.
-The coating supplies the absorbed surface heat load, and the transmitted branch of the same beam defines the optical paths through the substrate.
-For a $1/e^2$ intensity radius $w_0$ measured normal to propagation, the prescribed heat flux is
+The optical substrate is a finite cylinder of radius $R$ and thickness $L$, described in cylindrical coordinates $(r,\phi,z)$, with $0\leq r\leq R$, $0\leq\phi<2\pi$, and $0\leq z\leq L$.
+The origin is located at the center of the coated front face ($z=0$), and the rear face is at $z=L$.
+The Cartesian coordinates are defined by $x=r\cos\phi$ and $y=r\sin\phi$.
+As illustrated in Fig.~\ref{fig:geometry}, a collimated Gaussian beam is centered on the front face and incident in the $y$--$z$ plane at an external angle $\theta$ to the surface normal.
+The absorbed optical power in the coating is modeled as a surface heat flux, while the transmitted portion of the beam follows refracted paths through the substrate.
+
+For a Gaussian beam with a $1/e^2$ intensity radius $w_0$ measured perpendicular to its propagation direction, the absorbed surface heat flux is given by \cite{li2024}
 \begin{equation}
  q_s(x,y)=\frac{2P_{\rm abs}\cos\theta}{\pi w_0^2}
  \exp\!\left[-\frac{2(x^2+y^2\cos^2\theta)}{w_0^2}\right].
  \label{eq:source}
 \end{equation}
-Its widths are $w_0$ along $x$ and $w_0/\cos\theta$ along $y$.
-The full-plane normalization is $\int_{\mathbb R^2}q_s\dd A=P_{\rm abs}$.
-Thus $P_{\rm abs}$ specifies the absorbed-source normalization; the power actually intercepted by the finite face is $P_{\mathcal D}=\int_{r\leq R}q_s\dd A$.
-The flux is applied on that face without renormalization, and the angle comparisons hold $P_{\rm abs}$ fixed.
-A normalized history $g(t)$ sets the applied flux to $g(t)q_s$.
+Here, $P_{\rm abs}$ denotes the absorbed-power parameter that normalizes the Gaussian profile over the full plane.
+The resulting elliptical footprint has $1/e^2$ radii $w_0$ and $w_0/\cos\theta$ along the $x$ and $y$ directions, respectively.
+The prescribed heat flux is applied to the finite coated face without further normalization, with $P_{\rm abs}$ held constant across incidence angles.
+The time-dependent surface heat flux is expressed as $g(t)q_s(x,y)$, where $g(t)$ describes the temporal variation of the heating.
 
 \begin{figure}[htbp]
-% TODO(figure, author): move the origin to the front-face center and replace
-% the historical centered-coordinate face labels by z=0 and z=L.
 \centering\includegraphics[width=.95\linewidth]{fig_physical_model_schematic_final.pdf}
-\caption{Finite cylindrical substrate under oblique Gaussian surface heating. The incident plane is $y$--$z$, coating absorption supplies the front-face heat flux, and all surfaces exchange heat with the environment. Coordinate revision pending: the retained drawing uses a centered origin; the model uses the front-face origin and $z=0,L$.}
+\caption{Finite cylindrical substrate under oblique Gaussian surface heating. The incident plane is $y$--$z$; coating absorption supplies the front-face heat flux, and all surfaces exchange heat with the environment. The origin lies at the center of the coated front face ($z=0$), with the rear face at $z=L$.}
 \label{fig:geometry}
 \end{figure}
 
@@ -115,45 +104,69 @@ The nominal examples use the same effective coefficient on all three surfaces,
  \label{eq:heff}
 \end{equation}
 where $h_{\rm conv}$ is the convection coefficient, $\epsilon$ is the emissivity, and $\sigma$ is the Stefan--Boltzmann constant.
-The radiative term is linearized about $T_\infty$.
+The radiative term is linearized about $T_\infty$, as in analytical mirror-heating treatments \cite{vinet2009}.
 The reported transient examples use step turn-on, $g(0)=0$ and $g(t)=1$ for $t>0$.
 The corresponding steady problem satisfies $\nabla^2\Theta_{\rm ss}=0$ under constant loading.
 
 \subsection{Assumptions and Nominal Inputs}
 % para:model-p03
-Table~\ref{tab:parameters} defines the nominal fused-silica example.
-The material is homogeneous and isotropic; the coating is thermally unresolved and acts as a prescribed surface source.
-The geometry, absorbed power, beam size, and environmental coefficients specify the numerical case.
-Thermal conductivity, density, and specific heat follow the cited quartz-glass data \cite{heraeus}, with $c_p$ retained as the tabulated mean over $0$--$100\,{}^\circ$C.
-The optical reference uses $n_i=1$ and $n_s=1.44963$ at $1064$ nm.
-The adopted $\gamma_T=\mathrm dn/\mathrm dT=9.6\times10^{-6}\,\mathrm{K}^{-1}$ is a nominal value tabulated at $643.8$ nm; it sets the OPD scale and is not a wavelength-specific measurement at $1064$ nm.
-For fixed thermal inputs and reference rays, OPD scales linearly with $\gamma_T$.
+The numerical examples consider a homogeneous, isotropic fused-silica substrate with constant material properties.
+The nominal geometric, thermal, and optical parameters are summarized in Table~\ref{tab:parameters}.
+The thermal conductivity, density, and specific heat are taken from quartz-glass material data \cite{heraeus}, with the specific heat represented by its tabulated mean over $0$--$100\,{}^\circ$C.
+The reference refractive index at $1064$ nm follows the dispersion relation of Malitson \cite{malitson1965}, and the thermo-optic coefficient is adopted from \cite{sqp2022}.
 
 \NominalTable
 
 \subsection{Thermo-Optic OPD along Refracted Rays}
 % para:model-p05
-The unheated refractive indices determine the reference angle through Snell's law, $n_i\sin\theta=n_s\sin\theta_t$.
-A transmitted ray entering at $(x_0,y_0,0)$ follows
+The thermo-refractive OPD is calculated by integrating the temperature-induced refractive-index perturbation along refracted reference rays \cite{hellovinet1990,malacarne2012}.
+The reference paths are determined by the unheated refractive indices through Snell's law, $n_i\sin\theta=n_s\sin\theta_t$, where $\theta_t$ is the refracted angle inside the substrate.
+For a ray entering at $(x_0,y_0,0)$, the path is given by
 \begin{equation}
- x(z)=x_0,\quad y(z)=y_0+z\tan\theta_t,\quad \dd s=\frac{\dd z}{\cos\theta_t}.
+ x(z)=x_0,\qquad
+ y(z)=y_0+z\tan\theta_t,\qquad
+ \dd s=\frac{\dd z}{\cos\theta_t}.
  \label{eq:ray}
 \end{equation}
-Its first-order substrate thermo-refractive OPD relative to the unheated reference path is
+Under the fixed-reference-ray approximation, the first-order thermo-refractive OPD relative to the unheated optical path is
 \begin{equation}
- W(x_0,y_0,t)=\frac{\gamma_T}{\cos\theta_t}
- \int_0^L\Theta\!\left(x_0,y_0+z\tan\theta_t,z,t\right)\dd z.
+ W(x_0,y_0,t)
+ =
+ \frac{\gamma_T}{\cos\theta_t}
+ \int_0^L
+ \Theta(x_0,y_0+z\tan\theta_t,z,t)\dd z.
  \label{eq:opd}
 \end{equation}
-The optical field is labeled by entrance coordinates.
-We select the pupil by $x_0^2+y_0^2\leq a^2$, with $a=0.9R$, together with the rear-face condition $x_0^2+(y_0+L\tan\theta_t)^2\leq R^2$.
-Since the cylinder is convex, these endpoint conditions keep the full ray within the substrate.
-The peak-to-valley value is $V=\max W-\min W$ on this angle-dependent transmitted pupil.
-The raw OPD retains piston; a constant piston does not affect $V$.
+Here, $\gamma_T=\mathrm dn/\mathrm dT$ is the thermo-optic coefficient, and $\Theta$ is the temperature rise.
+The reference-ray approximation neglects thermal bending of the optical paths.
+
+The OPD is evaluated over a representative circular entrance aperture of radius $a=0.9R$, corresponding to $90\%$ of the substrate diameter.
+Only rays that remain inside the substrate and reach the rear face are included.
+The resulting angle-dependent evaluation pupil is
+\begin{equation}
+ \mathcal P_\theta=
+ \left\{
+ (x_0,y_0):
+ \begin{array}{l}
+ x_0^2+y_0^2\le a^2,\\
+ x_0^2+(y_0+L\tan\theta_t)^2\le R^2
+ \end{array}
+ \right\}.
+ \label{eq:pupil}
+\end{equation}
+The OPD peak-to-valley value is then defined as
+\begin{equation}
+ V(t)=
+ \max_{(x_0,y_0)\in\mathcal P_\theta}W(x_0,y_0,t)
+ -
+ \min_{(x_0,y_0)\in\mathcal P_\theta}W(x_0,y_0,t).
+ \label{eq:pv}
+\end{equation}
 
 \section{Fourier--Bessel Semi-Analytical Formulation}
 \subsection{Azimuthal Decomposition}
 % para:method-p01
+The angular and radial representation follows the Fourier--Bessel treatment of non-axisymmetric finite-mirror heating \cite{vinet2009}.
 The oblique footprint is represented on the circular face by an azimuthal Fourier expansion,
 \begin{equation}
  q_s(r,\phi)=q_0(r)+\sum_{m=1}^{\infty}q_m(r)\cos(m\phi),
@@ -220,7 +233,7 @@ The expansion also gives radial and axial temperature derivatives for the bounda
 % para:method-p04
 For step loading and $t>0$, the transient and steady fields satisfy the same imposed surface heat flux.
 Their difference therefore satisfies homogeneous Robin conditions, so the approach to the steady field can be described by freely decaying diffusion modes.
-The steady solution carries the applied load, while these modes describe the remaining time-dependent correction.
+Following the steady-plus-transient construction for coating-heated cylindrical mirrors \cite{hellovinet1990}, the steady solution carries the applied load, while these modes describe the remaining time-dependent correction.
 Keeping the transverse basis above, we introduce homogeneous axial Robin eigenfunctions,
 \begin{equation}
  X_j(z)=\cos(\beta_jz)+\frac{h_f}{k\beta_j}\sin(\beta_jz),\qquad
@@ -268,6 +281,7 @@ The specified initial value is returned as $\Theta(\mathbf{x},0)=0$; resolution 
 \subsection{OPD Evaluation and Thermal-Order Contributions}
 % para:method-p07
 Gauss--Legendre quadrature evaluates Eq.~\eqref{eq:opd} along each valid refracted reference ray.
+To identify how different azimuthal temperature components contribute to the transmitted optical response, we evaluate their OPD contributions separately.
 Writing the temperature contribution of thermal order $m$ as $\Theta_m(r,z,t)\cos(m\phi)$ gives
 \[
  W_m(x_0,y_0,t)=\frac{\gamma_T}{\cos\theta_t}
@@ -444,6 +458,7 @@ The formulation describes coating-dominated absorption in a homogeneous cylinder
 The reported cases use one centered beam and fixed refracted reference rays, and OPD contains the substrate refractive-index contribution.
 These assumptions define the thermal and optical quantities compared with FEM.
 Specific mounted components require appropriate contact conditions and wavelength-dependent material inputs; the nominal thermo-optic coefficient in Table~\ref{tab:parameters} can be replaced without changing the linear optical integration.
+Thermal expansion and stress-induced index changes are separate contributions in thermo-optical wavefront models \cite{mansell2001,malacarne2012}.
 Surface displacement, stress-optic effects, coating phase, and thermally bent rays require their corresponding mechanical or optical models.
 
 \section{Conclusion}
