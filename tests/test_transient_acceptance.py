@@ -91,6 +91,7 @@ def test_miniature_selection_searches_J_and_reloads_physical_evidence(tmp_path,m
     summary = json.loads((directory/'summary.json').read_text())
     assert summary['selected_settings']['J']>12
     assert summary['acceptance_version']==1
+    assert summary['transient_truncation_established'] is True
     assert validation.validate_saved_transient_run(directory)['status']=='PASS'
     verifier=load_script('scripts/verification/verify_semi_analytical.py')
     monkeypatch.setattr(verifier,'repository_root',tmp_path)

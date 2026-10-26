@@ -22,12 +22,13 @@ from numpy.polynomial.legendre import leggauss
 from thermal_opd.convergence import field_errors
 from thermal_opd.heat_source import oblique_gaussian_heat_flux
 from thermal_opd.model import ModalResolution
+from thermal_opd.modal_evaluation import modal_temperature
 from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.projection import reconstruct_cosine_field
 from thermal_opd.run_io import create_run, provenance, write_summary
 from thermal_opd.transient import PowerHistory
-from thermal_opd.transient_validation import write_transient_boundary_check
+from thermal_opd.transient_validation import write_transient_boundary_check,load_transient_fem_certificate
 
 
 parameters = PhysicalParameters()
@@ -36,9 +37,11 @@ modal_settings = ModalResolution(6,8,400,32,32)
 reference_settings = ModalResolution(10,16,800,128,64)
 axial_counts = (12,24,48)
 observation_times_s = (0.,.625,2.5,20.,50.,75.)
+formal_observation_times_s = (0.,.001,.0025,.01,.05,.1,.625,2.5,20.,50.,75.)
 long_time_decay_exponent = 12.
 temperature_r_points, temperature_phi_points = 32,48
 opd_xy_points = 25
+formal_temperature_r_points,formal_temperature_phi_points,formal_opd_xy_points = 201,201,101
 aperture_radius_ratio = .9
 smoke_meshes = ((2,8),(3,12))
 smoke_time_steps_s = (.25,.125,.0625)
@@ -54,7 +57,12 @@ repository_root = Path(__file__).resolve().parents[2]
 
 
 def evaluate(model, times, r, phi, z, x, y, *, ray_points=None):
-    temperature = np.stack([np.stack([model.temperature(r[:,None],phi[None,:],plane,t)
+    # This modal-contribution study uses independent m subtotals. Explicitly
+    # select the same grouping when evaluating its total; model defaults and
+    # historical physical-evidence replays keep their original accumulation.
+    temperature = np.stack([np.stack([modal_temperature(r[:,None],phi[None,:],plane,
+                                      model.prepared.coefficients,model.prepared.roots,model._response(t),
+                                      group_by_order=True)
                                       for plane in z]) for t in times])
     opd = model.opd_series(x, y, times, num_ray_points=ray_points, point_chunk_size=point_chunk_size)
     return temperature,opd
@@ -72,12 +80,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mode',choices=('smoke','full','fields'),default='smoke')
     parser.add_argument('--selection',type=Path,help='Completed transient joint truncation selection')
+    parser.add_argument('--fem-convergence',type=Path,help='Independently passed transient FEM convergence certificate (required for full)')
     parser.add_argument('--angle',type=float,default=60.)
     parser.add_argument('--history',choices=('step','linear','exponential'),default='step')
     parser.add_argument('--ramp-time',type=float,default=5.)
     parser.add_argument('--output-dir',type=Path)
     args = parser.parse_args()
     p = parameters
+    if args.mode=='full' and args.fem_convergence is None:
+        raise ValueError('--mode full requires --fem-convergence pointing to independently passed FEM evidence')
     if args.mode=='fields':
         from transient_fields import run_fine_fields
         run_fine_fields(args,p,repository_root)
@@ -93,6 +104,14 @@ def main():
         ref_settings=ModalResolution(**selected['reference']['modal'])
         observations=(0.,*selected['times_s'])
     history = PowerHistory(args.history,args.ramp_time)
+    if args.history=='step' and (args.mode=='full' or args.fem_convergence is not None):
+        history=PowerHistory()
+    fem_evidence=None
+    if args.mode=='full':
+        observations=tuple(sorted(set((*formal_observation_times_s,*observations))))
+    if args.fem_convergence is not None:
+        fem_evidence=load_transient_fem_certificate(args.fem_convergence,p,args.angle,history,observations,
+            repository_root=repository_root)
     internal = refracted_angle(np.deg2rad(args.angle),p.incident_refractive_index,p.substrate_refractive_index)
     directory = create_run(repository_root,f'transient_{args.mode}_theta{args.angle:g}_{args.history}',args.output_dir)
     summary = {'kind':'transient_modal_fem_study','status':'RUNNING','mode':args.mode,
@@ -104,6 +123,19 @@ def main():
         'sanity_tolerance':sanity_tolerance,'transient_truncation_established':False,
         'fem_convergence_established':False,'boundary_validation_required':True,'provenance':provenance(repository_root,__file__),
         'selection_directory':str(args.selection.resolve()) if args.selection is not None else None}
+    if fem_evidence is not None:
+        summary.update(fem_convergence_established=True,
+            fem_convergence_directory=fem_evidence['certificate_directory'],
+            fem_convergence_summary_sha256=fem_evidence['certificate_summary_sha256'],
+            fem_convergence_verification_sha256=fem_evidence['certificate_verification_sha256'])
+        if args.history=='step':
+            summary['history_metadata_policy']='Formal step uses canonical PowerHistory() tau=1; tau does not affect step power'
+    if args.selection is not None:
+        covered=all(t==0 or t in selected['times_s'] for t in observations)
+        summary['transient_truncation_established']=bool(selected.get('transient_truncation_established',False) and covered)
+        summary['transient_truncation_scope']=dict(selected_times_s=selected['times_s'],
+            requested_times_s=list(observations),all_positive_times_covered=covered,
+            note='FEM diagnostic-only 1ms policy does not extend semi-analytical selection coverage')
     write_summary(directory, summary, defaults=script_defaults(globals()))
     started = perf_counter()
     print(f'Run: {directory}',flush=True)
@@ -119,12 +151,17 @@ def main():
         summary['long_time_s'] = float(long_time)
         summary['slowest_decay_rate_per_s'] = model.slowest_decay_rate
         summary['times_s'] = times.tolist()
-        nodes,wr = leggauss(temperature_r_points)
+        nr,nphi,no=((formal_temperature_r_points,formal_temperature_phi_points,formal_opd_xy_points)
+            if args.mode=='full' else (temperature_r_points,temperature_phi_points,opd_xy_points))
+        summary['sampling']=dict(temperature_coordinates='polar Gauss radius / uniform azimuth',
+            temperature_r_points=nr,temperature_phi_points=nphi,opd_coordinates='Cartesian entrance pupil',
+            opd_xy_points=no,fem_certificate_coordinates='Separate common Cartesian thermal disk and refracted pupil')
+        nodes,wr = leggauss(nr)
         r = (nodes+1)*p.radius/2
-        phi = np.arange(temperature_phi_points)*2*np.pi/temperature_phi_points
+        phi = np.arange(nphi)*2*np.pi/nphi
         z = np.array([0.,p.thickness/2,p.thickness])
         area_weights = np.broadcast_to((wr*p.radius/2*r*2*np.pi/phi.size)[:,None],(r.size,phi.size)).copy()
-        axis = np.linspace(-aperture_radius_ratio*p.radius,aperture_radius_ratio*p.radius,opd_xy_points)
+        axis = np.linspace(-aperture_radius_ratio*p.radius,aperture_radius_ratio*p.radius,no)
         x,y = np.meshgrid(axis,axis)
         mask = (x*x+y*y<=(aperture_radius_ratio*p.radius)**2)&transmitted_ray_mask(x,y,p.radius,p.thickness,internal)
         ox,oy = x[mask],y[mask]
@@ -208,8 +245,16 @@ def main():
         from thermal_opd.fem import solve_transient_fem
         meshes = smoke_meshes if args.mode=='smoke' else full_meshes
         steps = smoke_time_steps_s if args.mode=='smoke' else full_time_steps_s
-        configs = [(mesh,steps[0]) for mesh in meshes]+[(meshes[-1],dt) for dt in steps[1:]]
+        configs = [] if fem_evidence is not None else [(mesh,steps[0]) for mesh in meshes]+[(meshes[-1],dt) for dt in steps[1:]]
         fem_solutions,rows = [],[]
+        if fem_evidence is not None:
+            fem_solutions=[fem_evidence['solution']]
+            checks={check['name']:check for check in fem_evidence['verification']['checks']}
+            prefix=f'theta{args.angle:g}_'
+            rows=[{**fem_evidence['header']['diagnostics'],
+                'max_energy_balance_error_relative_to_full_input':checks[prefix+'energy_balance']['metrics']['max_input_normalized_error'],
+                'max_relative_linear_residual':checks[prefix+'weak_equation_residual']['metrics']['max_recorded_relative_residual'],
+                **{key:fem_evidence[key] for key in ('source_run','case_index','data_file','data_format','data_sha256')}}]
         for mesh,dt in configs:
             print(f'FEM mesh={mesh}, dt<={dt:g}s',flush=True)
             solution = solve_transient_fem(p.radius,p.thickness,p.conductivity,p.h_eff,p.h_eff,p.h_eff,
@@ -248,14 +293,20 @@ def main():
             # alongside relative norms so a large ratio is interpretable.
             rows[i]['temperature_absolute_max_difference_K'] = np.max(np.abs(tf-st),axis=-1).tolist()
             rows[i]['temperature_area_rms_difference_K'] = np.sqrt(np.sum((tf-st)**2*weights,axis=-1)/weights.sum()).tolist()
-            step_keys = list(result.steps[0])
-            np.savez_compressed(data_directory(directory)/f'fem_run{i}.npz',disk_nodes_xy_m=result.frames[0].disk_mesh.p,
-                disk_triangles=result.frames[0].disk_mesh.t,axial_nodes_z_m=result.frames[0].z_m,
-                temperature_K=np.array([f.temperature_K for f in result.frames]),times_s=times,
-                step_keys=np.array(step_keys),steps=np.array([[s[key] for key in step_keys] for s in result.steps]))
+            if fem_evidence is None:
+                step_keys = list(result.steps[0])
+                np.savez_compressed(data_directory(directory)/f'fem_run{i}.npz',disk_nodes_xy_m=result.frames[0].disk_mesh.p,
+                    disk_triangles=result.frames[0].disk_mesh.t,axial_nodes_z_m=result.frames[0].z_m,
+                    temperature_K=np.array([f.temperature_K for f in result.frames]),times_s=times,
+                    step_keys=np.array(step_keys),steps=np.array([[s[key] for key in step_keys] for s in result.steps]))
         fields['temperature_fem_K'],fields['opd_fem_m'] = np.array(fem_t),np.array(fem_o)
         # Report changes against the finest mesh or smallest dt in that group.
         for i,row in enumerate(rows):
+            if fem_evidence is not None:
+                row['changes_vs_group_reference']=[None]*len(times)
+                row['fem_convergence_directory']=fem_evidence['certificate_directory']
+                row['changes_vs_group_reference_note']='No reference was rerun on these polar samples; changes are recorded on the separate common Cartesian certificate grid'
+                continue
             reference_i = len(meshes)-1 if i<len(meshes) else len(rows)-1
             row['changes_vs_group_reference'] = [None if t==0 else field_errors(fem_t[i][j],fem_t[reference_i][j],
                 area_weights[thermal_mask],fem_o[i][j],fem_o[reference_i][j],temperature_normalization=summary['temperature_normalization_by_time'][j]) for j,t in enumerate(times)]
@@ -272,7 +323,7 @@ def main():
         save_transient_diagnostic_figure(directory,fields)
         summary.update(status='COMPLETE',elapsed_seconds=perf_counter()-started)
         write_summary(directory, summary, defaults=script_defaults(globals()))
-        print(f'COMPLETE: {directory}; transient/FEM final convergence remains unestablished.',flush=True)
+        print(f"COMPLETE: {directory}; transient truncation={summary['transient_truncation_established']}; FEM convergence={summary['fem_convergence_established']}",flush=True)
     except BaseException as error:
         summary.update(status='ABORTED' if isinstance(error,KeyboardInterrupt) else 'FAILED',error=str(error))
         write_summary(directory, summary, defaults=script_defaults(globals()))

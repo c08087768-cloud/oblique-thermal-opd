@@ -55,7 +55,7 @@ def resolve_run_path(directory, value):
 def relative_metadata_paths(value, directory):
     """Normalize path fields only; leave formulas, units and live settings intact."""
     path_keys={'run_directory','figure_directory','selection_directory','selection_run',
-               'source_run','baseline_directory','verification_references','artifacts','evidence'}
+               'source_run','baseline_directory','verification_references','artifacts','evidence','data_file','fem_convergence_directory'}
     def convert(item, path_value=False):
         if isinstance(item,dict):
             return {key:convert(child,path_value or key in path_keys) for key,child in item.items()}
@@ -195,6 +195,15 @@ def read_numeric_data(path):
     """Open numeric NPZ data safely; caller owns and closes the returned archive."""
     import numpy as np
     return np.load(Path(path),allow_pickle=False)
+
+
+def file_sha256(path):
+    """Hash large saved artifacts without allocating their entire file contents."""
+    digest=hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda:stream.read(1024*1024),b''):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def write_json(path,value):

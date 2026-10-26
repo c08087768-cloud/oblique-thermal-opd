@@ -4,7 +4,7 @@ import pytest
 from thermal_opd.transient_validation import validate_saved_transient_run
 
 
-def test_transient_selection_checker_recomputes_time_fields_and_rejects_false_gate(tmp_path):
+def saved_selection(tmp_path):
     # A changed early-time field or a claimed pass above the numeric threshold
     # must not authorize a fine figure run.
     zero = dict(temperature_relative_l2=[0.,0.,0.],temperature_relative_linf=[0.,0.,0.],
@@ -29,6 +29,13 @@ def test_transient_selection_checker_recomputes_time_fields_and_rejects_false_ga
     fields['theta0_enlarged_continuous_pv_m'] = np.array([2.,2.])
     fields['theta0_selected_continuous_pv_m'] = np.array([2.,2.])
     np.savez(tmp_path/'fields.npz',**fields)
+    return summary,fields
+
+
+def test_transient_selection_checker_recomputes_time_fields_and_rejects_false_gate(tmp_path):
+    summary,fields=saved_selection(tmp_path)
+    case=summary['cases'][0]
+    T=fields['theta0_selected_temperature_K'].copy()
     assert validate_saved_transient_run(tmp_path)['status']=='PASS'
     fields['theta0_selected_temperature_K'][0,0,0] += .1
     np.savez(tmp_path/'fields.npz',**fields)
@@ -40,3 +47,53 @@ def test_transient_selection_checker_recomputes_time_fields_and_rejects_false_ga
     (tmp_path/'summary.json').write_text(json.dumps(summary))
     with pytest.raises(ValueError):
         validate_saved_transient_run(tmp_path)
+
+
+def test_selection_loader_derives_missing_flag_only_after_real_saved_checks(tmp_path):
+    from dataclasses import asdict
+    from thermal_opd.parameters import PhysicalParameters
+    from thermal_opd.transient_validation import load_transient_selection
+    p=PhysicalParameters()
+    summary,fields=saved_selection(tmp_path)
+    summary.update(physical_parameters_SI=asdict(p),history={'kind':'step'})
+    file=tmp_path/'summary.json'
+    file.write_text(json.dumps(summary))
+    original=file.read_bytes()
+    selected=load_transient_selection(tmp_path,p,0.)
+    assert selected['transient_truncation_established'] is True
+    assert file.read_bytes()==original
+    assert 'transient_truncation_established' not in json.loads(original)
+    fields['theta0_selected_temperature_K'][0,0,0]+=.1
+    np.savez(tmp_path/'fields.npz',**fields)
+    with pytest.raises(ValueError):
+        load_transient_selection(tmp_path,p,0.)
+
+
+def test_selection_loader_rejects_explicit_false_and_uncovered_scope(tmp_path):
+    from dataclasses import asdict
+    from thermal_opd.parameters import PhysicalParameters
+    from thermal_opd.transient_validation import load_transient_selection
+    p=PhysicalParameters()
+    summary,_=saved_selection(tmp_path)
+    summary.update(physical_parameters_SI=asdict(p),history={'kind':'step'},
+                   transient_truncation_established=False)
+    file=tmp_path/'summary.json';file.write_text(json.dumps(summary))
+    with pytest.raises(ValueError,match='established'):
+        load_transient_selection(tmp_path,p,0.)
+    summary.pop('transient_truncation_established');file.write_text(json.dumps(summary))
+    with pytest.raises(ValueError,match='scope'):
+        load_transient_selection(tmp_path,p,30.)
+
+
+@pytest.mark.parametrize('declared,actual', [([30.],[0.]),([0.,0.],[0.,0.]),([0.,30.],[0.,0.])])
+def test_selection_loader_rejects_declared_angle_without_actual_case(tmp_path,declared,actual):
+    from dataclasses import asdict
+    from thermal_opd.parameters import PhysicalParameters
+    from thermal_opd.transient_validation import load_transient_selection
+    p=PhysicalParameters()
+    summary,_=saved_selection(tmp_path)
+    summary['cases']=[{**summary['cases'][0],'angle_deg':a} for a in actual]
+    summary.update(physical_parameters_SI=asdict(p),history={'kind':'step'},angles_deg=declared)
+    (tmp_path/'summary.json').write_text(json.dumps(summary))
+    with pytest.raises(ValueError,match='angle|Angle|scope'):
+        load_transient_selection(tmp_path,p,declared[-1])

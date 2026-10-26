@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from skfem import Basis, ElementTriP2
 
 from thermal_opd.convergence import field_errors, within_tolerance
 from thermal_opd.fem import solve_steady_fem
@@ -27,6 +28,7 @@ from thermal_opd.model import ModalResolution
 from thermal_opd.opd import refracted_angle, transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.run_io import create_run, provenance, write_summary
+from thermal_opd.steady_validation import steady_fem_directional_checks
 
 
 parameters = PhysicalParameters()
@@ -34,13 +36,18 @@ aperture_radius_ratio = 0.9
 smoke_angles_deg = (0., 60.)
 full_angles_deg = (0., 30., 60.)
 smoke_meshes = ((2, 4), (3, 8), (4, 12))  # disk refinements, axial layers
-full_meshes = ((4, 16), (5, 32), (6, 48))
+# P2 candidate and independent xy-only, z-only, joint references.  These
+# configurations are candidates until each recorded directional gate passes.
+full_meshes = ((4, 32), (5, 32), (4, 64), (5, 64))
+full_mesh_roles = ('candidate', 'xy_reference', 'z_reference', 'joint_reference')
+full_field_degree = 2
+full_mirror_reduction = True
 smoke_temperature_xy = 51
-full_temperature_xy = 101
+full_temperature_xy = 201
 smoke_opd_xy = 41
 full_opd_xy = 101
-quadrature_order = 6
-check_quadrature_order = 8
+quadrature_order = 10
+check_quadrature_order = 14
 solver_rtol = 1e-10
 sanity_tolerance = 1e-7
 mesh_change_target = 1e-3
@@ -95,6 +102,8 @@ def main():
     meshes = smoke_meshes if args.mode == 'smoke' else full_meshes
     count_t = smoke_temperature_xy if args.mode == 'smoke' else full_temperature_xy
     count_o = smoke_opd_xy if args.mode == 'smoke' else full_opd_xy
+    degree = 1 if args.mode == 'smoke' else full_field_degree
+    mirror = False if args.mode == 'smoke' else full_mirror_reduction
     if not set(angles).issubset(selection['angles_deg']):
         raise ValueError('The chosen angles have not passed modal selection')
     directory = create_run(repository_root, f'fem_{args.mode}', args.output_dir)
@@ -106,10 +115,15 @@ def main():
                'angles_deg': angles, 'mesh_settings': meshes, 'aperture_radius_ratio': aperture_radius_ratio,
                'mesh_change_target': mesh_change_target, 'sanity_tolerance': sanity_tolerance,
                'evaluation_settings': {'temperature_xy': count_t, 'opd_xy': count_o},
+               'field_degree': degree, 'mirror_reduction': mirror,
+               'load_quadrature_order': quadrature_order, 'check_load_quadrature_order': check_quadrature_order,
                'opd_definition': 'fixed refracted ray; dn_dT * integral DeltaT ds; front entrance coordinates',
-               'fem_ray_quadrature': 'split at all crossed triangle edges and axial layers; two Gauss points per quadratic segment',
+               'fem_ray_quadrature': ('split at all crossed triangle edges and axial elements; '
+                                      + ('three Gauss points per quartic segment' if degree==2 else 'two Gauss points per quadratic segment')),
                'mesh_geometry': 'inscribed polygon xy disk x line layers; common domain for all meshes, no extrapolation',
                'provenance': provenance(repository_root, __file__), 'cases': []}
+    if args.mode=='full':
+        summary['mesh_refinement_protocol']='p2_xy_z_joint_v1'
     write_summary(directory, summary, defaults=script_defaults(globals()))
     flat_rows = []
     planes = np.array([0., p.thickness/2, p.thickness])
@@ -127,12 +141,16 @@ def main():
         for level, layers in meshes:
             solution = solve_steady_fem(p.radius, p.thickness, p.conductivity, p.h_eff, p.h_eff, p.h_eff, flux,
                                         disk_refinements=level, axial_layers=layers, quadrature_order=quadrature_order,
-                                        solver='direct' if args.mode == 'smoke' else 'cg', rtol=solver_rtol)
+                                        solver='direct' if args.mode == 'smoke' else 'cg', rtol=solver_rtol,
+                                        field_degree=degree,mirror_reduction=mirror)
             solutions.append(solution)
             print(f"  disk={level}, z={layers}, DOF={solution.diagnostics['degrees_of_freedom']}, solve={solution.diagnostics['solve_seconds']:.3f}s", flush=True)
-            np.savez_compressed(data_directory(directory)/f'{label}_mesh{len(solutions)-1}.npz',
-                                disk_nodes_xy_m=solution.disk_mesh.p, disk_triangles=solution.disk_mesh.t,
-                                axial_nodes_z_m=solution.z_m, temperature_K=solution.temperature_K)
+            saved_nodes={'disk_nodes_xy_m':solution.disk_mesh.p,'disk_triangles':solution.disk_mesh.t,
+                         'axial_nodes_z_m':solution.z_m,'temperature_K':solution.temperature_K,
+                         'field_degree':solution.field_degree,
+                         'xy_dof_coordinates_m':(Basis(solution.disk_mesh,ElementTriP2()).doflocs
+                                                 if degree==2 else solution.disk_mesh.p)}
+            np.savez_compressed(data_directory(directory)/f'{label}_mesh{len(solutions)-1}.npz',**saved_nodes)
         tm = tx**2+ty**2 <= p.radius**2
         physical_mask = circular_aperture_mask(ox, oy, aperture_radius_ratio*p.radius)
         physical_mask &= transmitted_ray_mask(ox, oy, p.radius, p.thickness, internal)
@@ -167,8 +185,14 @@ def main():
             row = {'mesh_index': j, **solution.diagnostics, 'fem_evaluation_seconds': sampling_seconds[j],
                    'fem_opd_pv_common_aperture_m': float(np.ptp(o)), 'errors_vs_sa': errors,
                    'changes_vs_finest_fem': changes}
+            if args.mode=='full':
+                row['mesh_role']=full_mesh_roles[j]
             rows.append(row)
-            flat = {'angle_deg': theta, 'mesh_index': j, **solution.diagnostics,
+            # Preserve scalar columns and serialize nested mirror diagnostics as
+            # JSON; a dict must never expand into mismatched CSV columns.
+            flat = {'angle_deg': theta, 'mesh_index': j,
+                    **{key:json.dumps(value,sort_keys=True) if isinstance(value,(dict,list,tuple)) else value
+                       for key,value in solution.diagnostics.items()},
                     'fem_opd_pv_common_aperture_m': float(np.ptp(o))}
             for metric, value in errors.items():
                 if isinstance(value, list):
@@ -182,7 +206,8 @@ def main():
         level, layers = meshes[-1]
         higher_q = solve_steady_fem(p.radius, p.thickness, p.conductivity, p.h_eff, p.h_eff, p.h_eff, flux,
                                     disk_refinements=level, axial_layers=layers, quadrature_order=check_quadrature_order,
-                                    solver='direct' if args.mode == 'smoke' else 'cg', rtol=solver_rtol)
+                                    solver='direct' if args.mode == 'smoke' else 'cg', rtol=solver_rtol,
+                                    field_degree=degree,mirror_reduction=mirror)
         higher_t, higher_o = sample(higher_q)
         q_errors = field_errors(higher_t, fine_t, np.ones(sa_t.shape[1]), higher_o, fine_o)
         case = {'angle_deg': theta, 'refraction_angle_deg': float(np.rad2deg(internal)),
@@ -192,6 +217,10 @@ def main():
                 'meshes': rows, 'load_quadrature_check': {'order': check_quadrature_order, 'errors': q_errors,
                                                           'passed': within_tolerance(q_errors, mesh_change_target/10)},
                 'finest_mesh_change_within_target': within_tolerance(rows[-2]['changes_vs_finest_fem'], mesh_change_target)}
+        if args.mode=='full':
+            case['directional_mesh_checks']=steady_fem_directional_checks(rows,
+                np.asarray([t for t,_ in fields]),np.asarray([o for _,o in fields]),mesh_change_target,
+                mesh_coordinates=[dict(xy=s.disk_mesh.p,tri=s.disk_mesh.t,z=s.z_m) for s in solutions])
         def scatter(values, mask):
             shaped = np.full((*values.shape[:-1], *mask.shape), np.nan)
             shaped[..., mask] = values
@@ -213,12 +242,14 @@ def main():
         for r in c['meshes']) for c in summary['cases'])
     summary['status'] = 'COMPLETE' if sanity_pass else 'FAILED'
     summary['sanity_pass'] = sanity_pass
-    summary['mesh_convergence_established'] = args.mode == 'full' and all(c['finest_mesh_change_within_target'] for c in summary['cases'])
+    summary['mesh_convergence_established'] = args.mode == 'full' and all(
+        c['finest_mesh_change_within_target'] and all(check['passed'] for check in c['directional_mesh_checks'].values())
+        for c in summary['cases'])
     summary['elapsed_seconds'] = perf_counter()-started
-    summary['limits'] = 'Smoke tests the implementation and coarse-mesh trend only. FEM polygon geometry and field discretization both change with refinement. Field errors/PV are on a recorded common subset, not the full physical aperture. Timings are component timings, not an end-to-end speedup claim. Transient remains required future work.'
+    summary['limits'] = 'Smoke tests the P1 implementation and coarse-mesh trend only. Full uses P2 fields and separate xy/z/joint refinement gates; configurations alone do not establish convergence. FEM polygon geometry and field discretization both change with xy refinement. Field errors/PV are on a recorded common subset, not the full physical aperture. Timings are component timings, not an end-to-end speedup claim.'
     write_summary(directory, summary, defaults=script_defaults(globals()))
     with (data_directory(directory)/'comparison.csv').open('w', newline='', encoding='utf-8') as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(flat_rows[0]))
+        writer = csv.DictWriter(stream, fieldnames=list(dict.fromkeys(key for row in flat_rows for key in row)))
         writer.writeheader()
         writer.writerows(flat_rows)
     print(f"{summary['status']}: {directory}; final mesh convergence={summary['mesh_convergence_established']}", flush=True)

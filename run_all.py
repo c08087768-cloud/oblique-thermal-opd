@@ -14,10 +14,11 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from time import perf_counter
 
 from thermal_opd.experiments import EXPERIMENTS, experiment_configuration
-from thermal_opd.run_io import create_run, provenance, read_json, resolve_run_path, write_summary
+from thermal_opd.run_io import create_run, provenance, read_json, resolve_run_path, write_summary,file_sha256
 
 ROOT=Path(__file__).resolve().parent
 
@@ -43,18 +44,21 @@ def build_plan(mode, angles):
                 '--selection','@transient_selection'),category='transient_case',needs=('transient_selection',))
         add('steady_fem','fem-comparison',('--mode','full','--selection','@steady_selection'),
             category='fem_comparison',needs=('steady_selection',))
+        add('transient_fem_convergence','transient-fem-convergence',
+            ('--mode','full','--angles',*[str(a) for a in angles]),category='fem_convergence_validation')
     for angle in (angles if mode=='full' else [max(angles)]):
         args=['--mode',mode,'--angle',str(angle),'--history','step']
         needs=[]
         if mode=='full':
-            args+=['--selection','@transient_selection'];needs=['transient_selection']
+            args+=['--selection','@transient_selection','--fem-convergence','@transient_fem_convergence']
+            needs=['transient_selection','transient_fem_convergence']
         add(f'transient_fem_theta{angle:g}','transient',args,category='fem_comparison',needs=needs)
     if mode=='full':
         for name,category in (('azimuthal','azimuthal_inspection'),('source','heat_source_inspection'),
                               ('temperature','temperature_inspection'),('opd','opd_inspection'),
                               ('sweeps','convergence_diagnostic')):
             add(name,name,category=category,validate=False)
-    fields=[s['name'] for s in stages if s['name'].startswith(('transient_fields_','transient_fem_'))]
+    fields=[s['name'] for s in stages if s['experiment']=='transient']
     for name in fields:
         add('boundaries_'+name,'boundaries',('--results','@'+name),needs=(name,),target=name)
     if mode=='full':
@@ -123,16 +127,104 @@ def _save(directory, report):
             writer.writerow({key:row.get(key,'') for key in writer.fieldnames})
 
 
-def run_suite(mode, angles, *, output_dir=None, resume=None, runner=None):
+def _continuation_parent(parent,evidence_path,mode,angles,plan,fingerprint):
+    """Verify an explicit same-formula code transition before allocating a batch."""
+    parent=Path(parent).resolve();evidence_path=Path(evidence_path).resolve()
+    if parent.parent!=(ROOT/'outputs/experiment_suite').resolve():
+        raise ValueError('Continuation parent must be outputs/experiment_suite/<ID>')
+    old=read_json(parent/'summary.json');evidence=read_json(evidence_path)
+    if old.get('status') not in ('FAILED','ABORTED','COMPLETE'):
+        raise ValueError('Continuation parent status must be FAILED, ABORTED or COMPLETE; RUNNING cannot be continued')
+    if (evidence.get('kind')!='experiment_suite_code_continuation' or evidence.get('version')!=1
+        or evidence.get('purpose') not in ('same_formula_residual_accumulation_precision',
+                                           'same_formula_modal_sum_grouping')):
+        raise ValueError('Unsupported continuation evidence kind/version/purpose')
+    if evidence.get('numerical_policy')!=dict(residual_formula_unchanged=True,
+        residual_tolerance_unchanged=True,saved_temperature_dtype='float64'):
+        raise ValueError('Continuation must preserve residual formula/tolerance and float64 saved temperatures')
+    parent_hash=file_sha256(parent/'summary.json')
+    if evidence.get('parent_suite_sha256')!=parent_hash:raise ValueError('Continuation parent summary hash differs')
+    before=old.get('code_sha256',{})
+    if not before or any(not isinstance(v,dict) or set(v)!={'bytes','sha256'} or
+        not isinstance(v['bytes'],int) or v['bytes']<0 or not isinstance(v['sha256'],str) or len(v['sha256'])!=64
+        or Path(k).is_absolute() or '..' in Path(k).parts for k,v in before.items()):
+        raise ValueError('Invalid parent code manifest')
+    manifest_hash=hashlib.sha256(json.dumps(before,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    if evidence.get('parent_code_manifest_sha256')!=manifest_hash:raise ValueError('Continuation parent code manifest hash differs')
+    changes=evidence.get('changes',[])
+    changed={k for k in before.keys()|fingerprint.keys() if before.get(k)!=fingerprint.get(k)}
+    if (not changed or len(changes)!=len(changed) or {c.get('path') for c in changes}!=changed
+        or any(c.get('before_sha256')!=before.get(c['path'],{}).get('sha256')
+            or c.get('after_sha256')!=fingerprint.get(c['path'],{}).get('sha256')
+            or not isinstance(c.get('reason'),str) or not c['reason'].strip() for c in changes)):
+        raise ValueError('Continuation changes must exactly match every before/after code hash')
+    snapshot=resolve_run_path(evidence_path.parent,evidence['parent_source_snapshot'])
+    source=snapshot/'run_all.py'
+    if file_sha256(source)!=before['run_all.py']['sha256']:raise ValueError('Parent snapshot run_all.py hash differs')
+    # Execute the hash-verified frozen module without __main__ or bytecode writes.
+    namespace={'__name__':'_continuation_parent_plan','__file__':str(source)}
+    exec(compile(source.read_bytes(),str(source),'exec'),namespace)
+    if (old.get('kind')!='experiment_suite' or old.get('mode')!=mode or old.get('angles_deg')!=list(angles)
+        or namespace['build_plan'](mode,angles)!=plan
+        or [r['name'] for r in old['stages']]!=[s['name'] for s in plan]
+        or (old.get('plan') is not None and old['plan']!=plan)):
+        raise ValueError('Continuation parent mode/angles/plan differ')
+    reports=[]
+    for record in evidence.get('independent_test_reports',[]):
+        path=resolve_run_path(evidence_path.parent,record['data_file'])
+        if record.get('status')!='passed' or file_sha256(path)!=record.get('sha256'):
+            raise ValueError('Continuation regression report hash/status differs')
+        try:
+            tree=ET.parse(path).getroot()
+            suites=[s for s in tree.iter('testsuite') if s.find('testsuite') is None]
+            counts={key:sum(int(s.get(key,'0')) for s in suites) for key in ('tests','failures','errors','skipped')}
+        except (ET.ParseError,ValueError) as error:
+            raise ValueError('Invalid continuation JUnit regression report') from error
+        if counts['tests']<=counts['skipped'] or counts['failures'] or counts['errors']:
+            raise ValueError('Continuation regression report has no passing tests or has failures/errors')
+        reports.append(dict(data_file=str(path),sha256=record['sha256'],status='passed',counts=counts))
+    if not reports:raise ValueError('Continuation requires hashed passing JUnit regression reports')
+    for row in old['stages']:
+        if row['status']=='COMPLETE':
+            if row.get('run_directory'):
+                path=resolve_run_path(parent,row['run_directory'])
+                if not path.is_dir() or _artifacts(path)!=row.get('artifacts'):
+                    raise ValueError(f"Completed parent data changed or is corrupt: {row['name']}")
+            if not row.get('log_file') or not resolve_run_path(parent,row['log_file']).is_file():
+                raise ValueError(f"Completed parent stage log is missing: {row['name']}")
+    if file_sha256(parent/'summary.json')!=parent_hash or file_sha256(source)!=before['run_all.py']['sha256']:
+        raise ValueError('Continuation parent/snapshot changed during verification')
+    return old,dict(parent_suite=str(parent),parent_summary_sha256=parent_hash,
+        parent_code_sha256=before,parent_code_manifest_sha256=manifest_hash,parent_source_snapshot=str(snapshot),
+        evidence=dict(data_file=str(evidence_path),sha256=file_sha256(evidence_path)),
+        independent_test_reports=reports,evidence_record=evidence,
+        parent_stage_states=[dict(name=r['name'],status=r['status'],scientific_status=r.get('scientific_status','not_run')) for r in old['stages']])
+
+
+def run_suite(mode, angles, *, output_dir=None, resume=None, runner=None,fem_reuse_index=None,
+              continue_from=None,continuation_evidence=None):
     runner=_run_command if runner is None else runner
     plan=build_plan(mode,angles)
     fingerprint=_code_hashes()
+    if resume is not None and (continue_from is not None or continuation_evidence is not None):
+        raise ValueError('Use strict resume or explicit continuation, not both')
+    if (continue_from is None)!=(continuation_evidence is None):
+        raise ValueError('Continuation requires both --continue-from and --continuation-evidence')
+    parent_report=continuation=None
+    if continue_from is not None:
+        parent_report,continuation=_continuation_parent(continue_from,continuation_evidence,mode,angles,plan,fingerprint)
+    reuse_record=None if fem_reuse_index is None else dict(data_file=str(Path(fem_reuse_index).resolve()),
+        sha256=file_sha256(Path(fem_reuse_index)))
     if resume is not None:
         if output_dir is not None:raise ValueError('Use --resume or --output-dir, not both')
         directory=Path(resume).resolve()
         if directory.parent!=(ROOT/'outputs/experiment_suite').resolve():
             raise ValueError('Resume must name an outputs/experiment_suite/<ID> directory')
         report=read_json(directory/'summary.json')
+        previous_reuse=report.get('fem_reuse_index')
+        if previous_reuse is not None:
+            previous_reuse={**previous_reuse,'data_file':str(resolve_run_path(directory,previous_reuse['data_file']))}
+        if previous_reuse!=reuse_record:raise ValueError('Resume FEM reuse index changed')
         if report.get('mode')!=mode or report.get('angles_deg')!=list(angles):
             raise ValueError('Resume mode/angles differ from the recorded batch')
         if report.get('code_sha256')!=fingerprint:raise ValueError('Resume code changed; use a new batch for a new code version')
@@ -142,18 +234,43 @@ def run_suite(mode, angles, *, output_dir=None, resume=None, runner=None):
                 path=resolve_run_path(directory,row['run_directory'])
                 if not path.is_dir() or _artifacts(path)!=row['artifacts']:
                     raise ValueError(f"Completed data changed or is corrupt: {row['name']}")
+            if row.get('inherited_log_sha256') and file_sha256(resolve_run_path(directory,row['log_file']))!=row['inherited_log_sha256']:
+                raise ValueError(f"Inherited stage log changed: {row['name']}")
+        if report.get('continuation'):
+            previous=report['continuation']
+            for record in [previous['evidence'],*previous['independent_test_reports']]:
+                if file_sha256(resolve_run_path(directory,record['data_file']))!=record['sha256']:
+                    raise ValueError('Continuation evidence/report changed on resume')
     else:
         directory=create_run(ROOT,'experiment_suite',output_dir)
         (directory/'data/logs').mkdir()
         report=dict(kind='experiment_suite',status='RUNNING',mode=mode,angles_deg=list(angles),
             started_at_utc=datetime.now(timezone.utc).isoformat(),code_sha256=fingerprint,
             provenance=provenance(ROOT,ROOT/'run_all.py'),paper_ready=False,scientific_status='not_run',
+            fem_reuse_index=reuse_record,
             stages=[dict(name=s['name'],status='PENDING',attempts=[]) for s in plan],
+            plan=plan,
             limits=['Existing experimental settings/thresholds are unchanged.',
-                    'Current transient full mode does not establish final FEM space/time convergence.',
+                    'Formal transient cases require an independently reread FEM space/time/joint certificate.',
                     'Independent semi-analytical checks use this batch selection; unresolved checks retain failed/not_run states.',
                     'Intermediate transient history times are not individually precision-certified.',
                     'Development baselines are not needed or available on a fresh scientific checkout.'])
+        if continuation is not None:
+            parent=Path(continue_from).resolve()
+            continuation['parent_suite']=os.path.relpath(parent,directory)
+            continuation['parent_source_snapshot']=os.path.relpath(continuation['parent_source_snapshot'],directory)
+            report['continuation']=continuation
+            for index,oldrow in enumerate(parent_report['stages']):
+                if oldrow['status']!='COMPLETE':continue
+                row=json.loads(json.dumps(oldrow))
+                for item in [row,*row.get('attempts',[])]:
+                    for key in ('run_directory','log_file','fem_control_directory'):
+                        if item.get(key):item[key]=os.path.relpath(resolve_run_path(parent,item[key]),directory)
+                row.update(inherited_from_stage=oldrow['name'],inherited_from_suite=os.path.relpath(parent,directory),
+                    inherited_parent_summary_sha256=continuation['parent_summary_sha256'],
+                    inherited_code_manifest_sha256=continuation['parent_code_manifest_sha256'],
+                    inherited_log_sha256=file_sha256(resolve_run_path(parent,oldrow['log_file'])))
+                report['stages'][index]=row
     print(f'Batch: {directory}',flush=True)
     report['status']='RUNNING';_save(directory,report)
     by_name={row['name']:row for row in report['stages']}
@@ -162,6 +279,9 @@ def run_suite(mode, angles, *, output_dir=None, resume=None, runner=None):
         if row['status']=='COMPLETE':
             print(f'[{index}/{len(plan)}] already complete: {stage["name"]}',flush=True);continue
         attempt=len(row['attempts'])+1
+        previous_fem_control=next((path for path in
+            [row.get('fem_control_directory'),*[a.get('fem_control_directory') for a in reversed(row['attempts'])]]
+            if path is not None and (resolve_run_path(directory,path)/'summary.json').is_file()),None)
         log=directory/f'data/logs/{stage["name"]}_a{attempt}.log'
         result=None
         if stage['category']:
@@ -186,6 +306,17 @@ def run_suite(mode, angles, *, output_dir=None, resume=None, runner=None):
                 args=[str(resolve_run_path(directory,by_name[a[1:]]['run_directory'])) if a.startswith('@') else a
                       for a in stage['args']]
                 command=[sys.executable,'-u',str(ROOT/'scripts'/EXPERIMENTS[stage['experiment']][1]),*args]
+                if stage['experiment']=='transient-fem-convergence' and fem_reuse_index is not None:
+                    command+=['--reuse-index',str(Path(fem_reuse_index).resolve())]
+                if stage['experiment']=='transient-fem-convergence':
+                    control=ROOT/'outputs/fem_convergence'/f'{directory.name}_{stage["name"]}_a{attempt}'
+                    row['fem_control_directory']=os.path.relpath(control,directory)
+                    row['attempts'][-1]['fem_control_directory']=row['fem_control_directory']
+                    command+=['--control-dir',str(control)]
+                    if previous_fem_control is not None:
+                        previous=resolve_run_path(directory,previous_fem_control)
+                        if (previous/'summary.json').is_file():command+=['--resume-control',str(previous)]
+                    _save(directory,report)
                 if stage['category']:command+=['--output-dir',str(result)]
             row['command']=command
             code=runner(command,log)
@@ -220,6 +351,7 @@ def run_suite(mode, angles, *, output_dir=None, resume=None, runner=None):
             _save(directory,report)
     science=[r['scientific_status'] for s,r in zip(plan,report['stages']) if s['validate'] and s['experiment']]
     convergence=(mode=='full' and by_name['steady_fem'].get('mesh_convergence_established') is True
+                 and by_name['transient_fem_convergence'].get('fem_convergence_established') is True
                  and all(by_name[f'transient_fem_theta{a:g}'].get('fem_convergence_established') is True for a in angles))
     report['scientific_status']='failed' if 'failed' in science else ('passed' if science and all(v=='passed' for v in science) and convergence else 'not_run')
     report.update(status='COMPLETE',finished_at_utc=datetime.now(timezone.utc).isoformat(),
@@ -236,12 +368,16 @@ def main(argv=None):
     parser.add_argument('--plan',action='store_true',help='Print the command/dependency plan without computing or creating outputs')
     parser.add_argument('--output-dir',type=Path,help='New outputs/experiment_suite/<ID>; child runs stay in their experiment categories')
     parser.add_argument('--resume',type=Path,help='Resume this exact code and mode; completed data are hash-checked, failed attempts get new output IDs')
+    parser.add_argument('--continue-from',type=Path,help='Create a new code-version batch inheriting only verified completed parent stages')
+    parser.add_argument('--continuation-evidence',type=Path,help='Explicit before/after code hashes, frozen parent source and passing JUnit reports')
+    parser.add_argument('--fem-reuse-index',type=Path,help='Explicit verified complete FEM source cases; index bytes fixed when resuming')
     args=parser.parse_args(argv)
     try:
         plan=build_plan(args.mode,args.angles)
         if args.plan:
             print(json.dumps(dict(mode=args.mode,angles_deg=args.angles,stages=plan),ensure_ascii=False,indent=2));return 0
-        code,_=run_suite(args.mode,args.angles,output_dir=args.output_dir,resume=args.resume)
+        code,_=run_suite(args.mode,args.angles,output_dir=args.output_dir,resume=args.resume,fem_reuse_index=args.fem_reuse_index,
+            continue_from=args.continue_from,continuation_evidence=args.continuation_evidence)
         return code
     except (ValueError,OSError,KeyError) as error:
         print(f'ERROR: {error}',file=sys.stderr);return 1
