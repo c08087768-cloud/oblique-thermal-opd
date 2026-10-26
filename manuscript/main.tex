@@ -26,12 +26,12 @@
 \maketitle
 \begin{abstract}
 % para:abstract-p01
-Oblique laser heating couples a non-axisymmetric temperature field to transmitted rays that cross the substrate at different transverse positions.
+Oblique Gaussian irradiation produces an elliptical surface heat load, while transmitted rays sample different transverse positions as they cross the heated substrate.
 We develop a Fourier--Bessel semi-analytical model that retains the finite cylindrical thermal boundaries and evaluates the resulting steady and transient thermo-refractive optical-path difference (OPD).
 The two thermal solutions share the surface-flux projections and transverse eigenfunctions; axial diffusion modes supply the time dependence, so the response is evaluated directly at requested times.
 Integration along fixed refracted reference rays then connects the three-dimensional temperature field to the transmitted OPD.
-For nominal fused-silica cases at $0^\circ$, $30^\circ$, and $60^\circ$, independent FEM comparisons give maximum OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ at the sampled transient times from $2.5$ ms to $75$ s, relative to the semi-analytical values.
-Thermal-order analysis shows how a decreasing relative non-axisymmetric surface-temperature contribution can accompany an increasing absolute OPD amplitude.
+For nominal fused-silica cases at $0^\circ$, $30^\circ$, and $60^\circ$, comparisons with independent finite-element solutions give maximum OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ at the sampled transient times from $2.5$ ms to $75$ s, relative to the semi-analytical values.
+The same modal solution also evaluates the OPD produced by each azimuthal temperature component, linking the evolution of thermal structure to the transmitted optical response.
 
 \end{abstract}
 
@@ -49,19 +49,20 @@ Peng et al.\ \cite{peng2001} used Green's functions to calculate temperature dis
 Vinet \cite{vinet2009} developed non-axisymmetric Fourier--Bessel representations for steady temperatures in finite mirrors and treated axisymmetric transient thermal responses and thermal lensing.
 Kim et al.\ \cite{kim2017} used Bessel functions to describe steady heating and thermal lensing in cylindrical optics.
 For oblique illumination, Reitzle et al.\ \cite{reitzle2021} derived a semi-analytical transient temperature solution for a laterally infinite, layered scattering and absorbing slab.
-These studies establish analytical descriptions of thermal boundaries, spatial source structure, and transient diffusion on which the present calculation builds.
+These studies provide thermal descriptions for finite optics and oblique illumination.
+For a transmitting cylindrical substrate, we use these approaches to formulate a calculation that retains the finite thermal boundaries and follows the optical path through the evolving temperature field.
 
 % para:intro-p03
-The configuration considered here brings together two geometries that enter the optical response differently.
-The circular sidewall and finite thickness determine heat diffusion, while oblique incidence sets both the elliptical surface load and the displaced path of the transmitted light.
-A modal treatment can retain the circular thermal boundary while representing the angular structure of the load.
-Using that same representation inside the refracted-ray integral also preserves the contribution of each temperature component to OPD.
+The modelling task is to represent the elliptical surface load on a circular substrate, evolve the resulting temperature through its finite thickness, and evaluate that field along refracted rays.
+The circular sidewall determines the radial eigenfunctions, while angular harmonics describe the non-axisymmetric load.
+The optical integral must then retain the depth dependence of the transverse sampling position.
+Using the same spatial expansion in the steady solution, transient solution, and optical integral connects these parts of the calculation and preserves the optical contribution of each temperature order.
 
 % para:intro-p04
 In this work, we construct a Fourier--Bessel formulation for the steady and transient thermo-refractive response of a finite cylindrical substrate heated by a single oblique Gaussian surface flux.
 The steady axial solution carries the prescribed front-face load, and homogeneous axial diffusion modes supply the transient correction.
 Their common transverse representation permits direct time evaluation and thermal-order-resolved integration along fixed refracted rays.
-We compare the temperature and OPD fields with independently assembled three-dimensional FEM solutions, then use the modal results to examine how angle and diffusion affect the transmitted response.
+We compare the temperature and OPD fields with independently assembled three-dimensional finite-element method (FEM) solutions, then use the modal results to examine how angle and diffusion affect the transmitted response.
 
 \section{Physical Model and Thermo-Optic OPD}
 \subsection{Geometry and Oblique Gaussian Heating}
@@ -186,7 +187,15 @@ The radial norm is
        -J_{m-1}(\lambda_{mn}R)J_{m+1}(\lambda_{mn}R)\right].
 \end{equation}
 Numerical roots and source quadrature determine these coefficients once for a given thermal configuration.
-Both the steady and transient solutions then use the same projected load and transverse eigenfunctions.
+Using the resulting transverse basis, write the temperature as
+\[
+ \Theta(r,\phi,z,t)=\sum_{m,n}J_m(\lambda_{mn}r)\cos(m\phi)Z_{mn}(z,t).
+\]
+Each coefficient $C_{mn}$ supplies the front-face forcing of one axial problem,
+\[
+ h_fZ_{mn}(0,t)-k\partial_zZ_{mn}(0,t)=g(t)C_{mn}.
+\]
+The steady and transient solutions therefore share the same transverse modes and differ in the axial amplitudes $Z_{mn}$.
 
 \subsection{Steady-State Solution}
 % para:method-p03
@@ -209,7 +218,10 @@ The expansion also gives radial and axial temperature derivatives for the bounda
 
 \subsection{Transient Solution}\label{sec:transient}
 % para:method-p04
-The transient solution retains the transverse basis and introduces homogeneous axial Robin eigenfunctions,
+For step loading and $t>0$, the transient and steady fields satisfy the same imposed surface heat flux.
+Their difference therefore satisfies homogeneous Robin conditions, so the approach to the steady field can be described by freely decaying diffusion modes.
+The steady solution carries the applied load, while these modes describe the remaining time-dependent correction.
+Keeping the transverse basis above, we introduce homogeneous axial Robin eigenfunctions,
 \begin{equation}
  X_j(z)=\cos(\beta_jz)+\frac{h_f}{k\beta_j}\sin(\beta_jz),\qquad
  \mathcal N_j=\int_0^L X_j^2(z)\dd z,
@@ -231,7 +243,7 @@ Here $\alpha=k/(\rho c_p)$.
 The radial index $n$ and axial index $j$ resolve independent spatial directions; together they describe diffusion over the transverse and thickness scales.
 
 % para:method-p05
-Projection of the surface forcing onto the axial functions gives
+For a prescribed power history $g(t)$, projection onto these axial functions gives
 \begin{equation}
  Z_{mn}(z,t)=\frac{C_{mn}}{\rho c_p}
  \sum_{j=0}^{\infty}\frac{X_j(z)}{\mathcal N_j}
@@ -277,6 +289,10 @@ These settings were selected against enlarged finite references with a $0.1\%$ t
 Supplement 1 gives the reference settings, observation times, and detailed discretizations.
 The comparisons reported here quantify agreement at these finite numerical resolutions.
 
+% para:validation-p05
+The zero initial field and the long-time limit are assessed separately.
+At approximately $2447$ s, the transient OPD-PV differs from the steady value by at most $7.6\times10^{-5}\%$ when both use the same modal resolution.
+
 \subsection{Independent FEM Refinement}
 % para:validation-p02
 The FEM represents temperature by quadratic transverse triangular functions and quadratic axial elements.
@@ -291,6 +307,7 @@ The $1$ ms frame is retained separately as an early-time diagnostic in Supplemen
 
 \subsection{Temperature and OPD Agreement}
 % para:validation-p03
+For the physical comparisons in Section 5, PV values for steady fields, transient fields, and thermal-order contributions are evaluated consistently on the saved $201\times201$ entrance grids within the physical transmitted pupil.
 The two methods are sampled on common thermal and optical domains, including the transmitted-ray condition and the FEM boundary mask.
 For OPD-field comparison, define $\widetilde W=W-\langle W\rangle$ on the common pupil.
 The normalized field and PV differences are
@@ -320,18 +337,20 @@ Supplement 1 retains the full temperature and optical comparisons, including the
 \end{figure}
 
 \FloatBarrier
+\clearpage
 \section{Results and Discussion}
 \subsection{Steady-State Temperature and OPD under Oblique Incidence}
 % para:results-p01
-Figure~\ref{fig:steadyfields} shows how the $60^\circ$ surface load develops into a three-dimensional steady temperature field.
+At fixed prescribed absorbed power, changing the incidence angle alters both heat deposition and the refracted optical path.
+Figure~\ref{fig:steadyfields} first shows the three-dimensional steady response at $60^\circ$.
 The front-face distribution retains the elongated heating footprint, while the middle and rear sections are broader and have lower center temperatures.
 The center rise decreases from $9.303$ K at the front to $6.959$ K at the middle and $6.314$ K at the rear.
 These profiles are the depth-dependent field sampled by the transmitted light.
 The OPD panel is referenced to entrance positions, so it combines thermal spreading through the thickness with the transverse displacement of the refracted ray.
 
-\begin{figure}[htbp]
-\centering\includegraphics[width=.95\linewidth]{representative_steady_60deg.png}
-\caption{Steady response at $60^\circ$: front, middle, and rear temperature rises and transmitted substrate thermo-refractive OPD. The three thermal panels share a temperature scale. The OPD panel uses entrance coordinates and is displayed relative to the sampled pupil minimum; its heading separately identifies sampled and continuous numerical PV values.}
+\begin{figure}[H]
+\centering\includegraphics[width=.82\linewidth]{representative_steady_60deg.png}
+\caption{Steady response at $60^\circ$: front, middle, and rear temperature rises and transmitted substrate thermo-refractive OPD. The three thermal panels share a temperature scale. The OPD panel uses entrance coordinates and is displayed relative to the sampled pupil minimum. The grid-sampled PV is used in the physical comparisons; the continuous-pupil estimate annotated in the plot is supplementary.}
 \label{fig:steadyfields}
 \end{figure}
 
@@ -343,15 +362,19 @@ In Eq.~\eqref{eq:source}, increasing angle broadens the deposited flux along $y$
 In Eq.~\eqref{eq:opd}, the same angle also changes the path length, sampled transverse positions, and valid pupil.
 The three cases therefore compare the combined thermal and optical response under changing incidence geometry.
 For this comparison, the full temperature distribution along the refracted paths is needed to determine the optical amplitude.
+The steady field describes the endpoint of heating; the response during turn-on depends on how that spatial distribution develops through the substrate.
 
 \SteadyFieldTable
+\FloatBarrier
 
 \subsection{Transient Evolution of Temperature and OPD}
 % para:results-p03
-After step turn-on, energy is deposited at the coated face before diffusion spreads the temperature rise through the thickness.
-Figure~\ref{fig:evolution} follows the front-center temperature and transmitted OPD-PV during this evolution.
-The modal solution evaluates the early and late responses from the same expansion: high spatial orders contribute near the heated surface at early times, while the longer-lived components continue to build the bulk temperature.
-The optical integral samples that changing depth profile, so a surface temperature and a through-substrate OPD describe different parts of the response.
+The steady temperature distribution is established over a finite time after step turn-on.
+Heat is initially deposited at the coated face, and conduction subsequently spreads the temperature rise into the substrate.
+As the depth profile develops, each transmitted ray accumulates a changing temperature integral.
+Figure~\ref{fig:evolution} follows this process through the front-center temperature and transmitted OPD-PV.
+The surface temperature describes local heating, while OPD-PV compares the temperature integrals accumulated by different rays across the pupil.
+Both are obtained from the same time-dependent modal field.
 
 \begin{figure}[htbp]
 \centering\includegraphics[width=.98\linewidth]{transient_evolution.pdf}
@@ -360,15 +383,16 @@ The optical integral samples that changing depth profile, so a surface temperatu
 \end{figure}
 
 % para:results-p04
-At $0.625$ s, OPD-PV estimates from continuous-pupil optimization are $14.922$, $13.932$, and $9.700$ nm for $0^\circ$, $30^\circ$, and $60^\circ$.
-By $75$ s they reach $156.347$, $156.966$, and $140.781$ nm.
+At $0.625$ s, the sampled OPD-PV values are $14.922$, $13.929$, and $9.700$ nm for $0^\circ$, $30^\circ$, and $60^\circ$.
+By $75$ s they reach $156.347$, $156.949$, and $140.778$ nm.
 All three optical responses are still approaching their steady limits at that time.
-A separate evaluation at approximately $2447$ s differs from the steady OPD-PV by at most $7.6\times10^{-5}\%$ when the same modal resolution is used for both solutions.
-This common-resolution limit connects the transient response continuously to the steady calculation, while the intermediate times resolve the optical response during thermal build-up.
+The growing total OPD contains contributions from temperature orders with different diffusion rates.
+Following those contributions separately relates the build-up of the optical response to changes in the composition of the temperature field.
 
 \subsection{Azimuthal Thermal Modes and Their OPD Contributions}
 % para:modes-p01
-The azimuthal decomposition provides a more detailed interpretation of the transient response by following each temperature order through the optical integral.
+To examine the composition of the growing response, we compare the relative temperature contributions at the heated surface with the optical amplitudes obtained after depth integration.
+The azimuthal decomposition supplies both quantities by following each temperature order through the same refracted-ray integral.
 For $\Theta_m(r,z,t)\cos(m\phi)$, define the section-wise squared-$L^2$ share
 \begin{equation}
  S_m(z,t)=\frac{\displaystyle\int_0^{2\pi}\!\int_0^R
@@ -399,7 +423,8 @@ The declining share therefore describes reduced relative thermal asymmetry while
 
 % para:modes-p03
 \begin{samepage}
-The optical structure also depends on how the ray samples a temperature component.
+The comparison above concerns optical amplitudes.
+To interpret the spatial OPD distribution, the positions sampled by the refracted rays must also be retained.
 Even for an axisymmetric $m=0$ field, the sampled radius satisfies
 \[
  r^2(z)=x_0^2+y_0^2+2y_0z\tan\theta_t+z^2\tan^2\theta_t.
@@ -412,6 +437,7 @@ Together, these relations explain why thermal shares, individual optical amplitu
 
 \end{samepage}
 
+\begin{samepage}
 \subsection{Scope and Limitations}
 % para:scope-p01
 The formulation describes coating-dominated absorption in a homogeneous cylinder with constant properties and linear surface heat exchange.
@@ -419,7 +445,6 @@ The reported cases use one centered beam and fixed refracted reference rays, and
 These assumptions define the thermal and optical quantities compared with FEM.
 Specific mounted components require appropriate contact conditions and wavelength-dependent material inputs; the nominal thermo-optic coefficient in Table~\ref{tab:parameters} can be replaced without changing the linear optical integration.
 Surface displacement, stress-optic effects, coating phase, and thermally bent rays require their corresponding mechanical or optical models.
-Within the present linear thermal model, a prescribed absorbed-power history enters through the convolution in Eq.~\eqref{eq:convolution}.
 
 \section{Conclusion}
 % para:conclusion-p01
@@ -429,6 +454,8 @@ For the nominal three-angle cases, independently assembled FEM solutions give ma
 The thermal-order analysis adds spatial interpretation to these optical predictions: a decreasing relative surface-temperature share can accompany a growing absolute OPD contribution, and an oblique path can give an axisymmetric temperature component a non-axisymmetric entrance-pupil response.
 By carrying the temperature decomposition through the refracted-ray integral, the method resolves both the evolving transmitted OPD and the thermal components from which it arises.
 
+\end{samepage}
+\par
 \FloatBarrier
 \input{references.tex}
 \end{document}
