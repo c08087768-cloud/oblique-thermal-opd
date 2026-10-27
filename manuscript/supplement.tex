@@ -6,6 +6,8 @@
 \setlength{\emergencystretch}{2em}
 \graphicspath{{figures/}}
 \newcommand{\dd}{\,\mathrm{d}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
 \input{tables.tex}
 \title{Supplement 1: Numerical details for the Fourier--Bessel model of obliquely heated cylindrical optics}
 \author{Zhongwei Yang, Jing Wen, Wei Li, Tingrui Li, Bohui Chen, and Liang Yang}
@@ -22,6 +24,7 @@ The positive observation times are $0.001$, $0.0025$, $0.01$, $0.05$, $0.1$, $0.
 The zero initial field and the separate long-time evaluation are checked independently.
 The $1$ ms frame belongs to the modal-resolution comparisons and is retained as a diagnostic outside the FEM refinement criteria.
 Those FEM criteria apply at the sampled times from $2.5$ ms to $75$ s.
+The one-parameter steady sweeps in Fig.~\ref{fig:supp-resolution} complement these joint modal-reference checks.
 
 \section{Finite-element discretization}
 The steady FEM uses $2113$ or $8321$ transverse degrees of freedom and $32$ or $64$ uniform quadratic axial elements.
@@ -39,6 +42,7 @@ Initial conditions, energy balance, weak-equation residuals, Robin-loss diagnost
 The Gaussian front-face load uses quadrature order 10 and is checked against order 14, with changes satisfying the $10^{-5}$ relative target.
 FEM ray integrals are divided at crossed element boundaries and use three-point Gauss quadrature on every segment.
 The tensor-product quadratic field is quartic along a straight segment, so this quadrature is exact for the represented field up to arithmetic error.
+Figure~\ref{fig:supp-fem-refinement} shows the recorded refinement changes at each positive observation time.
 
 \section{Sampling and comparison conventions}
 The FEM refinement comparisons use a $201\times201$ Cartesian thermal grid and a $101\times101$ optical grid on their respective common masks.
@@ -46,7 +50,7 @@ The optical mask requires both physical rear-face transmission and inclusion in 
 The transient cross-method temperature comparisons use a polar Gauss-radius/uniform-azimuth sampling with $201\times201$ points; optical comparisons use a $101\times101$ Cartesian entrance grid.
 Cross-method field differences are evaluated on the common samples.
 
-Weighted temperature $L^2$ differences are divided by the reference $L^2$ norm, and maximum differences are divided by the reference maximum magnitude.
+For the cross-method comparisons, weighted temperature $L^2$ differences are divided by the reference $L^2$ norm, and maximum differences are divided by the reference maximum magnitude.
 At $t\geq0.625$ s, each section supplies its own denominator.
 At earlier positive times, each norm uses the largest reference value across the three sections, avoiding a denominator set by an almost unheated rear plane.
 OPD is de-pistoned on the common pupil before field differences are formed.
@@ -66,7 +70,7 @@ The steady entries are unchanged between the two summaries.
 These are method-to-method differences at the recorded numerical resolutions.
 \begin{table}[htbp]
 \centering
-\caption{Differences between FEM and the semianalytical solution (percent).}
+\caption{Differences between FEM and the semianalytical solution (percent).}\label{tab:supp-comparison}
 \begin{tabular}{llrrr}\toprule
 Case & $\theta$ & Temperature $L^\infty$ & OPD $L^\infty$/PV & OPD-PV\\\midrule
 Steady & $0^\circ$ & 0.031420 & 0.005848 & 0.004220\\
@@ -79,12 +83,89 @@ Transient & $60^\circ$ & 0.119119 & 0.095786 & 0.046821\\\bottomrule
 \par\smallskip\begin{minipage}{.96\linewidth}\footnotesize Steady rows use the finest FEM solution; transient rows use the FEM candidate and maximize over all positive comparison times, including $1$ ms. The semianalytical solution supplies the reference denominators. These differences are reported without imposing a separate cross-method pass threshold.\end{minipage}
 \end{table}
 
+\clearpage
 \section{Steady spatial comparison}
 The steady $60^\circ$ comparison shows the independent nodal and modal representations on their common domain.
 \begin{figure}[!htbp]
 \centering\includegraphics[width=\linewidth]{steady_fem_comparison.png}
 \caption{Steady $60^\circ$ distribution comparison on the common domain: semianalytical field, finest finite-element field, and finite-element minus semianalytical difference. Top: front-plane temperature rise. Bottom: refracted-ray OPD, with piston removed from the difference. The two methods use independent thermal representations.}
 \label{fig:steadyfem}
+\end{figure}
+\FloatBarrier
+\clearpage
+\section{Resolution diagnostics}
+\subsection{Steady spatial and optical sampling}
+The $60^\circ$ steady sweeps in Fig.~\ref{fig:supp-resolution} vary one setting at a time, separating angular and radial truncation, source projection, pupil sampling, and ray quadrature.
+Unless varied, the settings are $M=10$, $N=20$, $1200$ radial and $256$ angular source-projection points, a $201\times201$ entrance-pupil grid, and $32$ ray points.
+These diagnostic sweeps use a different configuration from the selected steady calculation and supplement the modal-reference checks in Section~1.
+The pupil grids are not nested, so their sampled extrema need not approach the finest-grid value monotonically.
+
+% Source: outputs/convergence_diagnostic/20261017T093231672765Z_4809a8b0_modal_sum_continuation_sweeps_a1/summary.json
+% Replotted without a thermal calculation by working/build_supplement_figures.py.
+\begin{figure}[!htbp]
+\centering\includegraphics[width=\linewidth]{supp_steady_resolution.pdf}
+\caption{One-parameter steady resolution sweeps at $60^\circ$.
+Panels (a)--(e) show sampled physical-pupil OPD-PV as a function of each numerical setting.
+Panel (f) shows the relative PV change with respect to the finest ray quadrature in that sweep; its final zero is the reference by definition.
+Other settings are held at the values stated above.
+The curves describe sensitivity to finite numerical resolution and do not represent errors against an exact solution.}
+\label{fig:supp-resolution}
+\end{figure}
+\FloatBarrier
+
+\clearpage
+\subsection{Transient finite-element refinement}
+Figure~\ref{fig:supp-fem-refinement} compares the candidate FEM with its transverse, axial, temporal, and jointly refined FEM references.
+The ordinate is the largest recorded temperature or optical relative change at each time, expressed as a percentage.
+Temperature metrics cover the three fixed planes and seven diffusion-depth samples $z=\min(c\sqrt{\alpha t},L)$, with $c=0,0.25,0.5,1,2,4,8$.
+Before $0.625$ s, each temperature norm uses the largest corresponding reference norm across these depths as its denominator; later, each depth supplies its own denominator.
+Optical field differences are de-pistoned on the common pupil, and optical field and PV differences are normalized by the PV of the corresponding refined FEM reference.
+Filled markers cover the $2.5$ ms--$75$ s refinement interval; open markers retain the separate $1$ ms diagnostic.
+The $0.5\%$ spatial and joint targets and the $0.1\%$ time-step target apply to the filled-marker interval.
+
+% Source: outputs/fem_convergence_validation/20261017T032513109092Z_ce9843f7_defect_continuation_transient_fem_convergence_a1/verification.json
+\begin{figure}[!htbp]
+\centering\includegraphics[width=\linewidth]{supp_transient_fem_refinement.pdf}
+\caption{Transient FEM refinement changes for (a) $0^\circ$, (b) $30^\circ$, and (c) $60^\circ$.
+Each curve takes the maximum across the recorded temperature and OPD metrics at a given time.
+Filled markers and their connecting lines show the sampled refinement interval; unconnected open markers show the $1$ ms diagnostic.
+Horizontal lines mark the spatial/joint and temporal refinement targets.
+These curves compare FEM discretizations; the FEM--semi-analytical differences are reported separately in Table~\ref{tab:supp-comparison}.}
+\label{fig:supp-fem-refinement}
+\end{figure}
+\FloatBarrier
+
+\clearpage
+\section{Transient temperature and OPD distributions}
+The $60^\circ$ maps in Figs.~\ref{fig:supp-transient-early} and \ref{fig:supp-transient-late} show the spatial fields underlying the main-text transient and thermal-order comparisons.
+At $0.625$ s, the heated region is concentrated near the front face; the middle and rear planes remain close to ambient on the displayed common temperature scale.
+At $75$ s, the temperature rise extends through the thickness, while the OPD records the integral along the full refracted path.
+The three temperature panels share a scale within each snapshot; the scales differ between snapshots.
+OPD is displayed in entrance coordinates after subtracting the sampled pupil minimum, without changing its PV.
+
+% Saved PNG copied unchanged from transient_fields_theta60_a1/figures/transient_t0.625s.png;
+% full run path and input hashes are checked by working/build_supplement_figures.py.
+\begin{figure}[!htbp]
+\centering\includegraphics[width=.98\linewidth]{supp_transient_60deg_0p625s.png}
+\caption{Temperature rise on the front, middle, and rear planes and transmitted thermo-refractive OPD at $60^\circ$ and $t=0.625$ s.
+The three temperature panels use one color scale.
+The sampled OPD-PV is $9.700$ nm.
+The continuous-pupil numerical estimate also annotated in the saved image is separate from the sampled value; its convention is specified in Section~3.
+White regions of the optical panel lie outside the valid transmitted pupil.}
+\label{fig:supp-transient-early}
+\end{figure}
+\FloatBarrier
+
+\clearpage
+% Saved PNG copied unchanged from transient_fields_theta60_a1/figures/transient_t75s.png.
+\begin{figure}[!htbp]
+\centering\includegraphics[width=.98\linewidth]{supp_transient_60deg_75s.png}
+\caption{The same thermal sections and transmitted OPD at $60^\circ$ and $t=75$ s.
+The sampled OPD-PV is $140.778$ nm.
+The panels retain a common temperature scale within this snapshot and a separate OPD scale in nanometers.
+Comparison with Fig.~\ref{fig:supp-transient-early} shows the later through-thickness temperature distribution and the larger accumulated optical-path variation.
+The two snapshots use the same modal counts, $M=10$, $N=20$, and $J=256$.}
+\label{fig:supp-transient-late}
 \end{figure}
 \FloatBarrier
 \end{document}
