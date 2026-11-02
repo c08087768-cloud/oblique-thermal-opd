@@ -345,18 +345,18 @@ All three optical metrics use the semi-analytical PV as the denominator.
 Temperature differences are normalized by reference temperature norms; the early-time convention avoids using an almost unheated rear plane as the denominator and is specified in Supplement 1.
 
 % para:validation-p04
-Table~\ref{tab:comparison} summarizes the optical comparisons in the FEM-refined time range.
+Table~\ref{tab:comparison} quantifies the optical differences in the FEM-refined time range.
 The largest steady OPD-PV difference is $0.00544\%$; the largest transient difference is $0.0713\%$ over the sampled $2.5$ ms--$75$ s interval.
 The corresponding transient maximum piston-removed field difference is $0.0903\%$ of the semi-analytical PV.
-Figure~\ref{fig:transientfem} shows the spatial comparison at $60^\circ$ and two times separated by more than two orders of magnitude.
-The two numerical representations agree on both the evolving OPD distribution and its scalar amplitude.
+Figure~\ref{fig:transientfem} places the semi-analytical and FEM OPD fields side by side at $60^\circ$ for $t=0.625$ s and $75$ s.
+With a common pupil and a shared color scale within each row, the paired maps show agreement in the spatial OPD distribution at both times.
 Supplement 1 provides additional numerical details and summary error statistics, including the separate $1$ ms diagnostics.
 
 \ValidationTable
 
 \begin{figure}[htbp]
-\centering\includegraphics[width=\linewidth]{transient_fem_comparison.pdf}
-\caption{Refracted-ray OPD at $60^\circ$ and $t=0.625$ s (top) and $75$ s (bottom): semianalytical field, refined-candidate FEM field, and their piston-removed difference. Each row uses a shared scale for the two optical fields.}
+\centering\includegraphics[width=.78\linewidth]{transient_fem_comparison.pdf}
+\caption{Refracted-ray OPD at $60^\circ$ and $t=0.625$ s (top) and $75$ s (bottom): semi-analytical field (left) and refined-candidate FEM field (right) on the common pupil. The two fields in each row use the same color scale.}
 \label{fig:transientfem}
 \end{figure}
 
