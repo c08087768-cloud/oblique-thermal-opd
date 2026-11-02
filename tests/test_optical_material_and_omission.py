@@ -39,3 +39,20 @@ def test_planted_omission_piston_scaling_and_null():
     with pytest.raises(ValueError):azimuthal_omission_metrics(np.zeros(3),np.zeros(3),mask)
     corrupt=zero.copy();corrupt[1]+=1
     assert not np.isclose(azimuthal_omission_metrics(full,corrupt,mask)['rms_over_full_pv'],expected)
+
+
+def test_cross_method_optical_ratios_are_invariant_under_positive_common_scale():
+    # This identity justifies inheriting the theta=0 optical comparisons when
+    # the only operative optical-input change is a positive common gamma.
+    from thermal_opd.convergence import field_errors
+    temperature=np.array([[1.,2.,3.],[2.,4.,6.]])
+    sa=np.array([0.,2.,4.])
+    fe=np.array([.3,2.1,3.9])
+    def measured(scale):
+        return field_errors(temperature,temperature,np.ones(3),scale*fe,scale*sa)
+    baseline=measured(1.)
+    for scale in (.8766,3.,1e-7):
+        values=measured(scale)
+        for key in ('opd_relative_pv','opd_piston_removed_rms_over_reference_pv',
+                    'opd_piston_removed_linf_over_reference_pv'):
+            assert values[key]==pytest.approx(baseline[key],abs=2e-15)

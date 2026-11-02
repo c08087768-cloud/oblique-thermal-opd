@@ -148,6 +148,30 @@ def check_sa(run,angle):
     print('SA_CHECK_PASS',angle,flush=True)
 
 
+def sa_limits(run,angle):
+    from thermal_opd.steady import axial_response
+    from thermal_opd.opd import modal_refracted_opd_series
+    p=PhysicalParameters()
+    prepared=ThermalModel(p,angle,FINE).prepare()
+    model=prepared.solve_transient(num_axial_modes=256)
+    late=max(75.,12/model.slowest_decay_rate)
+    response=model._response(late)
+    x,y,mask=grid(p,prepared.refraction_angle,201)
+    values=modal_refracted_opd_series(x[mask],y[mask],prepared.coefficients,prepared.roots,
+        lambda m,n,z:np.stack([axial_response(z,prepared.roots[m][n],prepared.coefficients[m][n],
+            p.conductivity,p.thickness,p.h_eff,p.h_eff)[0],response(m,n,z)]),
+        2,p.thickness,p.dn_dT,radius=p.radius,refraction_angle=prepared.refraction_angle,
+        num_ray_points=32,point_chunk_size=512)
+    pvs=np.ptp(values,axis=1)
+    error=float(abs(pvs[1]-pvs[0])/pvs[0])
+    assert error<=1e-5
+    np.savez_compressed(run/f'sa_limits_theta{angle:g}.npz',opd_x_m=x,opd_y_m=y,mask=mask,
+        steady_opd_m=values[0],long_time_opd_m=values[1])
+    write(run/f'sa_limits_theta{angle:g}.json',dict(long_time_s=late,steady_sampled_pv_nm=float(pvs[0]*1e9),
+        long_time_sampled_pv_nm=float(pvs[1]*1e9),relative_pv_difference=error,passed=True))
+    print('SA_LIMIT_PASS',angle,late,error,flush=True)
+
+
 def original_fem_driver():
     spec=importlib.util.spec_from_file_location('original_fem_refinement',
         ROOT/'scripts/convergence/check_transient_fem_convergence.py')
@@ -229,19 +253,82 @@ def supplement_sweeps(run):
         elapsed_seconds=time.perf_counter()-started))
 
 
+def postprocess_fem(run,angle):
+    from skfem import MeshTri, Basis, ElementTriP2
+    from thermal_opd.fem import FemSolution
+    from thermal_opd.convergence import field_errors
+    from numpy.polynomial.legendre import leggauss
+    link=json.loads((run/f'fem_theta{angle:g}_candidate_path.json').read_text())
+    folder=ROOT/link['path']
+    header=json.loads((folder/'summary.json').read_text())
+    p=PhysicalParameters()
+    assert header['status']=='COMPLETE' and header['physical_parameters_SI']==asdict(p)
+    source=folder/'data/fem_run0.npz'
+    sha=hashlib.sha256(source.read_bytes()).hexdigest()
+    assert sha==header['cases'][0]['data_sha256']
+    assert header['maximum_relative_energy_error']<1e-7 and header['maximum_relative_linear_residual']<1e-7
+    f=np.load(source,allow_pickle=False)
+    assert np.array_equal(f['times_s'],OBS) and int(f['field_degree'])==2
+    assert np.max(abs(f['temperature_K'][0]))==0
+    mesh=MeshTri(f['disk_nodes_xy_m'],f['disk_triangles'])
+    assert np.array_equal(Basis(mesh,ElementTriP2()).doflocs,f['xy_dof_coordinates_m'])
+    frames=[FemSolution(mesh,f['axial_nodes_z_m'],values,{'time_s':float(t)},field_degree=2)
+            for t,values in zip(OBS,f['temperature_K'])]
+    for frame in frames[1:]:
+        frame._finder,frame._origins,frame._inverse=frames[0]._finder,frames[0]._origins,frames[0]._inverse
+    prepared=ThermalModel(p,angle,FINE).prepare()
+    model=prepared.solve_transient(num_axial_modes=256)
+    x,y,physical=grid(p,prepared.refraction_angle,101)
+    common=physical & frames[0].transmitted_mask(x,y,prepared.refraction_angle)
+    sa_physical=model.opd_series(x[physical],y[physical],OBS,point_chunk_size=512)
+    sa_common=sa_physical[:,common[physical]]
+    fem=[]
+    for t,frame in zip(OBS,frames):
+        fem.append(frame.refracted_opd(x[common],y[common],prepared.refraction_angle,p.dn_dT,point_chunk_size=128))
+        print('FEM_NEW_RAY_INTEGRAL',angle,t,flush=True)
+    fem=np.array(fem)
+    nodes,weights=leggauss(201)
+    r=(nodes+1)*p.radius/2
+    phi=np.arange(201)*2*np.pi/201
+    tx,ty=r[:,None]*np.cos(phi),r[:,None]*np.sin(phi)
+    tm=frames[0].transmitted_mask(tx,ty,0.)
+    aw=np.broadcast_to((weights*p.radius/2*r*2*np.pi/201)[:,None],tm.shape)[tm]
+    errors=[]
+    for i,(t,frame)in enumerate(zip(OBS,frames)):
+        if t==0:errors.append(None);continue
+        ts=np.stack([model.temperature(r[:,None],phi[None,:],z,t)[tm]for z in [0,p.thickness/2,p.thickness]])
+        tf=np.stack([frame.temperature_at(tx[tm],ty[tm],z)for z in [0,p.thickness/2,p.thickness]])
+        errors.append(field_errors(tf,ts,aw,fem[i],sa_common[i],
+            temperature_normalization='global'if t<.625 else 'per_plane'))
+    np.savez_compressed(run/f'new_opd_fem_theta{angle:g}.npz',times_s=OBS,
+        opd_x_m=x,opd_y_m=y,physical_mask=physical,common_mask=common,
+        opd_sa_physical_m=sa_physical,opd_sa_common_m=sa_common,opd_fem_m=fem)
+    write(run/f'new_opd_fem_theta{angle:g}.json',dict(status='COMPLETE',angle_deg=angle,
+        physical_parameters_SI=asdict(p),source_file=source.relative_to(ROOT).as_posix(),
+        source_sha256=sha,times_s=OBS.tolist(),errors_vs_sa=errors,
+        maximum_relative_energy_error=header['maximum_relative_energy_error'],
+        maximum_relative_linear_residual=header['maximum_relative_linear_residual'],
+        scope='Independent method-to-method differences on current refracted paths; no new FEM optical-refinement certificate'))
+    assert hashlib.sha256(source.read_bytes()).hexdigest()==sha
+    f.close()
+    print('FEM_OPTICAL_POSTPROCESS_COMPLETE',angle,flush=True)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-directory',type=Path,required=True)
     parser.add_argument('--angle',type=float,choices=(0.,30.,60.),required=True)
-    parser.add_argument('--stage',choices=('sa','check-sa','fem','steady-fem','sweeps'),required=True)
+    parser.add_argument('--stage',choices=('sa','check-sa','sa-limits','fem','steady-fem','sweeps','postprocess-fem'),required=True)
     parser.add_argument('--role',default='candidate',choices=('candidate','xy_reference','z_reference','time_reference','joint_reference'))
     args=parser.parse_args()
     run=args.run_directory.resolve()
     run.relative_to(ROOT/'outputs/optical_parameter_update')
     if args.stage=='sa':sa_case(run,args.angle)
     elif args.stage=='check-sa':check_sa(run,args.angle)
+    elif args.stage=='sa-limits':sa_limits(run,args.angle)
     elif args.stage=='steady-fem':steady_fem_case(run,args.angle)
     elif args.stage=='sweeps':supplement_sweeps(run)
+    elif args.stage=='postprocess-fem':postprocess_fem(run,args.angle)
     else:fem_case(run,args.angle,args.role)
 
 

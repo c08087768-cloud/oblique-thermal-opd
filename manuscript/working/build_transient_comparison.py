@@ -17,10 +17,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def make_transient_comparison(out=None):
+def make_transient_comparison(out=None, source_directory=None):
     out = Path(out) if out is not None else Path(__file__).resolve().parents[1]
-    path = out / 'data/transient_60deg_comparison_frames.npz'
-    manifest = json.loads((out / 'data/transient_60deg_export_manifest.json').read_text())
+    data_dir = Path(source_directory) if source_directory is not None else out / 'data/optical_update_20261103'
+    path = data_dir / 'transient_60deg_comparison_frames.npz'
+    manifest = json.loads((data_dir / 'transient_60deg_export_manifest.json').read_text())
     source_hash = hashlib.sha256(path.read_bytes()).hexdigest()
     assert source_hash == manifest['export_sha256'] and manifest['source_files_unchanged']
     numbers = {}
@@ -62,7 +63,7 @@ def make_transient_comparison(out=None):
             }
         fig.savefig(out / 'figures/transient_fem_comparison.pdf')
         plt.close(fig)
-    return {'manuscript/data/' + path.name: source_hash}, numbers
+    return {path.relative_to(out.parent).as_posix(): source_hash}, numbers
 
 
 if __name__ == '__main__':

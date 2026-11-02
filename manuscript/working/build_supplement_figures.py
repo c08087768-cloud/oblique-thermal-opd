@@ -46,9 +46,9 @@ def max_metric_percent(errors):
                      for x in np.atleast_1d(values))
 
 
-def plot_steady_sweeps():
-    data = read('sweeps')
-    assert data['incidence_angle_deg'] == 60
+def plot_steady_sweeps(data=None):
+    data = read('sweeps') if data is None else data
+    assert data.get('incidence_angle_deg', 60) == 60
     fig, axes = plt.subplots(3, 2, figsize=(7, 6.6), layout='constrained')
     labels = [
         ('azimuthal_order', '(a) Azimuthal truncation', 'Maximum angular order, $M$'),
@@ -106,7 +106,11 @@ def plot_fem_refinement():
             m = check['metrics']
             times = np.asarray(m['times_s'])
             used = np.asarray(m['used_for_gate_by_time'], dtype=bool)
-            values = np.array([max_metric_percent(e) for e in m['errors_by_time']])
+            # Thermal physics is unchanged by the optical-input update. Only
+            # its temperature refinement evidence is reused for current plots.
+            values = np.array([100*max(float(x) for key,values in e.items()
+                if key.startswith('temperature_') for x in np.atleast_1d(values))
+                for e in m['errors_by_time']])
             assert np.all(np.isfinite(values)) and np.all(values > 0)
             assert np.array_equal(used, times >= .0025)
             target = float(check['threshold']) * 100
@@ -121,7 +125,7 @@ def plot_fem_refinement():
         ax.axhline(.5, color='#555555', lw=.9, ls='--', label='Spatial / joint target: 0.5%')
         ax.axhline(.1, color='#555555', lw=.9, ls=':', label='Time-step target: 0.1%')
         ax.set_title(f'({panel}) External angle {angle}'+r'$^\circ$', loc='left', fontsize=10)
-        ax.set_ylabel('Largest change (%)')
+        ax.set_ylabel('Largest thermal change (%)')
         ax.set_ylim(7e-6, .9)
         ax.grid(which='major', alpha=.24)
     handles, labels = axes[0].get_legend_handles_labels()
@@ -150,24 +154,15 @@ def copy_saved_maps():
 
 
 def main():
-    # Known-answer control for the existing max-over-metrics presentation rule.
-    assert max_metric_percent({'a':[.01,.04],'b':.02}) == 4
-    OUT.mkdir(exist_ok=True)
-    WORK.mkdir(exist_ok=True)
-    plt.rcParams.update({'font.family':'DejaVu Sans', 'font.size':9,
-        'axes.labelsize':9, 'xtick.labelsize':8, 'ytick.labelsize':8,
-        'pdf.fonttype':42, 'axes.spines.top':False, 'axes.spines.right':False})
-    plot_steady_sweeps()
+    # Current optical inputs: never silently rebuild the old-wavelength assets.
+    from build_optical_revision import build_steady_comparison
+    manifest=json.loads((ROOT/'manuscript/optical_revision_manifest.json').read_text())
+    run=ROOT/manifest['run_directory']
+    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':9,'pdf.fonttype':42})
+    plot_steady_sweeps(json.loads((run/'supplement_sweeps.json').read_text()))
     plot_fem_refinement()
-    copy_saved_maps()
-    report = {'scope':'Presentation of saved evidence only; no solver imported or rerun',
-        'source_inventory':str(AUDIT.relative_to(ROOT)),
-        'source_inventory_sha256':sha(AUDIT/'summary.json'),
-        'inputs':INPUTS, 'outputs':OUTPUTS, 'plotted_values':CURVES,
-        'steady_sweeps':'One setting varied at a time; finite sweep references, not exact errors',
-        'fem_scope':'Filled 2.5 ms to 75 s; hollow 1 ms diagnostic; thresholds not changed'}
-    (WORK/'figure_provenance.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
-    print(json.dumps({'outputs':list(OUTPUTS),'verified_saved_inputs':len(INPUTS)}))
+    build_steady_comparison(run)
+    print('Updated three supplementary figures from current optical/thermal evidence.')
 
 
 if __name__ == '__main__':

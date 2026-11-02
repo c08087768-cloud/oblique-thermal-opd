@@ -31,7 +31,7 @@ We develop a Fourier--Bessel semi-analytical model for the steady and transient 
 Steady and transient responses share a common transverse eigenfunction expansion, with the time dependence carried by axial diffusion modes, so the response is evaluated directly at any requested time without time stepping.
 Integrating the three-dimensional temperature field along fixed refracted reference rays gives the transmitted OPD.
 For nominal fused-silica cases at $0^\circ$, $30^\circ$, and $60^\circ$ incidence, comparison with independent finite-element solutions gives maximum OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ over the sampled transient times from $2.5$ ms to $75$ s, relative to the semi-analytical values.
-Carrying the azimuthal decomposition through the optical integral also resolves the OPD contributed by each thermal order, linking the evolution of the thermal structure to the transmitted optical response.
+The modal decomposition also quantifies the effect of neglecting non-axisymmetric temperature components, showing that similar peak-to-valley values can conceal differences in the spatial wavefront.
 
 \end{abstract}
 
@@ -123,7 +123,8 @@ The corresponding steady problem satisfies $\nabla^2\Theta_{\rm ss}=0$ under con
 The numerical examples consider a homogeneous, isotropic fused-silica substrate with constant material properties.
 The nominal geometric, thermal, and optical parameters are summarized in Table~\ref{tab:parameters}.
 The thermal conductivity, density, and specific heat are taken from quartz-glass material data \cite{heraeus}, with the specific heat represented by its tabulated mean over $0$--$100\,{}^\circ$C.
-The reference refractive index at $1064$ nm follows the dispersion relation of Malitson \cite{malitson1965}, and the thermo-optic coefficient is adopted from \cite{sqp2022}.
+The reference index and thermo-optic coefficient are evaluated from the same absolute, temperature-dependent Sellmeier fit for Corning 7980 fused silica at $1064$ nm and $300$ K \cite{leviton2006}.
+The coefficient $\gamma_T$ is the temperature derivative of that fit at the reference state; both optical inputs are held constant in the subsequent linear thermo-refractive calculation.
 
 \NominalTable
 
@@ -311,6 +312,7 @@ For $0^\circ$, $30^\circ$, and $60^\circ$, the steady calculations use $M=6$, $N
 The transient calculations use $M=10$, $N=20$, $J=256$, a $1200\times128$ projection grid, and 32 ray points.
 These settings were selected against enlarged finite references with a $0.1\%$ target; transient selection also examines temperature gradients and near-surface depth resolution.
 Supplement 1 gives the reference settings, observation times, and detailed discretizations.
+Optical checks against enlarged modal references and doubled ray quadrature give changes below $0.064\%$.
 The comparisons reported here quantify agreement at these finite numerical resolutions.
 
 % para:validation-p05
@@ -321,9 +323,9 @@ At approximately $2447$ s, the transient OPD-PV differs from the steady value by
 % para:validation-p02
 The FEM represents temperature by quadratic transverse triangular functions and quadratic axial elements.
 It assembles the Gaussian front-face load directly, independently of the Fourier--Bessel source projection, while retaining the same material inputs and Robin losses.
-The steady checks separately refine the transverse mesh, axial mesh, and both together; their maximum changes are below $0.081\%$ for the three angles against a $0.1\%$ target.
+The steady temperature checks separately refine the transverse mesh, axial mesh, and both together; their maximum changes are below $0.081\%$ for the three angles against a $0.1\%$ target.
 For transients, a consistent mass matrix and BDF2 integration are used, with backward-Euler starts or restarts when the time step changes.
-Separate transverse, axial, time, and joint refinements give the changes in Table~\ref{tab:refinement}.
+Separate transverse, axial, time, and joint temperature refinements give the changes in Table~\ref{tab:refinement}.
 The refinement criteria cover the sampled times from $2.5$ ms to $75$ s.
 The $1$ ms frame is retained separately as an early-time diagnostic in Supplement 1.
 
@@ -354,8 +356,8 @@ Supplement 1 provides additional numerical details and summary error statistics,
 
 \ValidationTable
 
-\begin{figure}[htbp]
-\centering\includegraphics[width=.78\linewidth]{transient_fem_comparison.pdf}
+\begin{figure}[!htbp]
+\centering\includegraphics[width=.90\linewidth]{transient_fem_comparison.pdf}
 \caption{Refracted-ray OPD at $60^\circ$ and $t=0.625$ s (top) and $75$ s (bottom): semi-analytical field (left) and refined-candidate FEM field (right) on the common pupil. The two fields in each row use the same color scale.}
 \label{fig:transientfem}
 \end{figure}
@@ -381,7 +383,7 @@ The OPD panel is referenced to entrance positions, so it combines thermal spread
 % para:results-p02
 Table~\ref{tab:steadyfields} demonstrates that the front-center temperature and transmitted OPD-PV give different angle rankings.
 The center-front rises decrease from $11.921$ to $11.336$ to $9.303$ K as the external angle changes from $0^\circ$ to $30^\circ$ to $60^\circ$.
-The sampled OPD-PV values are $166.503$, $168.771$, and $154.105$ nm, respectively.
+The sampled OPD-PV values are $145.958$, $147.940$, and $135.068$ nm, respectively.
 In Eq.~\eqref{eq:source}, increasing angle broadens the deposited flux along $y$ and reduces its peak at fixed full-plane power.
 In Eq.~\eqref{eq:opd}, the same angle also changes the path length, sampled transverse positions, and valid pupil.
 The three cases therefore compare the combined thermal and optical response under changing incidence geometry.
@@ -407,38 +409,58 @@ Both are obtained from the same time-dependent modal field.
 \end{figure}
 
 % para:results-p04
-At $0.625$ s, the sampled OPD-PV values are $14.922$, $13.929$, and $9.700$ nm for $0^\circ$, $30^\circ$, and $60^\circ$.
-By $75$ s they reach $156.347$, $156.949$, and $140.778$ nm.
+At $0.625$ s, the sampled OPD-PV values are $13.080$, $12.210$, and $8.502$ nm for $0^\circ$, $30^\circ$, and $60^\circ$.
+By $75$ s they reach $137.055$, $137.577$, and $123.389$ nm.
 All three optical responses are still approaching their steady limits at that time.
 The growing total OPD contains contributions from temperature orders with different diffusion rates.
 Following those contributions separately relates the build-up of the optical response to changes in the composition of the temperature field.
 
-\subsection{Modal Interpretation of the Optical Response}
+\subsection{Role of Azimuthal Thermal Components in Transmitted OPD}
 % para:modes-p01
-The Fourier--Bessel formulation also allows the optical contributions of individual azimuthal temperature orders to be examined separately.
-To characterize their relative thermal magnitudes, we define the squared-$L^2$ share of each temperature component on a transverse section as
+The modal representation permits a direct test of the optical effect of neglecting non-axisymmetric temperature components.
+We compare the full OPD $W=\sum_m W_m$ with $W_0$, obtained by retaining only the axisymmetric temperature component while keeping the same refracted paths and transmitted pupil $\mathcal P_\theta$.
+For $t>0$, the normalized field difference is
 \begin{equation}
- S_m(z,t)=\frac{\displaystyle\int_0^{2\pi}\!\int_0^R
- |\Theta_m(r,z,t)\cos(m\phi)|^2r\dd r\dd\phi}
- {\displaystyle\sum_\ell\int_0^{2\pi}\!\int_0^R
- |\Theta_\ell(r,z,t)\cos(\ell\phi)|^2r\dd r\dd\phi}.
- \label{eq:share}
+ \begin{aligned}
+ E_{\rm nonax}(t)&=
+ \frac{\operatorname{rms}_{\mathcal P_\theta}
+ [\widetilde W(t)-\widetilde W_0(t)]}{V(t)},\\
+ \widetilde W&=W-\langle W\rangle_{\mathcal P_\theta},\qquad
+ \widetilde W_0=W_0-\langle W_0\rangle_{\mathcal P_\theta}.
+ \end{aligned}
+ \label{eq:nonax-omission}
 \end{equation}
-The corresponding optical amplitude $V_m$ is obtained from the peak-to-valley (PV) of the OPD generated by each temperature order, as defined in Section~\ref{sec:thermal-order}.
+Here, the mean and RMS are evaluated on the same $201\times201$ physical-pupil samples for both fields, and $V$ is the PV of the full OPD.
+This metric measures the optical-field difference caused by omitting the non-axisymmetric thermal orders.
 
 % para:modes-p02
-Figure~\ref{fig:modes} illustrates these modal quantities for the $60^\circ$ incidence case.
-The $m=2$ component provides the largest non-axisymmetric contribution among the retained temperature orders.
-From $0.625$ s to $75$ s, its front-surface thermal share decreases from $9.19\%$ to $1.34\%$, while its individual OPD-PV increases from $4.203$ to $28.752$ nm.
-This difference reflects the distinct meanings of the two measures: $S_m$ describes the relative magnitude of a temperature component on a transverse section, whereas $V_m$ measures its optical response after integration along the refracted rays.
-Moreover, the oblique propagation geometry can produce a non-axisymmetric entrance-pupil OPD even from the axisymmetric ($m=0$) temperature component.
-Thus, the modal representation provides a way to examine the thermal origins of the transmitted OPD without requiring the optical field to preserve the angular symmetry of its individual temperature components.
+Figure~\ref{fig:modes} compares the two fields and follows $E_{\rm nonax}$ during heating.
+At normal incidence, only the $m=0$ temperature component is excited and $E_{\rm nonax}=0$.
+At $60^\circ$, $E_{\rm nonax}$ is $8.00\%$ at $0.625$ s and $5.65\%$ at $75$ s; the relative PV differences are $0.73\%$ and $5.85\%$, respectively.
+Thus, the small PV change at the earlier time coexists with a substantially larger spatial field difference when both are normalized by the full OPD-PV.
+Peak-to-valley amplitude alone does not capture the effect of the omitted temperature components on the transmitted wavefront.
+
+% para:modes-p03
+The field $W_0$ still includes the geometry of the oblique optical paths.
+For an axisymmetric temperature component, its ray integral is
+\begin{equation}
+ W_0(x_0,y_0,t)=\frac{\gamma_T}{\cos\theta_t}
+ \int_0^L\Theta_0\!\left(
+ \sqrt{x_0^2+(y_0+z\tan\theta_t)^2},z,t\right)\dd z.
+ \label{eq:axisymmetric-thermal-opd}
+\end{equation}
+At a fixed entrance radius, the sampled radius depends on the entrance azimuth through the term $2y_0z\tan\theta_t$.
+Consequently, even $W_0$ can be non-axisymmetric about the entrance origin, as illustrated in Fig.~\ref{fig:modes}(b).
+The full-versus-$m=0$ comparison isolates the optical effect of non-axisymmetric temperature components while retaining this path-sampling geometry in both fields.
+It therefore provides a field-based test of the azimuthal-mean temperature approximation for the specified optical geometry.
 
 \begin{figure}[htbp]
-% Saved figure copied without alteration from:
-% outputs/transient_case/20261016T200140235063Z_8f3a1290_p2_full_transient_fields_theta60_a1/figures/transient_modes.png
-\centering\includegraphics[width=\linewidth]{azimuthal_contributions_60deg.png}
-\caption{Azimuthal-order analysis of the transient response at $60^\circ$ incidence. Left: squared-$L^2$ shares of the front-surface temperature components. Right: OPD-PV associated with each temperature order after refracted-ray integration. The dashed curve represents the PV of the total OPD. Individual modal PV values are not additive.}
+\centering\includegraphics[width=.98\linewidth]{azimuthal_omission.pdf}
+\caption{Effect of retaining only the axisymmetric temperature component.
+At $60^\circ$ and $75$ s: (a) full OPD, (b) OPD from the $m=0$ temperature component alone, and (c) their piston-removed difference.
+Panels (a) and (b) use the same pupil and color scale; crosses mark the entrance origin.
+Panel (d) shows $E_{\rm nonax}$ for $0^\circ$, $30^\circ$, and $60^\circ$.
+Both models retain the refracted paths at the specified incidence angle; $m=0$ labels the temperature component, rather than an angular Fourier order of the optical field.}
 \label{fig:modes}
 \end{figure}
 
@@ -458,7 +480,8 @@ We have developed a Fourier--Bessel semi-analytical model for predicting the ste
 The formulation accounts for the non-axisymmetric heating distribution and finite thermal boundaries, and connects the resulting three-dimensional temperature field to the transmitted OPD through integration along refracted reference rays.
 Its transient solution allows direct evaluation at specified times without time stepping.
 Comparisons with independently assembled three-dimensional finite-element solutions at incidence angles of $0^\circ$, $30^\circ$, and $60^\circ$ show maximum relative OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ over the sampled transient interval from $2.5$ ms to $75$ s.
-In addition to predicting the evolving optical response, the formulation allows the contributions of individual azimuthal temperature modes to be examined separately, providing a unified framework for analyzing thermo-refractive effects in obliquely heated cylindrical optics.
+The modal decomposition quantifies the optical effect of the axisymmetric-temperature approximation: at $60^\circ$ and $0.625$ s, the PV changes by only $0.73\%$, while the piston-removed RMS field difference is $8.00\%$ of the full OPD-PV.
+This distinction links the temperature structure and refracted-path sampling to the transmitted wavefront.
 
 \end{samepage}
 \par
