@@ -37,34 +37,33 @@ Carrying the azimuthal decomposition through the optical integral also resolves 
 
 \section{Introduction}
 % para:intro-p01
-Absorption of optical power in transmissive components can produce nonuniform temperature fields and refractive-index variations that distort the transmitted wavefront.
-Such thermal aberrations are a concern in high-power laser systems because they can degrade beam quality \cite{mansell2001}.
-Coated optics used in wavelength beam combining have been investigated for absorption-induced temperature rise \cite{li2024}, while measurements on thin-film optical filters have demonstrated thermally induced deformations of both transmitted and reflected wavefronts \cite{soulier2026}.
-These components may operate at oblique incidence; for example, beam splitters for laser beam combining have been designed for an incidence angle of $45^\circ$ \cite{jiao2019}.
-In such configurations, predicting the transmitted thermo-optic response requires accounting for the geometry of both heat deposition and light propagation.
+Absorption of optical power in transmissive components can produce nonuniform temperature fields and thermal wavefront distortion, which can degrade beam quality in high-power laser systems \cite{mansell2001}.
+Thin-film wavelength beam combining provides a concrete example: dichroic mirrors selectively transmit and reflect laser channels and can operate at oblique incidence.
+In a 10-kW-class combining system, Li et al. used dichroic mirrors designed for a $15^\circ$ working angle and identified mirror heating and the associated thermal-lens effect as important factors affecting beam quality \cite{li2024combining}.
+Related studies have examined absorption-induced temperature rise in dichroic mirrors \cite{li2024} and measured thermally induced transmitted-wavefront deformation in thin-film optical filters \cite{soulier2026}.
+These findings motivate quantitative prediction of the thermo-refractive optical-path difference (OPD) in obliquely illuminated transmissive substrates.
 
 % para:intro-p02
-Analytical and semi-analytical models have long provided insight into thermally induced optical effects in cylindrical substrates.
-Hello and Vinet developed analytical descriptions of thermal aberrations in finite mirror substrates \cite{hellovinet1990}, and Vinet subsequently used azimuthal Fourier and radial Bessel expansions to treat non-axisymmetric heating and thermal lensing \cite{vinet2009}.
-Lee and Reitze derived time-dependent temperature profiles and radial optical-path variations in finite laser rods \cite{lee2015}, whereas Kim et al. employed Bessel-function expansions to evaluate thermal lensing in cylindrical optics \cite{kim2017}.
-Analytical work has also considered thermoelastic wavefront distortion in finite-radius thick disks \cite{isidro2018}.
-In parallel, ray-tracing and finite-element approaches provide flexible numerical descriptions of absorption and transient thermal loading in transmissive optical elements \cite{kurcsics2025}.
-Together, these studies establish substantial foundations for modeling heat transfer and its optical consequences.
+Analytical and numerical methods have provided complementary descriptions of laser-induced thermal effects in optical substrates.
+Hello and Vinet developed analytical models of thermal aberrations in finite mirror substrates \cite{hellovinet1990}.
+Vinet subsequently used azimuthal Fourier and radial Bessel expansions to describe non-axisymmetric heating and steady thermal lensing, and also treated transient thermal responses in an axisymmetric setting \cite{vinet2009}.
+Lee and Reitze derived analytical time-dependent temperature profiles in finite laser rods \cite{lee2015}, while Kim et al. used Bessel-function expansions to evaluate thermal lensing in cylindrical optics \cite{kim2017}.
+Numerical approaches offer additional flexibility: for example, coupled ray tracing and finite-element modeling can represent surface and bulk absorption and time-dependent thermal loading in transmissive optical elements \cite{kurcsics2025}.
+Together, these studies have established important foundations for finite-cylinder heat conduction, non-axisymmetric modal expansions, and transient thermal analysis.
 
 % para:intro-p03
-Nevertheless, oblique surface heating of a transmissive substrate poses a specific combination of thermal and optical requirements.
-A centered Gaussian beam incident at a nonzero angle produces an elliptical, non-axisymmetric heat-flux distribution on the circular front face, while refracted transmitted rays sample different transverse positions at different depths.
-The resulting thermo-refractive optical-path difference (OPD) therefore depends on the three-dimensional, time-dependent temperature field integrated along the refracted paths, rather than solely on a surface temperature distribution or a depth integral at fixed transverse coordinates.
-Although the analytical studies cited above address important parts of this problem, they do not directly provide a unified semi-analytical formulation for steady and transient transmitted OPD in this particular finite-cylinder, oblique-surface-heating geometry.
-A modal formulation would also make it possible to trace how individual azimuthal thermal components contribute to the transmitted optical response.
+In obliquely operated transmissive optics, the incidence geometry affects both the spatial distribution of absorbed surface power and the propagation paths of transmitted light.
+For a centered Gaussian beam incident on a planar coated substrate, these effects can be represented by an elliptical, non-axisymmetric surface heat load and refracted rays traversing different transverse positions through the substrate thickness.
+Consequently, predicting the thermo-refractive OPD requires the three-dimensional temperature distribution to be integrated along the refracted paths, both during transient heating and at steady state.
+Although existing analytical studies provide the relevant mathematical foundations, the cited formulations do not directly combine angle-dependent elliptical surface heating, non-axisymmetric transient heat conduction, and refracted-ray OPD evaluation within a unified semi-analytical finite-cylinder model.
 
 % para:intro-p04
 Here, we develop a Fourier--Bessel semi-analytical model for the steady and transient thermo-refractive OPD of a finite cylindrical substrate under oblique Gaussian surface heating.
-The non-axisymmetric surface load is expanded in azimuthal Fourier orders and radial Bessel functions, with the finite thermal boundaries represented by Robin conditions.
-The transient temperature field is expressed using the steady solution and decaying diffusion modes, permitting direct evaluation at prescribed times without time stepping.
-The temperature-induced refractive-index perturbation is then integrated along fixed refracted reference rays to obtain the transmitted OPD, and the contributions originating from different azimuthal thermal orders are evaluated separately.
-Comparison with independently assembled three-dimensional finite-element solutions at incidence angles of $0^\circ$, $30^\circ$, and $60^\circ$ gives maximum relative OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ over sampled transient times from $2.5$ ms to $75$ s.
-This framework enables both prediction and modal interpretation of the thermo-refractive response in the specified oblique-incidence geometry.
+The prescribed surface load is projected onto azimuthal Fourier orders and radial Bessel eigenfunctions, with finite thermal boundaries represented by Robin conditions.
+The transient solution combines the steady temperature field with decaying diffusion modes, allowing direct evaluation at specified times without time stepping.
+The temperature-induced refractive-index perturbation is then integrated along fixed refracted reference rays to obtain the transmitted OPD, and the contributions of individual azimuthal thermal orders are evaluated separately.
+Comparisons with independently assembled three-dimensional finite-element solutions at incidence angles of $0^\circ$, $30^\circ$, and $60^\circ$ yield maximum relative OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ over sampled transient times from $2.5$ ms to $75$ s.
+The resulting framework provides a semi-analytical approach for predicting and interpreting the thermo-refractive response of obliquely heated transmissive optics.
 
 \section{Physical Model and Thermo-Optic OPD}
 \subsection{Geometry and Oblique Gaussian Heating}
