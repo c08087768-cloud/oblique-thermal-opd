@@ -102,7 +102,7 @@
     "steady_fem_comparison.png": "5f1c19fc05677278912ca909db67a4f77d60719ea6d3ad80260dabf910c32e12"
   },
   "manuscript_source_sha256": {
-    "main.tex": "acc0d3ee9979babb7495e53e1e63b5a9f5b194112489b5026e5f19902e00c3d4",
+    "main.tex": "8eddacc5817808b13eef3f2aee04dfb6ea944c8b54760f0d3eb37e71cb263da5",
     "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
     "supplement.tex": "d948cbcfee34c26989ea98d44dd41971d73742cba6b63c7e354cb8967111f422",
     "references.tex": "83622befce194a8f0a78affe644643c1791428f5d120dba721654193d3814a2d"
@@ -115,7 +115,7 @@
         "unresolved_references": 0,
         "overfull_boxes": 0,
         "underfull_notices": 3,
-        "pdf_sha256": "bf698faa61c68cf760b8d637d5a2d04ee7dd1363709c13a8f02957110ed03416"
+        "pdf_sha256": "15a96cfde7c639b86e7692dc7e5b780dff718b4a38639f3ea26f994df47bc47a"
       },
       "main_zh": {
         "pages": 13,
@@ -123,7 +123,7 @@
         "unresolved_references": 0,
         "overfull_boxes": 0,
         "underfull_notices": 3,
-        "pdf_sha256": "687b4f9cf31533c235db9ae8c7f8d93fc849ae399a90d710d4be2a36490d36af"
+        "pdf_sha256": "32c9289b64e4185fc7d7b7d58c475de67e68a2eddbd6e1bfd5701b8d3aeca70e"
       },
       "supplement": {
         "pages": 5,
@@ -137,7 +137,15 @@
     "targeted_core_tests": "65 passed",
     "linux_fem_material_controls": "33 passed before production",
     "independent_scientific_review": "passed; source arrays independently checked",
-    "visual_review": "all pages reviewed; final revised figure and EN/CN pages10/11 re-rendered and inspected",
+    "visual_review": "All EN/CN pages inspected; prose-revised pages9--11 inspected individually after final compilation",
     "scope": "temperature FEM refinement retained; current SA optical convergence and FEM cross-method comparison; no new full FEM optical refinement certificate claimed"
+  },
+  "prose_revision": {
+    "date": "2026-11-03",
+    "user_message": "按照这个改论文",
+    "handoff_sha256": "d7e4e4aa4569e79b89fcf6f0d75b5347217ee19ef0ab75a15f1275f6d927fcf9",
+    "scope": "Sections5.1--5.3 supplied prose and matching Chinese translation",
+    "equations_figures_data_captions": "unchanged",
+    "numerical_runs": "not repeated for this prose-only revision"
   }
 }

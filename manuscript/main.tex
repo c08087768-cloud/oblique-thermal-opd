@@ -367,12 +367,12 @@ Supplement 1 provides additional numerical details and summary error statistics,
 \section{Results and Discussion}
 \subsection{Steady-State Temperature and OPD under Oblique Incidence}
 % para:results-p01
-At fixed prescribed absorbed power, changing the incidence angle alters both heat deposition and the refracted optical path.
-Figure~\ref{fig:steadyfields} first shows the three-dimensional steady response at $60^\circ$.
-The front-face distribution retains the elongated heating footprint, while the middle and rear sections are broader and have lower center temperatures.
-The center rise decreases from $9.303$ K at the front to $6.959$ K at the middle and $6.314$ K at the rear.
-These profiles are the depth-dependent field sampled by the transmitted light.
-The OPD panel is referenced to entrance positions, so it combines thermal spreading through the thickness with the transverse displacement of the refracted ray.
+Figure~\ref{fig:steadyfields} shows the steady-state temperature and transmitted OPD at an incidence angle of $60^\circ$.
+The temperature distribution near the heated front surface is elongated along the direction of incidence, following the elliptical Gaussian heat load.
+As heat spreads through the substrate, the temperature distribution becomes smoother and the center temperature decreases.
+The center temperature rise is $9.303$ K at the front surface, $6.959$ K at the middle plane, and $6.314$ K at the rear surface.
+The transmitted OPD is obtained by integrating this three-dimensional temperature field along the refracted rays.
+Its distribution therefore depends on both the temperature field and the paths followed by the light.
 
 \begin{figure}[H]
 \centering\includegraphics[width=.82\linewidth]{representative_steady_60deg.png}
@@ -381,26 +381,21 @@ The OPD panel is referenced to entrance positions, so it combines thermal spread
 \end{figure}
 
 % para:results-p02
-Table~\ref{tab:steadyfields} demonstrates that the front-center temperature and transmitted OPD-PV give different angle rankings.
-The center-front rises decrease from $11.921$ to $11.336$ to $9.303$ K as the external angle changes from $0^\circ$ to $30^\circ$ to $60^\circ$.
-The sampled OPD-PV values are $145.958$, $147.940$, and $135.068$ nm, respectively.
-In Eq.~\eqref{eq:source}, increasing angle broadens the deposited flux along $y$ and reduces its peak at fixed full-plane power.
-In Eq.~\eqref{eq:opd}, the same angle also changes the path length, sampled transverse positions, and valid pupil.
-The three cases therefore compare the combined thermal and optical response under changing incidence geometry.
-For this comparison, the full temperature distribution along the refracted paths is needed to determine the optical amplitude.
-The steady field describes the endpoint of heating; the response during turn-on depends on how that spatial distribution develops through the substrate.
+Table~\ref{tab:steadyfields} compares the steady-state results at incidence angles of $0^\circ$, $30^\circ$, and $60^\circ$.
+The front-center temperature rise decreases with increasing angle, from $11.921$ K to $11.336$ K and $9.303$ K.
+However, the corresponding OPD-PV values are $145.958$, $147.940$, and $135.068$ nm, respectively.
+The OPD-PV is slightly higher at $30^\circ$ than at normal incidence, even though the front-center temperature is lower.
+This occurs because changing the incidence angle affects not only the surface heating distribution but also the refracted ray paths and the transmitted pupil.
+The front-center temperature alone is therefore insufficient to predict the transmitted OPD-PV.
 
 \SteadyFieldTable
 \FloatBarrier
 
 \subsection{Transient Evolution of Temperature and OPD}
 % para:results-p03
-The steady temperature distribution is established over a finite time after step turn-on.
-Heat is initially deposited at the coated face, and conduction subsequently spreads the temperature rise into the substrate.
-As the depth profile develops, each transmitted ray accumulates a changing temperature integral.
-Figure~\ref{fig:evolution} follows this process through the front-center temperature and transmitted OPD-PV.
-The surface temperature describes local heating, while OPD-PV compares the temperature integrals accumulated by different rays across the pupil.
-Both are obtained from the same time-dependent modal field.
+When heating begins, the temperature first rises near the coated front surface and then gradually spreads into the substrate.
+During this process, the temperature encountered by each transmitted ray changes with time, leading to a changing OPD.
+Figure~\ref{fig:evolution} shows the evolution of the front-center temperature rise and the transmitted OPD-PV for the three incidence angles.
 
 \begin{figure}[htbp]
 \centering\includegraphics[width=.98\linewidth]{transient_evolution.pdf}
@@ -409,17 +404,23 @@ Both are obtained from the same time-dependent modal field.
 \end{figure}
 
 % para:results-p04
-At $0.625$ s, the sampled OPD-PV values are $13.080$, $12.210$, and $8.502$ nm for $0^\circ$, $30^\circ$, and $60^\circ$.
-By $75$ s they reach $137.055$, $137.577$, and $123.389$ nm.
-All three optical responses are still approaching their steady limits at that time.
-The growing total OPD contains contributions from temperature orders with different diffusion rates.
-Following those contributions separately relates the build-up of the optical response to changes in the composition of the temperature field.
+At $0.625$ s, the OPD-PV values are $13.080$, $12.210$, and $8.502$ nm for $0^\circ$, $30^\circ$, and $60^\circ$, respectively.
+By $75$ s, they have increased to $137.055$, $137.577$, and $123.389$ nm.
+All three cases remain below their steady-state values at $75$ s.
+The relative ordering of the OPD-PV values also changes during heating: the value at $0^\circ$ is initially higher than that at $30^\circ$, but the $30^\circ$ case becomes slightly higher at later times.
+
+% para:results-p05
+These results show how the transmitted OPD develops as heat spreads through the substrate.
+The semi-analytical model calculates the temperature and OPD directly at each selected time, without stepping through the preceding time interval.
 
 \subsection{Role of Azimuthal Thermal Components in Transmitted OPD}
 % para:modes-p01
-The modal representation permits a direct test of the optical effect of neglecting non-axisymmetric temperature components.
-We compare the full OPD $W=\sum_m W_m$ with $W_0$, obtained by retaining only the axisymmetric temperature component while keeping the same refracted paths and transmitted pupil $\mathcal P_\theta$.
-For $t>0$, the normalized field difference is
+Under oblique incidence, the elliptical heat load produces both axisymmetric and non-axisymmetric temperature components.
+To examine their effect on the transmitted OPD, we compare the full solution with a simplified calculation that retains only the axisymmetric temperature component ($m=0$).
+Both calculations use the same refracted ray paths and transmitted pupil, so their difference comes only from the omitted non-axisymmetric temperature components.
+
+% para:modes-p04
+For $t>0$, we measure this difference using the piston-removed RMS of the two OPD fields, normalized by the PV of the full OPD:
 \begin{equation}
  \begin{aligned}
  E_{\rm nonax}(t)&=
@@ -430,29 +431,32 @@ For $t>0$, the normalized field difference is
  \end{aligned}
  \label{eq:nonax-omission}
 \end{equation}
-Here, the mean and RMS are evaluated on the same $201\times201$ physical-pupil samples for both fields, and $V$ is the PV of the full OPD.
-This metric measures the optical-field difference caused by omitting the non-axisymmetric thermal orders.
+Here, $W$ is the full OPD and $W_0$ is the OPD calculated using only the $m=0$ temperature component.
+The mean and RMS are evaluated on the same $201\times201$ transmitted-pupil samples.
 
 % para:modes-p02
-Figure~\ref{fig:modes} compares the two fields and follows $E_{\rm nonax}$ during heating.
-At normal incidence, only the $m=0$ temperature component is excited and $E_{\rm nonax}=0$.
-At $60^\circ$, $E_{\rm nonax}$ is $8.00\%$ at $0.625$ s and $5.65\%$ at $75$ s; the relative PV differences are $0.73\%$ and $5.85\%$, respectively.
-Thus, the small PV change at the earlier time coexists with a substantially larger spatial field difference when both are normalized by the full OPD-PV.
-Peak-to-valley amplitude alone does not capture the effect of the omitted temperature components on the transmitted wavefront.
+Figure~\ref{fig:modes} compares these two OPD fields.
+At normal incidence, the heating is axisymmetric, so the two calculations give identical results.
+At $60^\circ$ incidence, however, the difference is more noticeable.
+At $0.625$ s, the two calculations differ by only $0.73\%$ in OPD-PV, while their piston-removed RMS difference is $8.00\%$ of the full OPD-PV.
+At $75$ s, the corresponding differences are $5.85\%$ and $5.65\%$.
+Thus, two OPD fields can have nearly the same PV while differing in their spatial distributions.
 
 % para:modes-p03
-The field $W_0$ still includes the geometry of the oblique optical paths.
-For an axisymmetric temperature component, its ray integral is
+An important detail is that the OPD calculated from the axisymmetric temperature component is not necessarily axisymmetric about the entrance origin.
+Under oblique incidence, a ray entering at $(x_0,y_0)$ samples the temperature at different radial positions as it travels through the substrate:
 \begin{equation}
  W_0(x_0,y_0,t)=\frac{\gamma_T}{\cos\theta_t}
  \int_0^L\Theta_0\!\left(
  \sqrt{x_0^2+(y_0+z\tan\theta_t)^2},z,t\right)\dd z.
  \label{eq:axisymmetric-thermal-opd}
 \end{equation}
-At a fixed entrance radius, the sampled radius depends on the entrance azimuth through the term $2y_0z\tan\theta_t$.
-Consequently, even $W_0$ can be non-axisymmetric about the entrance origin, as illustrated in Fig.~\ref{fig:modes}(b).
-The full-versus-$m=0$ comparison isolates the optical effect of non-axisymmetric temperature components while retaining this path-sampling geometry in both fields.
-It therefore provides a field-based test of the azimuthal-mean temperature approximation for the specified optical geometry.
+Because these sampled positions depend on the entrance position and the refracted angle, an axisymmetric temperature field can still produce a non-axisymmetric OPD distribution.
+This effect is present in both calculations and is therefore not part of the difference attributed to the omitted thermal components.
+
+% para:modes-p05
+The comparison shows that neglecting non-axisymmetric temperature components can introduce spatial errors that are not apparent from the OPD-PV alone.
+Retaining these components is therefore relevant when the shape of the transmitted wavefront, rather than only its peak-to-valley amplitude, needs to be predicted.
 
 \begin{figure}[htbp]
 \centering\includegraphics[width=.98\linewidth]{azimuthal_omission.pdf}
