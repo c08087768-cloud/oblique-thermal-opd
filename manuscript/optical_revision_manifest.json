@@ -87,7 +87,7 @@
     "src/thermal_opd/plotting.py": "f7cb0541426be46d80b6db0212da7759fbcde261513d5ef42533ec8537a2bb5a",
     "scripts/cases/recompute_paper_optics.py": "98a9b3b63629d986bf96d070bca5e89d378a66b8d3c32b7495f1d400f9094e78",
     "manuscript/working/integrate_optical_results.py": "45aa9016e2ade5a1d08869461dce9e1d86fa3d7be8ca1271bd6b3fb545347f47",
-    "manuscript/working/build_optical_revision.py": "c2eb9dd6a21b95a83702de3e772abf733222eca917261a64feb7603b1e8c9eaa",
+    "manuscript/working/build_optical_revision.py": "9716497d09e5ee5371c4fa199d12d466a102c618fb88679ae4c46a9bb352c0e4",
     "manuscript/working/build_transient_comparison.py": "6ba77fc3ee208c95a61748ec83cd42881106757f6c67479b3033d89bbc0abf48",
     "manuscript/working/build_supplement_figures.py": "5920bc77c9f23971b6c46f4e766fe7d3365fe035e3de06deeef2ab2fe2d7c86c",
     "manuscript/working/build_supplement_data.py": "c54a26ba446f9cb4dddba15531bf12f57c4d9a6e48bf0e3b2f3e788c2f47b220"
@@ -99,14 +99,14 @@
     "transient_evolution.pdf": "26179db4f70464fbc11750a54be776633102fd64939bb1986d13ed186e4d7a86",
     "azimuthal_omission.pdf": "b3d7e1fe3ec4618e11a97305ee6358d8c238e44685e529ecfc35657a7fe150a9",
     "supp_transient_fem_refinement.pdf": "877860c9cb2f2fccb17190a716ac73fc82750a7f0cca56204bb732d700dc6dec",
-    "steady_fem_comparison.png": "5f1c19fc05677278912ca909db67a4f77d60719ea6d3ad80260dabf910c32e12"
+    "steady_fem_comparison.png": "f1646bdfd2f85da7fd33a86fcd1746fb3abe0f338d0d0dbb2f15b4b0bd9c6b1c"
   },
   "manuscript_source_sha256": {
     "main.tex": "8eddacc5817808b13eef3f2aee04dfb6ea944c8b54760f0d3eb37e71cb263da5",
     "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
-    "supplement.tex": "6c990e7641a48ad9dae69ba1e8df35176cad85f5a1498598a2f24f798aa7b684",
+    "supplement.tex": "bd9b7e8ebce401ed9d1d7ab6fbfba470e4bfb17679060b7bc3681f3ba6f4d7a6",
     "references.tex": "83622befce194a8f0a78affe644643c1791428f5d120dba721654193d3814a2d",
-    "supplement_zh.tex": "79d5d0fe3eb24fdab9a7232af1fdcf3dd0972a8f7e18f4daa3e6031d9e51ac50"
+    "supplement_zh.tex": "8880f2b20f43acdf2e25b0cce7f53a282470b7e4f719d3a9a017e46064c92455"
   },
   "final_validation": {
     "compilations": {
@@ -132,7 +132,7 @@
         "unresolved_references": 0,
         "overfull_boxes": 0,
         "underfull_notices": 0,
-        "pdf_sha256": "8f8828c15bf36ef080f05b9c3b4235cd466b6709e72e27bc502b6a6d76a0cf5e"
+        "pdf_sha256": "842202d2c410ed493e89a5720cd41c48e9f0be33119fa63f3bf55842129fde0f"
       },
       "supplement_zh": {
         "pages": 5,
@@ -140,7 +140,7 @@
         "unresolved_references": 0,
         "overfull_boxes": 0,
         "underfull_notices": 0,
-        "pdf_sha256": "84894e0f3ce22b00938236d5373a41c1286f23917752e97446949a8bc39ce346"
+        "pdf_sha256": "43e647bb33a0989751d5c6489771b808a673e1c53d349b1a200ca3e460ae591a"
       }
     },
     "targeted_core_tests": "65 passed",
@@ -184,5 +184,13 @@
     "presentation_change": "Removed redundant resolution-sweep figure from active supplement; existing thermal-refinement plot now has one shared y label; same curves",
     "historical_fem_scope": "Settings checked against archived verifier/config and available records;15 original source headers absent locally; no new full FEM certificate claimed",
     "visual_review": "Final Chinese five pages inspected individually; English five-page montage inspected; labels, tables and rounding note checked"
+  },
+  "supplement_figure_s2_revision": {
+    "date": "2026-11-03",
+    "authorization": "Remove the third difference column and revise figure narrative",
+    "layout": "Two columns: semi-analytical and finest FEM; two rows: temperature and OPD; common color range within each row",
+    "source_data": "unchanged",
+    "narrative": "EN/CN captions, surrounding prose and Chinese Markdown updated",
+    "validation": "EN/CN five-page PDFs compile without unresolved references; final figure pages visually inspected"
   }
 }

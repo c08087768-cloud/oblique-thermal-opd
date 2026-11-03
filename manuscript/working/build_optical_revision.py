@@ -95,19 +95,17 @@ def build_main(run):
 
 def build_steady_comparison(run):
     with np.load(run/'steady_fem_theta60.npz',allow_pickle=False) as f:
-        fig,axes=plt.subplots(2,3,figsize=(10,6.4),layout='constrained')
+        fig,axes=plt.subplots(2,2,figsize=(7.4,6.4),layout='constrained')
         for row,kind in enumerate(('temperature','opd')):
             mask=f['temperature_mask'] if row==0 else f['mask']
             x=f['temperature_x_m']if row==0 else f['opd_x_m']
             y=f['temperature_y_m']if row==0 else f['opd_y_m']
             raw=[f['temperature_sa_K'][0],f['temperature_fem_K'][0]] if row==0 else [f['opd_sa_m']*1e9,f['opd_fem_m']*1e9]
             sa=np.full(mask.shape,np.nan);fe=sa.copy();sa[mask],fe[mask]=raw
-            diff=fe-sa
-            if row==1:diff[mask]-=diff[mask].mean()
-            amp=np.nanmax(abs(diff));lo=min(np.nanmin(sa),np.nanmin(fe));hi=max(np.nanmax(sa),np.nanmax(fe))
-            for col,(values,title)in enumerate(zip((sa,fe,diff),('Semi-analytical','FEM','FEM - SA'))):
+            lo=min(np.nanmin(sa),np.nanmin(fe));hi=max(np.nanmax(sa),np.nanmax(fe))
+            for col,(values,title)in enumerate(zip((sa,fe),('Semi-analytical','FEM'))):
                 ax=axes[row,col];im=ax.pcolormesh(x*1e3,y*1e3,np.ma.masked_invalid(values),shading='auto',rasterized=True,
-                    cmap='coolwarm'if col==2 else ('inferno'if row==0 else 'viridis'),vmin=-amp if col==2 else lo,vmax=amp if col==2 else hi)
+                    cmap='inferno'if row==0 else 'viridis',vmin=lo,vmax=hi)
                 ax.set_aspect('equal');ax.set_title(title,fontsize=10);ax.set_xlabel('$x_0$ (mm)'if row else '$x$ (mm)')
                 if col==0:ax.set_ylabel('$y_0$ (mm)'if row else '$y$ (mm)')
                 fig.colorbar(im,ax=ax,shrink=.78,label='nm'if row else 'K')
