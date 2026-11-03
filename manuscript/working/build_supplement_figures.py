@@ -125,10 +125,11 @@ def plot_fem_refinement():
         ax.axhline(.5, color='#555555', lw=.9, ls='--', label='Spatial / joint target: 0.5%')
         ax.axhline(.1, color='#555555', lw=.9, ls=':', label='Time-step target: 0.1%')
         ax.set_title(f'({panel}) External angle {angle}'+r'$^\circ$', loc='left', fontsize=10)
-        ax.set_ylabel('Largest thermal change (%)')
+        ax.set_ylabel('')
         ax.set_ylim(7e-6, .9)
         ax.grid(which='major', alpha=.24)
     handles, labels = axes[0].get_legend_handles_labels()
+    fig.supylabel('Largest temperature change (%)', fontsize=10)
     fig.legend(handles, labels, loc='outside upper center', ncol=2,
                frameon=False, fontsize=8)
     axes[-1].set_xlabel('Time after step turn-on (s)')

@@ -89,7 +89,8 @@
     "manuscript/working/integrate_optical_results.py": "45aa9016e2ade5a1d08869461dce9e1d86fa3d7be8ca1271bd6b3fb545347f47",
     "manuscript/working/build_optical_revision.py": "c2eb9dd6a21b95a83702de3e772abf733222eca917261a64feb7603b1e8c9eaa",
     "manuscript/working/build_transient_comparison.py": "6ba77fc3ee208c95a61748ec83cd42881106757f6c67479b3033d89bbc0abf48",
-    "manuscript/working/build_supplement_figures.py": "c9acc8bb1f9851c564cdab5273828fe0fe7165abfe1840725f6b53faf78a74e0"
+    "manuscript/working/build_supplement_figures.py": "5920bc77c9f23971b6c46f4e766fe7d3365fe035e3de06deeef2ab2fe2d7c86c",
+    "manuscript/working/build_supplement_data.py": "c54a26ba446f9cb4dddba15531bf12f57c4d9a6e48bf0e3b2f3e788c2f47b220"
   },
   "referenced_figure_sha256": {
     "fig_physical_model_schematic_final.pdf": "39ffd1389296c7d64e7c8747d7051a102b9bd1ad1cbcd743b7a7c072b1f4e103",
@@ -97,15 +98,15 @@
     "representative_steady_60deg.png": "5d5e9b46f34ae79c7d1295a8cbc953526be322e7c979824afb8b4b04c0b79ab8",
     "transient_evolution.pdf": "26179db4f70464fbc11750a54be776633102fd64939bb1986d13ed186e4d7a86",
     "azimuthal_omission.pdf": "b3d7e1fe3ec4618e11a97305ee6358d8c238e44685e529ecfc35657a7fe150a9",
-    "supp_steady_resolution.pdf": "a1d3e01b1de9c99df02ba492f123cb5e2d4a240a0bbb6d8e5e3ba49ba26cae77",
-    "supp_transient_fem_refinement.pdf": "4a991251928e7f7536f1e3e75dbd6f7509d6657841eded032855d2d52704a78f",
+    "supp_transient_fem_refinement.pdf": "877860c9cb2f2fccb17190a716ac73fc82750a7f0cca56204bb732d700dc6dec",
     "steady_fem_comparison.png": "5f1c19fc05677278912ca909db67a4f77d60719ea6d3ad80260dabf910c32e12"
   },
   "manuscript_source_sha256": {
     "main.tex": "8eddacc5817808b13eef3f2aee04dfb6ea944c8b54760f0d3eb37e71cb263da5",
     "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
-    "supplement.tex": "d948cbcfee34c26989ea98d44dd41971d73742cba6b63c7e354cb8967111f422",
-    "references.tex": "83622befce194a8f0a78affe644643c1791428f5d120dba721654193d3814a2d"
+    "supplement.tex": "6c990e7641a48ad9dae69ba1e8df35176cad85f5a1498598a2f24f798aa7b684",
+    "references.tex": "83622befce194a8f0a78affe644643c1791428f5d120dba721654193d3814a2d",
+    "supplement_zh.tex": "79d5d0fe3eb24fdab9a7232af1fdcf3dd0972a8f7e18f4daa3e6031d9e51ac50"
   },
   "final_validation": {
     "compilations": {
@@ -131,7 +132,15 @@
         "unresolved_references": 0,
         "overfull_boxes": 0,
         "underfull_notices": 0,
-        "pdf_sha256": "23416b8c36ea116759b23dd8e7822fc663d1832b96f82d253918b33258045e37"
+        "pdf_sha256": "8f8828c15bf36ef080f05b9c3b4235cd466b6709e72e27bc502b6a6d76a0cf5e"
+      },
+      "supplement_zh": {
+        "pages": 5,
+        "compiled": true,
+        "unresolved_references": 0,
+        "overfull_boxes": 0,
+        "underfull_notices": 0,
+        "pdf_sha256": "84894e0f3ce22b00938236d5373a41c1286f23917752e97446949a8bc39ce346"
       }
     },
     "targeted_core_tests": "65 passed",
@@ -147,5 +156,33 @@
     "scope": "Sections5.1--5.3 supplied prose and matching Chinese translation",
     "equations_figures_data_captions": "unchanged",
     "numerical_runs": "not repeated for this prose-only revision"
+  },
+  "supplement_data_sha256": {
+    "manuscript/data/supplement_details/fem_configuration_source.json": "feb481d4cce756f16e558f3b90037c5e466f0033cb1c07e8559ea389a436723d",
+    "manuscript/data/supplement_details/provenance.json": "168ee75e0ccb241e36745e0d6cf2c1ed1dc5df06ddd23ef2206da68b27c7b7d1",
+    "manuscript/data/supplement_details/pupil_pv.csv": "091ae24ab612c2e25b4e0fc80a24806fe4f8ec0b2941b10121deaab9730df1e8",
+    "manuscript/data/supplement_details/pupil_pv.tex": "86e671bfbca92b653a8b94098ccc31a7c30cf9fa08df8f40e856698b9b93ed6b",
+    "manuscript/data/supplement_details/sa_checks.csv": "55d3438bdb6ae5213e2478ee7bda0c0e03d1927822ffb0d0cf328809ae4c7027",
+    "manuscript/data/supplement_details/sa_checks.tex": "daf0a7bb78ac2ede7430b8274c4cf0d39b742695c363cd2d56915f0488f65bb9",
+    "manuscript/data/supplement_details/time_comparison.csv": "90351e0fbc2a54fae7526cf112fcce9acfce62090c86714606619f22db374e3b",
+    "manuscript/data/supplement_details/time_comparison.tex": "9bfdf412517a8f96933f1630ecda88b1c09e54ca8892b5f368a4d2de10f437df"
+  },
+  "supplement_revision": {
+    "date": "2026-11-03",
+    "authorization": "Rewrite vague supplement as additional data; deliver Chinese version",
+    "main_manuscript": "unchanged",
+    "sections": 3,
+    "tables": 6,
+    "figures": 2,
+    "data_rows": {
+      "time_comparison": 33,
+      "sa_checks": 9,
+      "pupil_pv": 9
+    },
+    "numerical_solver_runs": "none",
+    "independent_data_check": "186 numeric cells and14 source hashes matched saved records; corrected sampling text and restored thermal reference settings",
+    "presentation_change": "Removed redundant resolution-sweep figure from active supplement; existing thermal-refinement plot now has one shared y label; same curves",
+    "historical_fem_scope": "Settings checked against archived verifier/config and available records;15 original source headers absent locally; no new full FEM certificate claimed",
+    "visual_review": "Final Chinese five pages inspected individually; English five-page montage inspected; labels, tables and rounding note checked"
   }
 }
