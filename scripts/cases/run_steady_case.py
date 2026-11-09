@@ -11,10 +11,9 @@ from pathlib import Path
 import hashlib
 
 import numpy as np
-from numpy.polynomial.legendre import leggauss
 from thermal_opd.convergence import continuous_aperture_pv
 
-from thermal_opd.heat_source import oblique_gaussian_heat_flux
+from thermal_opd.heat_source import gaussian_disk_power, oblique_gaussian_heat_flux
 from thermal_opd.metrics import circular_aperture_mask, opd_metrics
 from thermal_opd.opd import transmitted_ray_mask
 from thermal_opd.parameters import PhysicalParameters
@@ -37,10 +36,15 @@ num_temperature_r = 161
 num_temperature_phi = 180
 num_opd_xy = 201
 num_opd_ray_points = 16
+
+# Seed grid for the continuous-pupil extrema search.
 num_pv_seed_radius = 9
 num_pv_seed_phi = 48
+# Number of rays evaluated per batch.
 opd_point_chunk_size = 1024
+# Axial samples for the sidewall Robin residual.
 num_boundary_z = 65
+# Radial, axial and angular quadrature for the energy diagnostic.
 num_energy_r = 80
 num_energy_z = 64
 num_energy_phi = 180
@@ -123,14 +127,10 @@ def main():
     peak_flux = float(specified.max())
     front_gaussian_difference = float(np.max(np.abs(p.h_eff*temperatures[0] - p.conductivity*front_dz - specified)))
     # Independent source integral: Gauss radial nodes, periodic angular samples.
-    nodes, weights = leggauss(num_energy_r)
-    energy_r = (nodes + 1)*p.radius/2
-    energy_phi = np.linspace(0.0, 2*np.pi, num_energy_phi, endpoint=False)
-    gaussian = oblique_gaussian_heat_flux(
-        energy_r[:, None]*np.cos(energy_phi), energy_r[:, None]*np.sin(energy_phi),
-        p.beam_radius, theta, p.absorbed_power,
+    disk_input = gaussian_disk_power(
+        p.radius, p.beam_radius, theta, p.absorbed_power,
+        num_r=num_energy_r, num_phi=num_energy_phi,
     )
-    disk_input = float(2*np.pi*np.sum(weights*p.radius/2*energy_r*np.mean(gaussian, axis=1)))
     energy_relative_error = (balance["balance_absolute_error_W"] / abs(balance["modal_input_W"])
                              if balance["modal_input_W"] != 0 else None)
     normalized_residuals = {key: value / peak_flux if peak_flux != 0 else None

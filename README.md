@@ -54,6 +54,17 @@ The script saves the temperature and OPD arrays in `data/fields.npz` and a plot 
 
 The nominal cylinder has a radius of 12.7 mm and a thickness of 5 mm. The Gaussian beam's 1/e² intensity radius normal to propagation is 0.30 times the cylinder radius. The assigned absorbed power is 110 mW on the full plane. The refractive index and its temperature derivative come from the same Corning 7980 Sellmeier fit at 1064 nm and 300 K. The example retains azimuthal orders 0, 2, 4, and 6 and eight radial modes per order. It uses 400 radial by 32 angular projection samples, 16 ray quadrature points, and a 201 × 201 entrance-plane grid for OPD with an aperture radius of 0.9 times the cylinder radius. [Physical inputs](src/thermal_opd/parameters.py) · [Steady case settings](scripts/cases/run_steady_case.py) · [Sellmeier coefficients, Table 3](https://ntrs.nasa.gov/api/citations/20070018851/downloads/20070018851.pdf#page=6)
 
+### Steady numerical settings
+
+For a standalone check of the steady postprocessing settings, run
+`python run.py --experiment numerical-settings --yes --angles 0 30 60`.
+The audit reads the production defaults and varies the extrema seeds, OPD batch size,
+sidewall samples, and energy quadrature counts. It writes the measured changes and timings to
+`outputs/numerical_settings_audit/<run-id>/data/comparison.csv` and saves the
+acceptance checks in `verification.json`.
+The finest seed grids are numerical references. Batch timing is diagnostic.
+Every tested batch size must pass the same pointwise OPD consistency check.
+
 ### Batch workflow
 
 ```bash

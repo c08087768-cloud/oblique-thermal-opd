@@ -1,6 +1,6 @@
 import numpy as np
 
-from thermal_opd.heat_source import oblique_gaussian_heat_flux
+from thermal_opd.heat_source import gaussian_disk_power, oblique_gaussian_heat_flux
 from thermal_opd.parameters import PhysicalParameters
 
 
@@ -72,3 +72,14 @@ def test_normal_incidence_power_on_finite_disk():
     )
 
     assert np.isclose(actual, expected, rtol=1e-6)
+
+
+def test_gaussian_disk_quadrature_recovers_exact_normal_incidence_power():
+    p = PhysicalParameters()
+    expected = p.absorbed_power * (-np.expm1(-2 * (p.radius / p.beam_radius)**2))
+    nominal = gaussian_disk_power(p.radius, p.beam_radius, 0., p.absorbed_power,
+                                  num_r=80, num_phi=180)
+    underresolved = gaussian_disk_power(p.radius, p.beam_radius, 0., p.absorbed_power,
+                                        num_r=1, num_phi=180)
+    assert np.isclose(nominal, expected, rtol=1e-13, atol=0)
+    assert not np.isclose(underresolved, expected, rtol=1e-3, atol=0)

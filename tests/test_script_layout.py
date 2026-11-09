@@ -24,6 +24,7 @@ EXPECTED_ENTRIES = {
     'temperature':'diagnostics/inspect_steady_temperature.py',
     'opd':'diagnostics/inspect_opd.py',
     'sweeps':'convergence/check_steady_convergence.py',
+    'numerical-settings':'convergence/check_steady_numerical_settings.py',
     'replot':'tools/replot_case.py',
     'regression':'tools/compare_refactor_baseline.py',
 }
@@ -35,7 +36,7 @@ def test_exact_script_layout_and_existing_experiment_names():
     scripts=ROOT/'scripts'
     assert not list(scripts.glob('*.py'))
     assert {p.relative_to(scripts).as_posix() for p in scripts.rglob('*.py')}=={
-        *EXPECTED_ENTRIES.values(),'cases/transient_fields.py'}
+        *EXPECTED_ENTRIES.values(),'cases/transient_fields.py','cases/recompute_paper_optics.py'}
 
 
 @pytest.mark.parametrize('name',EXPECTED_ENTRIES)

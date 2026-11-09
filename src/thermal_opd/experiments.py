@@ -26,6 +26,7 @@ EXPERIMENTS={
     'temperature':('稳态温度与能量检查','diagnostics/inspect_steady_temperature.py'),
     'opd':('折射OPD检查','diagnostics/inspect_opd.py'),
     'sweeps':('逐参数收敛诊断','convergence/check_steady_convergence.py'),
+    'numerical-settings':('Steady numerical settings audit','convergence/check_steady_numerical_settings.py'),
     'replot':('从已保存场重绘','tools/replot_case.py'),
     'regression':('重构数值基线对照','tools/compare_refactor_baseline.py'),
 }

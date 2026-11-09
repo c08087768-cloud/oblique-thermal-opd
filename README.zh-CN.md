@@ -54,6 +54,15 @@ python scripts/verification/validate_run.py --results outputs/steady_case/exampl
 
 名义圆柱半径为 12.7 mm，厚度为 5 mm。Gaussian 光束在垂直于传播方向的平面上定义的 1/e² 强度半径为圆柱半径的 0.30 倍。整个平面上的设定吸收功率为 110 mW。折射率和折射率温度导数均由 Corning 7980 的同一 Sellmeier 拟合在 1064 nm、300 K 下求得。算例保留 0、2、4、6 阶方位模态，每阶保留八个径向模态。投影使用 400 个径向采样点和 32 个角向采样点，每条光线使用 16 个积分点。OPD 在入口平面的 201 × 201 网格上求值，孔径半径为圆柱半径的 0.9 倍。 [物理参数](src/thermal_opd/parameters.py) · [稳态算例设置](scripts/cases/run_steady_case.py) · [Sellmeier 系数，表 3](https://ntrs.nasa.gov/api/citations/20070018851/downloads/20070018851.pdf#page=6)
 
+### 稳态数值设置
+
+可用 `python run.py --experiment numerical-settings --yes --angles 0 30 60` 单独复核稳态后处理设置。
+程序读取生产算例的默认值，分别改变极值搜索种子、OPD 分批大小、侧壁采样和能量积分点数。
+变化量与耗时保存在 `outputs/numerical_settings_audit/<运行ID>/data/comparison.csv`，
+验收结果保存在 `verification.json`。
+最密种子网格用于数值对照，分批耗时只作诊断。
+每个测试的分批大小都须通过逐点 OPD 一致性检查。
+
 ### 批量流程
 
 ```bash
