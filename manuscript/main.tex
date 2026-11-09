@@ -37,25 +37,26 @@ The modal decomposition also quantifies the effect of neglecting non-axisymmetri
 
 \section{Introduction}
 % para:intro-p01
-Absorption of optical power in transmissive components can produce nonuniform temperature fields and thermal wavefront distortion, which can degrade beam quality in high-power laser systems \cite{mansell2001}.
+Absorption of optical power in transmissive components can produce nonuniform temperature fields and thermal wavefront distortion, which can degrade beam quality in high-power laser systems \cite{mansell2001,soulier2026,li2025deformation,soulier2026mitigation,stubenvoll2014,schaefer2009}.
 Thin-film wavelength beam combining provides a concrete example: dichroic mirrors selectively transmit and reflect laser channels and can operate at oblique incidence.
 In a 10-kW-class combining system, Li et al. used dichroic mirrors designed for a $15^\circ$ working angle and identified mirror heating and the associated thermal-lens effect as important factors affecting beam quality \cite{li2024combining}.
-Related studies have examined absorption-induced temperature rise in dichroic mirrors \cite{li2024} and measured thermally induced transmitted-wavefront deformation in thin-film optical filters \cite{soulier2026}.
+Related studies have examined absorption-induced temperature rise in dichroic mirrors \cite{li2024}, coating absorption and associated thermal modeling \cite{soulier2025absorption}, the influence of thermal deformation on beam quality \cite{li2025deformation}, and thermally induced wavefront deformation and focal shifts in optical components \cite{soulier2026,soulier2026mitigation,stubenvoll2014,schaefer2009}.
 These findings motivate quantitative prediction of the thermo-refractive optical-path difference (OPD) in obliquely illuminated transmissive substrates.
 
 % para:intro-p02
 Analytical and numerical methods have provided complementary descriptions of laser-induced thermal effects in optical substrates.
-Hello and Vinet developed analytical models of thermal aberrations in finite mirror substrates \cite{hellovinet1990}.
+Hello and Vinet developed analytical models of thermal aberrations and transient thermoelastic deformations in finite mirror substrates \cite{hellovinet1990,hellovinet1990transient}.
 Vinet subsequently used azimuthal Fourier and radial Bessel expansions to describe non-axisymmetric heating and steady thermal lensing, and also treated transient thermal responses in an axisymmetric setting \cite{vinet2009}.
 Lee and Reitze derived analytical time-dependent temperature profiles in finite laser rods \cite{lee2015}, while Kim et al. used Bessel-function expansions to evaluate thermal lensing in cylindrical optics \cite{kim2017}.
-Numerical approaches offer additional flexibility: for example, coupled ray tracing and finite-element modeling can represent surface and bulk absorption and time-dependent thermal loading in transmissive optical elements \cite{kurcsics2025}.
-Together, these studies have established important foundations for finite-cylinder heat conduction, non-axisymmetric modal expansions, and transient thermal analysis.
+Analytical treatments have also been developed for time-dependent thermal-lens responses in finite-radius cylindrical samples under non-Gaussian excitation \cite{sabaeian2016}.
+Numerical approaches offer additional flexibility: finite-element analysis and ray tracing have been used to evaluate transient thermal effects and spatial optical-path differences in laser-irradiated optical components \cite{borik1991}, while more recent modeling has represented surface and bulk absorption and time-dependent thermal loading in transmissive elements \cite{kurcsics2025}.
+Together, these studies have established important foundations for finite-cylinder heat conduction, non-axisymmetric modal expansions, transient thermal analysis, and optical-path evaluation.
 
 % para:intro-p03
 In obliquely operated transmissive optics, the incidence geometry affects both the spatial distribution of absorbed surface power and the propagation paths of transmitted light.
 For a centered Gaussian beam incident on a planar coated substrate, these effects can be represented by an elliptical, non-axisymmetric surface heat load and refracted rays traversing different transverse positions through the substrate thickness.
 Consequently, predicting the thermo-refractive OPD requires the three-dimensional temperature distribution to be integrated along the refracted paths, both during transient heating and at steady state.
-Although existing analytical studies provide the relevant mathematical foundations, the cited formulations do not directly combine angle-dependent elliptical surface heating, non-axisymmetric transient heat conduction, and refracted-ray OPD evaluation within a unified semi-analytical finite-cylinder model.
+Although previous studies have developed analytical treatments of thermal aberrations, non-axisymmetric heating, and transient conduction \cite{hellovinet1990,vinet2009,lee2015,kim2017,hellovinet1990transient,sabaeian2016}, as well as numerical approaches to thermal and optical effects \cite{kurcsics2025,borik1991}, the cited formulations do not directly combine angle-dependent elliptical surface heating, non-axisymmetric transient heat conduction, and refracted-ray OPD evaluation within a unified semi-analytical finite-cylinder model.
 
 % para:intro-p04
 Here, we develop a Fourier--Bessel semi-analytical model for the steady and transient thermo-refractive OPD of a finite cylindrical substrate under oblique Gaussian surface heating.
