@@ -21,6 +21,9 @@ def test_absolute_derivative_at_reference_against_one_sided_difference():
     assert n == pytest.approx(1.450076167940166,abs=2e-15)
     p=PhysicalParameters()
     assert (p.substrate_refractive_index,p.dn_dT)==(n,dn)
+    assert p.wavelength == 1064e-9
+    assert p.ambient_temperature == 300.
+    assert p.dn_dT == pytest.approx(8.415426824978581e-6, rel=0., abs=2e-13)
     with pytest.raises(ValueError):corning_7980_reference(1064e-9,301)
 
 

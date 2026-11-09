@@ -52,7 +52,7 @@ python scripts/verification/validate_run.py --results outputs/steady_case/exampl
 
 脚本在运行目录下将温升和 OPD 数组保存到 `data/fields.npz`，将图保存到 `figures/steady_case.png`。`summary.json` 的 `opd_pv_m` 字段记录采样峰谷值，单位为米。复核脚本分别报告保存文件的完整性和科学状态。 [保存结果复核](scripts/verification/validate_run.py)
 
-名义圆柱半径为 12.7 mm，厚度为 5 mm。Gaussian 光束在垂直于传播方向的平面上定义的 1/e² 强度半径为圆柱半径的 0.30 倍。整个平面上的设定吸收功率为 110 mW。光学常数的参考波长为 1064 nm，参考温度为 300 K。算例保留 0–6 阶方位模态，每阶保留八个径向模态。投影使用 400 个径向采样点和 32 个角向采样点，每条光线使用 16 个积分点。OPD 在入口平面的 201 × 201 网格上求值，孔径半径为圆柱半径的 0.9 倍。 [物理参数](src/thermal_opd/parameters.py) · [稳态算例设置](scripts/cases/run_steady_case.py)
+名义圆柱半径为 12.7 mm，厚度为 5 mm。Gaussian 光束在垂直于传播方向的平面上定义的 1/e² 强度半径为圆柱半径的 0.30 倍。整个平面上的设定吸收功率为 110 mW。折射率和折射率温度导数均由 Corning 7980 的同一 Sellmeier 拟合在 1064 nm、300 K 下求得。算例保留 0、2、4、6 阶方位模态，每阶保留八个径向模态。投影使用 400 个径向采样点和 32 个角向采样点，每条光线使用 16 个积分点。OPD 在入口平面的 201 × 201 网格上求值，孔径半径为圆柱半径的 0.9 倍。 [物理参数](src/thermal_opd/parameters.py) · [稳态算例设置](scripts/cases/run_steady_case.py) · [Sellmeier 系数，表 3](https://ntrs.nasa.gov/api/citations/20070018851/downloads/20070018851.pdf#page=6)
 
 ### 批量流程
 

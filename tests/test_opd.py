@@ -1,11 +1,15 @@
 """Independent checks of Snell geometry and refracted-ray temperature integrals."""
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 from scipy.integrate import quad
 
 import thermal_opd.opd as opd_module
 import thermal_opd.steady as steady_module
+from thermal_opd.model import ModalResolution, ThermalModel
+from thermal_opd.parameters import PhysicalParameters
 from thermal_opd.steady import steady_temperature
 
 
@@ -29,6 +33,67 @@ def test_transmission_mask_requires_entry_and_exit_inside_cylinder():
     actual = transmitted_ray_mask(x, y, 0.01, 0.003, np.pi/4)
     np.testing.assert_array_equal(actual, [True, False, True, False])
     assert transmitted_ray_mask(0., 0.007, 0.01, 0.003, np.pi/4)
+
+
+@pytest.mark.parametrize("angle_deg", [0., 30., 60.])
+def test_optical_inputs_change_only_ray_geometry_and_opd_scale(angle_deg):
+    current = PhysicalParameters()
+    old_index = replace(current, substrate_refractive_index=1.44963)
+    old_slope = replace(current, dn_dT=9.6e-6)
+    prepared = ThermalModel(current, angle_deg, ModalResolution(2, 3, 80, 16, 32)).prepare()
+    temperature = prepared.solve_steady().temperature
+
+    def ray(index):
+        sine = np.sin(np.deg2rad(angle_deg)) / index
+        cosine = np.sqrt(1 - sine**2)
+        return sine, cosine, sine / cosine
+
+    _, _, current_slope = ray(current.substrate_refractive_index)
+    _, _, previous_slope = ray(old_index.substrate_refractive_index)
+    edge_y = current.radius - current.thickness * (current_slope + previous_slope) / 2
+    test_y = [0., edge_y, current.radius * 1.01]
+    np.testing.assert_array_equal(
+        opd_module.transmitted_ray_mask(0., test_y, current.radius, current.thickness,
+                                        prepared.refraction_angle),
+        [True, True, False],
+    )
+    previous = replace(prepared, parameters=old_index)
+    np.testing.assert_array_equal(
+        opd_module.transmitted_ray_mask(0., test_y, current.radius, current.thickness,
+                                        previous.refraction_angle),
+        [True, angle_deg == 0., False],
+    )
+
+    x = np.array([.001, -.002])
+    y = np.array([-.002, .003])
+    values = []
+    for parameters in (current, old_index, old_slope):
+        model = replace(prepared, parameters=parameters)
+        steady = model.solve_steady()
+        sine, cosine, slope = ray(parameters.substrate_refractive_index)
+        assert model.refraction_angle == pytest.approx(np.arctan2(sine, cosine), abs=1e-15)
+        np.testing.assert_array_equal(steady.temperature(.002, .3, .001),
+                                      temperature(.002, .3, .001))
+
+        def integrate(x0, y0):
+            def integrand(z):
+                ray_y = y0 + z * slope
+                return float(temperature(np.hypot(x0, ray_y), np.arctan2(ray_y, x0), z))
+
+            return parameters.dn_dT / cosine * quad(integrand, 0., parameters.thickness)[0]
+
+        result = steady.opd(x, y)
+        np.testing.assert_allclose(result, [integrate(x0, y0) for x0, y0 in zip(x, y)],
+                                   rtol=1e-11, atol=1e-20)
+        values.append(result)
+
+    new_opd, old_index_opd, old_slope_opd = values
+    np.testing.assert_allclose(new_opd, old_slope_opd * current.dn_dT / old_slope.dn_dT,
+                               rtol=1e-13, atol=1e-20)
+    if angle_deg == 0.:
+        np.testing.assert_array_equal(new_opd, old_index_opd)
+    else:
+        assert not np.allclose(new_opd, old_index_opd, rtol=1e-8, atol=1e-20)
 
 
 def test_nearly_uniform_temperature_uses_actual_ray_length():
