@@ -325,7 +325,8 @@ At approximately $2447$ s, the transient OPD-PV differs from the steady value by
 The FEM represents temperature by quadratic transverse triangular functions and quadratic axial elements.
 It assembles the Gaussian front-face load directly, independently of the Fourier--Bessel source projection, while retaining the same material inputs and Robin losses.
 The steady temperature checks separately refine the transverse mesh, axial mesh, and both together; their maximum changes are below $0.081\%$ for the three angles against a $0.1\%$ target.
-For transients, a consistent mass matrix and BDF2 integration are used, with backward-Euler starts or restarts when the time step changes.
+For transients, a consistent mass matrix and variable-step BDF2 integration are used.
+A backward-Euler step is used at startup and to restart the method whenever the ratio of the new time step to the preceding time step exceeds $1.5$.
 Separate transverse, axial, time, and joint temperature refinements give the changes in Table~\ref{tab:refinement}.
 The refinement criteria cover the sampled times from $2.5$ ms to $75$ s.
 The $1$ ms frame is retained separately as an early-time diagnostic in Supplement 1.
