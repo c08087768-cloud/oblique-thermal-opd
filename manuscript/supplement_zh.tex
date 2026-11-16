@@ -11,6 +11,8 @@
 \newcommand{\SteadyCheck}{稳态模态核对}
 \newcommand{\TransientCheck}{瞬态模态核对}
 \newcommand{\RayCheck}{瞬态光路积分核对}
+\newcommand{\JointRefinement}{联合}
+\newcommand{\TimeRefinement}{时间}
 \title{补充材料1：斜入射加热圆柱光学元件的补充数值结果}
 \author{Zhongwei Yang, Jing Wen, Wei Li, Tingrui Li, Bohui Chen, and Liang Yang}
 \date{}
@@ -130,6 +132,47 @@ A、B 是同一热问题的两组有限数值参考；B 组保留更多展开项
 虚线和点线分别为 $0.5\%$ 的空间／联合加密目标与 $0.1\%$ 的时间步长加密目标。}
 \label{fig:supp-fem-refinement}
 \end{figure}
+\FloatBarrier
+
+\subsection*{有限元光学量的加密核对}
+表~\ref{tab:supp-fem-optical-steady} 和表~\ref{tab:supp-fem-optical-transient} 给出采用当前光学参数、由归档有限元节点温度重新计算的光学变化。
+XY 和 Z 比较分别仅加密横向网格和轴向网格，具体配置见表~\ref{tab:supp-fem-settings}。
+瞬态时间比较将时间步长减半，瞬态联合比较同时加密两个方向的网格并将时间步长减半。
+稳态联合比较同时加密两个方向的网格。
+这些光学计算复用已完成的热解，表中没有引入新的瞬态热求解。
+比较采用从 $101\times101$ 笛卡尔入口网格中选出的共同透射光瞳。
+
+PV 列为两组 OPD-PV 的绝对差值除以相应加密有限元解的 OPD-PV。
+RMS/PV 和最大差异/PV 列先分别去除两个 OPD 场的活塞项，再将场差异的 RMS 和最大绝对值除以同一个加密有限元 PV。
+因此，这些列的分母与表~\ref{tab:supp-comparison} 采用的半解析分母不同。
+沿用的目标值为：稳态加密 $0.1\%$，瞬态空间及联合加密 $0.5\%$，瞬态时间加密 $0.1\%$；表中各指标均满足其相应目标。
+瞬态比较的每项指标分别取 $0.0025$--$75$ s 内九个记录时刻的最大值。
+$0.001$ s 诊断值单独列出，不计入上述最大值及目标判定。
+小于 $10^{-5}\%$ 的变化以其上界表示，避免将数值上极小的差异解释为精度结论。
+
+\begin{table}[!htbp]\centering\small
+\caption{稳态有限元在 XY、Z 及联合空间加密下的光学变化（\%）。三项指标的目标均为 $0.1\%$。}\label{tab:supp-fem-optical-steady}
+\begin{tabular}{clrrr}\toprule
+入射角 & 加密方向 & PV & RMS/PV & 最大差异/PV\\\midrule
+\input{data/supplement_details/fem_optical_steady.tex}
+\end{tabular}
+\end{table}
+
+\begin{table}[!htbp]\centering\scriptsize
+\setlength{\tabcolsep}{4pt}
+\caption{瞬态有限元光学变化（\%）。左侧为各指标在 $0.0025$--$75$ s 内的最大值，右侧仅列 $0.001$ s 诊断值。XY、Z 及联合加密的目标为 $0.5\%$，时间步长加密的目标为 $0.1\%$。}\label{tab:supp-fem-optical-transient}
+\begin{tabular}{clrrrrrr}\toprule
+ & & \multicolumn{3}{c}{$0.0025$--$75$ s 最大值} & \multicolumn{3}{c}{$0.001$ s 诊断值}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+入射角 & 加密方向 & PV & RMS/PV & 最大差异/PV & PV & RMS/PV & 最大差异/PV\\\midrule
+\input{data/supplement_details/fem_optical_transient.tex}
+\end{tabular}
+\end{table}
+
+另行完成的 $30^\circ$ 和 $60^\circ$ 稳态计算在最细稳态网格上，将前表面载荷积分阶数从 $10$ 提高到 $14$。
+以基准 $10$ 阶积分所得有限元 PV 为分母，PV、去活塞项 RMS/PV 和最大差异/PV 的变化均小于 $10^{-8}\%$，低于 $0.01\%$ 的目标。
+这些小差异仅反映对该项积分阶数变化的敏感性。
+这些比较量化了所述有限光瞳与时间采样下的数值敏感性，不给出相对于精确解的误差界，也不构成实验验证。
 \FloatBarrier
 
 \section{补充 OPD 数值与稳态场对比}

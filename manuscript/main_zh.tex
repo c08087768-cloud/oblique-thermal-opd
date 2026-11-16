@@ -1,0 +1,528 @@
+\documentclass[UTF8,10pt,a4paper]{ctexart}
+% ctex 自动选择适合当前系统的中文字体，无需额外安装指定字体。
+\usepackage[margin=24mm]{geometry}
+% 使用 ctexart 原生中文字体与排版；编译引擎：XeLaTeX。
+\usepackage{amsmath,amssymb,bm,graphicx,booktabs,microtype}
+\usepackage{caption,float,placeins}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\setlength{\emergencystretch}{2em}
+\numberwithin{equation}{section}
+\graphicspath{{figures/}}
+\newcommand{\OPD}{\mathrm{OPD}}
+\newcommand{\dd}{\,\mathrm{d}}
+% 原稿 tables.tex 的引入已改为上方条件加载。
+\title{斜入射高斯表面加热下有限圆柱光学元件稳态与瞬态热光响应的傅里叶--贝塞尔半解析模型}
+\author{Zhongwei Yang, Jing Wen, Wei Li, Tingrui Li, Bohui Chen, and Liang Yang}
+\date{作者审阅工作稿：2026年11月17日}
+
+% 缺少原论文图片时显示带文件名的占位框；如图片存在则自动嵌入原图片。
+\newcommand{\CNincludegraphics}[2][]{%
+  \IfFileExists{figures/#2}{\includegraphics[#1]{#2}}{%
+    \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
+      \fbox{\begin{minipage}[c][34mm][c]{0.82\linewidth}
+      \centering\small 原始图片暂缺\par\texttt{\detokenize{#2}}\par
+      请将原始图片放入 \texttt{figures/} 目录。
+      \end{minipage}}%
+    }%
+  }%
+}
+% 原文表格存放在 tables.tex；未提供时使用清楚标记的空位，而非编造数据。
+\IfFileExists{tables.tex}{\input{tables.tex}}{%
+  \newcommand{\NominalTable}{\begin{table}[htbp]\centering
+    \fbox{\parbox{.88\linewidth}{\centering \strut 原始参数表未提供（需要 tables.tex）。\strut}}
+    \caption{标称几何、热学与光学参数（待引入原始表格文件）}\label{tab:parameters}\end{table}}
+  \newcommand{\TransientRefinementTable}{\begin{table}[htbp]\centering
+    \fbox{\parbox{.88\linewidth}{\centering \strut 原始瞬态有限元加密表未提供（需要 tables.tex）。\strut}}
+    \caption{瞬态有限元加密检查（待引入原始表格文件）}\label{tab:refinement}\end{table}}
+  \newcommand{\ValidationTable}{\begin{table}[htbp]\centering
+    \fbox{\parbox{.88\linewidth}{\centering \strut 原始数值比较表未提供（需要 tables.tex）。\strut}}
+    \caption{半解析与有限元计算的光学比较（待引入原始表格文件）}\label{tab:comparison}\end{table}}
+  \newcommand{\SteadyFieldTable}{\begin{table}[htbp]\centering
+    \fbox{\parbox{.88\linewidth}{\centering \strut 原始稳态结果表未提供（需要 tables.tex）。\strut}}
+    \caption{各入射角下的稳态温度与光程差（待引入原始表格文件）}\label{tab:steadyfields}\end{table}}
+}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+% para:abstract-p01
+斜入射高斯光束照射会在透射光学元件表面形成椭圆形热载荷；与此同时，透射光线倾斜穿过基底，在不同深度经过不同的横向位置。
+针对这一热载荷，我们建立了一种傅里叶--贝塞尔（Fourier--Bessel）半解析模型，用于计算有限圆柱基底的稳态与瞬态热致折射率光程差（optical-path difference，OPD）。
+稳态与瞬态响应采用相同的横向特征函数展开，时间依赖性由轴向扩散模态描述，因此无需逐步时间推进，即可直接求得任意指定时刻的响应。
+沿固定的折射参考光线对三维温度场积分，便可得到透射光程差。
+对于入射角分别为 $0^\circ$、$30^\circ$ 和 $60^\circ$ 的熔融石英标称算例，与独立有限元解相比，以半解析结果为基准，稳态 OPD 峰谷值的最大相对差异为 $0.00544\%$；在 $2.5$ ms 至 $75$ s 的瞬态采样时刻内，该差异最大为 $0.0713\%$。
+模态分解还能量化忽略非轴对称温度分量所造成的光学影响，说明相近的峰谷值仍可能对应不同的空间波前。
+
+\end{abstract}
+
+\section{引言}
+% para:intro-p01
+透射光学元件对光功率的吸收会产生非均匀温度场及热致波前畸变，从而可能降低高功率激光系统中的光束质量 \cite{mansell2001,soulier2026,li2025deformation,soulier2026mitigation,stubenvoll2014,schaefer2009}。
+薄膜波长合束技术提供了一个具体的应用实例：二向色镜能够选择性地透射和反射不同波长的激光通道，并且可以在斜入射条件下工作。
+在一个 10 kW 级激光合束系统中，Li 等人采用了设计工作角度为 $15^\circ$ 的二向色镜，并发现镜体温升及其引起的热透镜效应是影响光束质量的重要因素 \cite{li2024combining}。
+相关研究还考察了二向色镜中光吸收引起的温升 \cite{li2024}、镀膜吸收及相应的热建模 \cite{soulier2025absorption}、热变形对光束质量的影响 \cite{li2025deformation}，以及光学元件中的热致波前变形和焦移 \cite{soulier2026,soulier2026mitigation,stubenvoll2014,schaefer2009}。
+这些研究表明，有必要对斜入射照射下透射光学基底的热致折射率光程差（OPD）进行定量预测。
+
+% para:intro-p02
+解析方法与数值方法从不同角度为光学基底中激光引起的热效应提供了描述手段。
+Hello 和 Vinet 建立了有限镜体中热致像差和瞬态热弹性变形的解析模型 \cite{hellovinet1990,hellovinet1990transient}。
+随后，Vinet 利用方位角 Fourier 展开和径向 Bessel 函数展开描述非轴对称加热及稳态热透镜效应，并在轴对称条件下研究了瞬态热响应 \cite{vinet2009}。
+Lee 和 Reitze 推导了有限激光棒中随时间变化的温度分布解析表达式 \cite{lee2015}，而 Kim 等人利用 Bessel 函数展开计算圆柱形光学元件中的热透镜效应 \cite{kim2017}。
+也有研究针对非高斯激励下有限半径圆柱样品的时变热透镜响应建立了解析模型 \cite{sabaeian2016}。
+数值方法提供了更大的灵活性。已有研究用有限元分析和光线追迹计算激光照射下光学元件的瞬态热效应及光程差空间分布 \cite{borik1991}，较新的模型则描述了透射元件中的表面吸收、体吸收及随时间变化的热载荷 \cite{kurcsics2025}。
+这些研究为有限圆柱热传导、非轴对称模态展开、瞬态热分析和光程计算奠定了基础。
+
+% para:intro-p03
+在斜入射工作的透射光学元件中，入射几何同时影响表面吸收功率的空间分布和透射光线的传播路径。
+对于入射到平面镀膜基底上的中心对准高斯光束，这两种效应可以分别表示为椭圆形、非轴对称的表面热载荷，以及在基底厚度方向经过不同横向位置的折射光线。
+因此，预测热致折射率 OPD 需要沿折射路径对三维温度分布进行积分，并同时考虑瞬态加热过程和稳态响应。
+已有研究给出了热致像差、非轴对称加热和瞬态热传导的解析处理方法 \cite{hellovinet1990,vinet2009,lee2015,kim2017,hellovinet1990transient,sabaeian2016}，也提出了分析热效应和光学效应的数值方法 \cite{kurcsics2025,borik1991}。
+在所引文献中，这些方法尚未在统一的有限圆柱半解析模型中同时处理随入射角变化的椭圆形表面加热、非轴对称瞬态热传导和沿折射光线的 OPD 计算。
+
+% para:intro-p04
+本文建立了一种 Fourier--Bessel 半解析模型，用于计算有限圆柱形基底在斜入射高斯表面加热下的稳态与瞬态热致折射率 OPD。
+将给定的表面热载荷投影到方位角 Fourier 模态和径向 Bessel 特征函数上，并利用 Robin 边界条件描述有限几何边界处的热交换。
+瞬态解由稳态温度场与随时间衰减的扩散模态共同构成，因此能够在指定时刻直接计算温度场，而不需要逐步时间积分。
+随后，沿固定折射参考光线对温度引起的折射率扰动进行积分，得到透射 OPD，并分别计算不同方位热模态对 OPD 的贡献。
+通过与独立建立的三维有限元解比较，在 $0^\circ$、$30^\circ$ 和 $60^\circ$ 入射条件下，稳态 OPD 峰谷值的最大相对差异为 $0.00544\%$，在 $2.5$ ms 至 $75$ s 的采样瞬态时间范围内，最大相对差异为 $0.0713\%$。
+该框架为预测和解释斜入射加热下透射光学元件的热致折射率响应提供了一种半解析计算方法。
+
+\section{物理模型与热光光程差}
+\subsection{几何结构与斜入射高斯加热}
+% para:model-p01
+光学基底为半径 $R$、厚度 $L$ 的有限圆柱体，采用柱坐标 $(r,\phi,z)$ 描述，其中 $0\leq r\leq R$、$0\leq\phi<2\pi$、$0\leq z\leq L$。
+坐标原点位于镀膜前表面（$z=0$）的中心，后表面位于 $z=L$。
+笛卡尔坐标定义为 $x=r\cos\phi$ 和 $y=r\sin\phi$。
+如图~\ref{fig:geometry} 所示，一束准直高斯光束的光斑中心位于前表面，并在 $y$--$z$ 平面内以相对于表面法线的外部入射角 $\theta$ 入射。
+镀膜吸收的光功率被建模为表面热通量，而透射部分的光束沿折射路径穿过基底。
+
+对于在垂直于传播方向的截面上定义 $1/e^2$ 强度半径为 $w_0$ 的高斯光束，吸收表面热通量为 \cite{li2024}
+\begin{equation}
+ q_s(x,y)=\frac{2P_{\rm abs}\cos\theta}{\pi w_0^2}
+ \exp\!\left[-\frac{2(x^2+y^2\cos^2\theta)}{w_0^2}\right].
+ \label{eq:source}
+\end{equation}
+这里，$P_{\rm abs}$ 为吸收功率参数，用于使高斯分布在整个平面上的积分归一化为该功率。
+所形成的椭圆形光斑沿 $x$ 和 $y$ 方向的 $1/e^2$ 半径分别为 $w_0$ 和 $w_0/\cos\theta$。
+规定的热通量直接施加于有限的镀膜表面，不再进行额外归一化；不同入射角下均保持 $P_{\rm abs}$ 不变。
+随时间变化的表面热通量写为 $g(t)q_s(x,y)$，其中 $g(t)$ 表示加热强度的时间变化。
+
+\begin{figure}[htbp]
+\centering\CNincludegraphics[width=.95\linewidth]{fig_physical_model_schematic_final.pdf}
+\caption{有限圆柱基底受到斜入射高斯表面加热的示意图。入射平面为 $y$--$z$ 平面；镀膜吸收在前表面产生热通量，所有表面均与环境交换热量。坐标原点位于镀膜前表面（$z=0$）中心，后表面位于 $z=L$。折射参考光线沿 $y$ 和 $z$ 增大的方向传播。}
+\label{fig:geometry}
+\end{figure}
+
+\subsection{传热模型}
+% para:model-p02
+令 $\Theta=T-T_\infty$ 表示相对于环境温度的温升。
+均匀基底的热导率 $k$、密度 $\rho$ 和比热容 $c_p$ 均为常数，满足
+\begin{equation}
+ \rho c_p\frac{\partial\Theta}{\partial t}=k\nabla^2\Theta,
+ \qquad \Theta(r,\phi,z,0)=0.
+ \label{eq:heat}
+\end{equation}
+镀膜吸收完全由表面载荷表示，基底内部不设体热源。
+前表面、后表面及侧面的边界条件分别为
+\begin{align}
+ h_f\Theta-k\partial_z\Theta&=g(t)q_s, &&z=0,\label{eq:front}\\
+ h_b\Theta+k\partial_z\Theta&=0, &&z=L,\label{eq:rear}\\
+ h_s\Theta+k\partial_r\Theta&=0, &&r=R.\label{eq:side}
+\end{align}
+前表面边界条件同时包含输入热量和向环境的散热。
+在标称算例中，三个表面采用相同的等效换热系数：
+\begin{equation}
+ h_{\rm eff}=h_{\rm conv}+4\epsilon\sigma T_\infty^3,
+ \label{eq:heff}
+\end{equation}
+其中，$h_{\rm conv}$ 为对流换热系数，$\epsilon$ 为发射率，$\sigma$ 为斯特藩--玻尔兹曼常数。
+与反射镜加热的解析处理方法类似 \cite{vinet2009}，辐射项在 $T_\infty$ 附近进行线性化。
+本文报告的瞬态算例采用阶跃开启加热，即 $g(0)=0$，且在 $t>0$ 时 $g(t)=1$。
+在恒定热载荷下，相应的稳态问题满足 $\nabla^2\Theta_{\rm ss}=0$。
+
+\subsection{基本假设与标称参数}
+% para:model-p03
+数值算例考虑材料性质恒定、均匀且各向同性的熔融石英基底。
+标称几何、热学和光学参数汇总于表~\ref{tab:parameters}。
+热导率、密度和比热容取自石英玻璃材料数据 \cite{heraeus}，其中比热容采用其在 $0$--$100\,{}^\circ$C 范围内的表列平均值。
+参考折射率与热光系数均由 Corning 7980 熔融石英的同一绝对折射率温度相关 Sellmeier 拟合式，在 $1064$ nm、$300$ K 下计算得到 \cite{leviton2006}。
+$\gamma_T$ 为该拟合式在参考状态下的温度导数；随后进行线性热致折射率计算时，两个光学参数均保持恒定。
+
+\NominalTable
+
+\subsection{沿折射光线计算热光光程差}
+% para:model-p05
+热致折射率 OPD 由温度引起的折射率扰动沿光路积分得到 \cite{hellovinet1990,malacarne2012}。
+本文沿固定的折射参考光线计算这一积分。
+参考路径由未受热时的折射率通过斯涅尔定律 $n_i\sin\theta=n_s\sin\theta_t$ 确定，其中 $\theta_t$ 为基底内的折射角。
+对于从 $(x_0,y_0,0)$ 入射的光线，其传播路径为
+\begin{equation}
+ x(z)=x_0,\qquad
+ y(z)=y_0+z\tan\theta_t,\qquad
+ \dd s=\frac{\dd z}{\cos\theta_t}.
+ \label{eq:ray}
+\end{equation}
+在固定参考光线近似下，相对于未受热光路的一阶热致折射率 OPD 为
+\begin{equation}
+ W(x_0,y_0,t)
+ =
+ \frac{\gamma_T}{\cos\theta_t}
+ \int_0^L
+ \Theta(x_0,y_0+z\tan\theta_t,z,t)\dd z.
+ \label{eq:opd}
+\end{equation}
+其中，$\gamma_T=\mathrm dn/\mathrm dT$ 为热光系数，$\Theta$ 为温升。
+固定参考光线近似忽略由加热引起的光线弯曲。
+
+OPD 在半径为 $a=0.9R$ 的代表性圆形入射孔径上计算，该孔径的直径为基底直径的 $90\%$。
+只考虑始终位于基底内部、并能到达后表面的光线。
+因此，随入射角变化的有效评价光瞳为
+\begin{equation}
+ \mathcal P_\theta=
+ \left\{
+ (x_0,y_0):
+ \begin{array}{l}
+ x_0^2+y_0^2\le a^2,\\
+ x_0^2+(y_0+L\tan\theta_t)^2\le R^2
+ \end{array}
+ \right\}.
+ \label{eq:pupil}
+\end{equation}
+进而将 OPD 的峰谷值定义为
+\begin{equation}
+ V(t)=
+ \max_{(x_0,y_0)\in\mathcal P_\theta}W(x_0,y_0,t)
+ -
+ \min_{(x_0,y_0)\in\mathcal P_\theta}W(x_0,y_0,t).
+ \label{eq:pv}
+\end{equation}
+
+\section{傅里叶--贝塞尔半解析方法}
+\subsection{方位角分解}
+% para:method-p01
+角向与径向表示采用针对有限反射镜非轴对称加热的傅里叶--贝塞尔处理方法 \cite{vinet2009}。
+圆形前表面上的斜入射光斑通过方位角傅里叶展开表示：
+\begin{equation}
+ q_s(r,\phi)=q_0(r)+\sum_{m=1}^{\infty}q_m(r)\cos(m\phi),
+ \label{eq:fourier}
+\end{equation}
+其中，$q_0=(2\pi)^{-1}\int_0^{2\pi}q_s\dd\phi$，对于 $m>0$ 则有 $q_m=\pi^{-1}\int_0^{2\pi}q_s\cos(m\phi)\dd\phi$。
+由于居中的高斯光斑相对于两个横向坐标轴均具有对称性，因此仅保留偶数阶余弦项，即 $m=0,2,4,\ldots,M$。
+法向入射对应仅有 $m=0$ 的情形。
+在斜入射情况下，更高的偶数阶模态用于描述椭圆形热载荷，同时保持热传导所用的圆形几何域不变。
+
+\subsection{傅里叶--贝塞尔投影}
+% para:method-p02
+对每个角向阶次，采用 $J_m(\lambda_{mn}r)$ 作为径向基函数。
+正的径向波数满足
+\begin{equation}
+ k\lambda_{mn}J_m'(\lambda_{mn}R)+h_sJ_m(\lambda_{mn}R)=0.
+ \label{eq:radial}
+\end{equation}
+由此，每个保留的基函数均自动满足侧壁 Robin 边界条件。
+记 $N_{mn}=\int_0^R J_m^2(\lambda_{mn}r)r\dd r$，并取 $A_0=2\pi$、$A_m=\pi$（$m>0$）。
+表面热通量的展开系数为
+\begin{equation}
+ C_{mn}=\frac{\displaystyle\int_0^R\!\int_0^{2\pi}
+ q_s(r,\phi)J_m(\lambda_{mn}r)\cos(m\phi)r\dd\phi\dd r}{A_mN_{mn}}.
+ \label{eq:projection}
+\end{equation}
+该系数的单位为热通量密度。
+径向范数为
+\begin{equation}
+ N_{mn}=\frac{R^2}{2}\left[J_m^2(\lambda_{mn}R)
+       -J_{m-1}(\lambda_{mn}R)J_{m+1}(\lambda_{mn}R)\right].
+\end{equation}
+对于给定的热学配置，通过一次数值求根与热源积分即可得到这些系数。
+利用所得横向基函数，将温度表示为
+\[
+ \Theta(r,\phi,z,t)=\sum_{m,n}J_m(\lambda_{mn}r)\cos(m\phi)Z_{mn}(z,t).
+\]
+每个系数 $C_{mn}$ 都为相应轴向问题提供前表面激励：
+\[
+ h_fZ_{mn}(0,t)-k\partial_zZ_{mn}(0,t)=g(t)C_{mn}.
+\]
+因此，稳态与瞬态解共享相同的横向模态，仅轴向幅值 $Z_{mn}$ 不同。
+
+\subsection{稳态解}
+% para:method-p03
+将一个横向特征函数代入拉普拉斯方程，可得到轴向问题 $Z_{mn}''-\lambda_{mn}^2Z_{mn}=0$。
+前、后表面的边界条件分别为 $h_fZ_{mn}(0)-kZ_{mn}'(0)=C_{mn}$ 和 $h_bZ_{mn}(L)+kZ_{mn}'(L)=0$。
+令 $\lambda=\lambda_{mn}$，则其解为
+\begin{equation}
+ Z_{mn}^{\rm ss}(z)=C_{mn}\frac{\cosh[\lambda(L-z)]+\frac{h_b}{k\lambda}\sinh[\lambda(L-z)]}
+ {(k\lambda+\frac{h_fh_b}{k\lambda})\sinh(\lambda L)+(h_f+h_b)\cosh(\lambda L)}.
+ \label{eq:steadyaxial}
+\end{equation}
+组装后得到的稳态温度场为
+\begin{equation}
+ \Theta_{\rm ss}(r,\phi,z)=\sum_{m,n}J_m(\lambda_{mn}r)\cos(m\phi)Z_{mn}^{\rm ss}(z).
+ \label{eq:steady}
+\end{equation}
+这种构造显式考虑有限厚度：不同横向尺度对应不同的轴向温度剖面。
+实际数值计算采用等价的衰减指数形式，以避免双曲函数中间值过大。
+该展开式还可给出径向和轴向温度导数，用于边界条件和数值分辨率检查。
+
+\subsection{瞬态解}\label{sec:transient}
+% para:method-p04
+在阶跃热载荷且 $t>0$ 时，瞬态场与稳态场具有相同的表面热通量边界输入。
+因此，二者之差满足齐次 Robin 边界条件，温度场向稳态的趋近过程可由自由衰减的扩散模态描述。
+参照镀膜受热圆柱反射镜的稳态加瞬态构造 \cite{hellovinet1990}，稳态解承担外加热载荷，而这些衰减模态描述剩余的时间相关修正。
+保留上述横向基函数，并引入满足齐次 Robin 条件的轴向特征函数：
+\begin{equation}
+ X_j(z)=\cos(\beta_jz)+\frac{h_f}{k\beta_j}\sin(\beta_jz),\qquad
+ \mathcal N_j=\int_0^L X_j^2(z)\dd z,
+ \label{eq:axialmodes}
+\end{equation}
+其中 $X_j(0)=1$。
+正的轴向波数满足
+\begin{equation}
+ \left(\frac{h_fh_b}{k^2}-\beta_j^2\right)\sin(\beta_jL)
+  +\frac{h_f+h_b}{k}\beta_j\cos(\beta_jL)=0.
+ \label{eq:axialroots}
+\end{equation}
+三维模态的衰减率为
+\begin{equation}
+ d_{mnj}=\alpha(\lambda_{mn}^2+\beta_j^2).
+ \label{eq:rate}
+\end{equation}
+其中 $\alpha=k/(\rho c_p)$。
+径向指标 $n$ 与轴向指标 $j$ 分别刻画独立的空间方向，共同描述横向尺度及厚度尺度上的热扩散。
+
+% para:method-p05
+对于给定的功率时间历程 $g(t)$，向这些轴向特征函数投影可得
+\begin{equation}
+ Z_{mn}(z,t)=\frac{C_{mn}}{\rho c_p}
+ \sum_{j=0}^{\infty}\frac{X_j(z)}{\mathcal N_j}
+ \int_0^t e^{-d_{mnj}(t-s)}g(s)\dd s.
+ \label{eq:convolution}
+\end{equation}
+对于阶跃加热，将稳态部分分离后得到
+\begin{align}
+ Z_{mn}(z,t)&=Z_{mn}^{\rm ss}(z)
+       -\sum_{j=0}^{\infty}B_{mnj}X_j(z)e^{-d_{mnj}t},\label{eq:completion}\\
+ B_{mnj}&=\frac{C_{mn}}{k\mathcal N_j(\lambda_{mn}^2+\beta_j^2)}.\nonumber
+\end{align}
+数值表达式保留 $J$ 个衰减项，同时对每个保留的横向模态保持精确的稳态轴向响应。
+稳态项提供前表面热激励，而衰减修正项满足齐次 Robin 边界条件。
+
+% para:method-p06
+时变温度场仍按式~\eqref{eq:steady} 组装，只需将 $Z_{mn}^{\rm ss}(z)$ 替换为 $Z_{mn}(z,t)$。
+每个指定时刻都通过显式衰减因子进入表达式，因此在完成模态表示的准备后，无需推进中间时间步，即可计算任意附加时刻。
+当 $t\to\infty$ 时，该表达式趋于截断模态对应的稳态解。
+初始时刻按给定条件返回 $\Theta(\mathbf{x},0)=0$；正时间的数值分辨率则单独检查，其中阶跃加热开始附近需要最多的轴向模态。
+
+\subsection{OPD 计算与热模态阶次贡献}\label{sec:thermal-order}
+% para:method-p07
+使用高斯--勒让德求积，对每条有效折射参考光线沿式~\eqref{eq:opd} 积分。
+为确定不同方位角温度分量对透射光学响应的贡献，我们分别计算其对应的 OPD。
+将热模态阶次 $m$ 的温度分量写为 $\Theta_m(r,z,t)\cos(m\phi)$，则有
+\[
+ W_m(x_0,y_0,t)=\frac{\gamma_T}{\cos\theta_t}
+ \int_0^L\Theta_m\bigl(r(z),z,t\bigr)\cos\bigl(m\phi(z)\bigr)\dd z,
+ \qquad W=\sum_m W_m.
+\]
+因此，可沿与完整温度场相同的光路，追踪每个热模态阶次对光学响应的贡献。
+指标 $m$ 表示该分量的热学来源。
+由于斜入射光线上 $r(z)$ 和 $\phi(z)$ 随传播深度变化，$W_m$ 在入射光瞳上的空间结构通常不同于相应的温度分量。
+我们采用 $V_m=\max W_m-\min W_m$ 表示各分量的独立光学幅值；总峰谷值必须先将所有分量相加，再对总场求取。
+
+\section{数值验证与有限元比较}
+\subsection{模态分辨率与采样}
+% para:validation-p01
+数值检查针对后续分析所用的物理量：前、中、后截面的温度、折射光线 OPD，以及 OPD 峰谷值。
+对于 $0^\circ$、$30^\circ$ 和 $60^\circ$，稳态计算采用 $M=6$、$N=8$、$400\times32$ 的热源投影网格和 16 个光线积分点。
+瞬态计算采用 $M=10$、$N=20$、$J=256$、$1200\times128$ 的投影网格和 32 个光线积分点。
+这些设置是以更大规模的有限参考计算为依据、按 $0.1\%$ 的目标选取的；瞬态参数选择还检查温度梯度和近表面深度分辨率。
+补充材料 1 给出了参考计算设置、观测时刻和详细离散方案。
+与加密模态参考以及双倍光线积分点的光学检查相比，各项变化低于 $0.064\%$。
+本文报告的比较量化了这些有限数值分辨率下的结果一致性。
+
+% para:validation-p05
+零初始温度场与长时间极限分别进行检验。
+当采用相同模态分辨率时，在约 $2447$ s 处，瞬态 OPD 峰谷值与稳态值的最大差异为 $7.6\times10^{-5}\%$。
+
+\subsection{独立有限元网格加密验证}
+% para:validation-p02
+有限元法（FEM）使用横向二次三角形形函数和轴向二次单元表示温度。
+有限元模型直接组装高斯前表面热载荷，而不依赖傅里叶--贝塞尔热源投影；材料参数及 Robin 散热条件则保持一致。
+稳态温度检查分别加密横向网格、轴向网格以及二者的组合；在三个入射角下，相对于 $0.1\%$ 的目标，最大变化均低于 $0.081\%$。
+瞬态计算采用一致质量矩阵和变步长二阶向后差分（BDF2）时间积分。
+计算开始时采用一个后向欧拉步；当新时间步长与前一时间步长之比超过 $1.5$ 时，也采用后向欧拉步重新启动该方法。
+横向、轴向、时间及联合温度加密检查所得的变化见表~\ref{tab:refinement}。
+加密判据覆盖 $2.5$ ms 至 $75$ s 的采样时刻。
+补充材料 1 另行保留 $1$ ms 时刻作为早期瞬态诊断。
+补充材料 1 还报告了沿当前折射光路计算的 OPD 在有限元加密下的变化。
+
+\TransientRefinementTable
+
+\subsection{温度场与 OPD 的一致性}
+% para:validation-p03
+对于第 5 节的物理结果比较，稳态场、瞬态场以及各热模态阶次贡献的峰谷值，均在已保存的 $201\times201$ 入射网格上、物理上有效的透射光瞳内按一致方式计算。
+有限元比较使用另一套共同的热学和光学采样网格；补充材料 1 对其进行了说明，包括透射光线有效性条件和有限元边界掩膜。
+在比较 OPD 场时，定义共同光瞳上的去活塞项光程差 $\widetilde W=W-\langle W\rangle$。
+归一化场误差与峰谷值差异定义为
+\begin{equation}
+ E_{W,\infty}=\frac{\max|\widetilde W_{\rm FEM}-\widetilde W_{\rm SA}|}{V_{\rm SA}},\quad
+ E_{W,2}=\frac{\operatorname{rms}(\widetilde W_{\rm FEM}-\widetilde W_{\rm SA})}{V_{\rm SA}},\quad
+ E_V=\frac{|V_{\rm FEM}-V_{\rm SA}|}{V_{\rm SA}}.
+ \label{eq:errors}
+\end{equation}
+上述三个光学指标均以半解析解的峰谷值作为分母。
+温度差异则以参考温度范数归一化；对于早期时刻，为避免将几乎未升温的后表面作为分母，使用了特殊的归一化约定，详见补充材料 1。
+
+% para:validation-p04
+表~\ref{tab:comparison} 量化了有限元加密验证所覆盖时间范围内的光学差异。
+稳态 OPD 峰谷值的最大差异为 $0.00544\%$；在 $2.5$ ms--$75$ s 的采样区间内，瞬态最大差异为 $0.0713\%$。
+相应的瞬态去活塞项 OPD 场最大差异为半解析峰谷值的 $0.0903\%$。
+图~\ref{fig:transientfem} 并列展示了入射角 $60^\circ$ 下 $t=0.625$ s 和 $75$ s 时的半解析与有限元 OPD 场。
+两种方法使用共同光瞳，且每行采用相同的色标范围；成对的场分布图显示，两种方法在这两个时刻的 OPD 空间分布上保持一致。
+补充材料 1 给出了更多数值细节与误差统计汇总，包括单独的 $1$ ms 诊断结果。
+
+\ValidationTable
+
+\begin{figure}[!htbp]
+\centering\CNincludegraphics[width=.90\linewidth]{transient_fem_comparison.pdf}
+\caption{入射角为 $60^\circ$ 时，在 $t=0.625$ s（上排）及 $75$ s（下排）的折射光线 OPD：共同光瞳上的半解析场（左列）与加密候选有限元场（右列）。每行的两个光学场使用相同的色标范围。}
+\label{fig:transientfem}
+\end{figure}
+
+\FloatBarrier
+\clearpage
+\section{结果与讨论}
+\subsection{斜入射下的稳态温度和 OPD}
+% para:results-p01
+图~\ref{fig:steadyfields} 展示了入射角为 $60^\circ$ 时的稳态温度分布和透射 OPD。
+在受热的前表面，温度分布沿入射方向拉长，与椭圆形高斯热载荷的形状相对应。
+从受热前表面向基底内部，随着深度增加，温度分布逐渐变得平缓，中心轴线上的温升逐渐降低。
+前表面、中间截面和后表面的中心温升分别为 $9.303$ K、$6.959$ K 和 $6.314$ K。
+透射 OPD 是沿折射光线对三维温度场进行积分得到的。
+因此，最终的 OPD 分布不仅取决于温度场，还取决于光线在材料内部经过的路径。
+
+\begin{figure}[H]
+\centering\CNincludegraphics[width=.82\linewidth]{representative_steady_60deg.png}
+\caption{$60^\circ$ 入射时的稳态响应：前表面、中间截面和后表面的温升，以及透射基底的热致折射率 OPD。三个温度子图共用温度色标。OPD 子图使用入射坐标，并以采样光瞳内的最小值作为显示基准。物理比较使用网格采样得到的峰谷值；图中标注的连续光瞳估计值仅作为补充。}
+\label{fig:steadyfields}
+\end{figure}
+
+% para:results-p02
+表~\ref{tab:steadyfields} 比较了 $0^\circ$、$30^\circ$ 和 $60^\circ$ 入射时的稳态结果。
+随着入射角增大，前表面中心温升从 $11.921$ K 依次下降至 $11.336$ K 和 $9.303$ K。
+然而，对应的 OPD-PV 分别为 $145.958$、$147.940$ 和 $135.068$ nm。
+虽然 $30^\circ$ 入射时的前表面中心温度低于正入射情况，但其 OPD-PV 反而略高。
+这是因为改变入射角不仅会改变表面的加热分布，还会改变光线在材料内部的传播路径以及有效透射光瞳。
+因此，仅凭前表面中心温度，无法直接预测透射 OPD-PV 的大小。
+
+\SteadyFieldTable
+\FloatBarrier
+
+\subsection{温度和 OPD 的瞬态演化}
+% para:results-p03
+加热开始后，前表面附近的温度首先升高，随后热量逐渐向基底内部扩散。
+在这个过程中，每条透射光线沿途经过的温度不断变化，因此产生的 OPD 也随时间改变。
+图~\ref{fig:evolution} 展示了三个入射角下，前表面中心温升和透射 OPD-PV 的演化过程。
+
+\begin{figure}[htbp]
+\centering\CNincludegraphics[width=.98\linewidth]{transient_evolution.pdf}
+\caption{阶跃加载下的时间演化：（a）三个入射角对应的前表面中心温升；（b）光瞳 OPD 峰谷值。曲线表示在各采样时刻直接进行的模态求值。圆点标示有限参考计算的比较时刻；（b）中的虚线表示各自使用相同模态分辨率得到的稳态极限。}
+\label{fig:evolution}
+\end{figure}
+
+% para:results-p04
+在 $0.625$ s 时，$0^\circ$、$30^\circ$ 和 $60^\circ$ 对应的 OPD-PV 分别为 $13.080$、$12.210$ 和 $8.502$ nm。
+到 $75$ s 时，这些数值增加至 $137.055$、$137.577$ 和 $123.389$ nm。
+此时，三个角度的 OPD-PV 均尚未达到稳态值。
+不同入射角对应的 OPD-PV 大小关系也会随时间变化：早期 $0^\circ$ 的 OPD-PV 高于 $30^\circ$，但后期 $30^\circ$ 的 OPD-PV 反而略高。
+
+% para:results-p05
+这些结果展示了随着热量向基底内部扩散，透射 OPD 是如何逐渐形成的。
+本文的半解析模型可以直接计算各指定时刻的温度和 OPD，而不需要从初始时刻逐步进行时间积分。
+
+\subsection{非轴对称温度分量对透射 OPD 的影响}
+% para:modes-p01
+在斜入射条件下，椭圆形热载荷会产生轴对称和非轴对称温度分量。
+为了研究这些分量对透射 OPD 的影响，我们比较了两种计算结果：一种保留全部温度分量，另一种仅保留轴对称温度分量（$m=0$）。
+两种计算采用完全相同的折射光路和透射光瞳，因此它们之间的差异仅来自被忽略的非轴对称温度分量。
+
+% para:modes-p04
+对于 $t>0$，我们使用去除平均值后的 OPD 均方根差异来衡量两种结果的区别，并用完整 OPD 的 PV 进行归一化：
+\begin{equation}
+ \begin{aligned}
+ E_{\rm nonax}(t)&=
+ \frac{\operatorname{rms}_{\mathcal P_\theta}
+ [\widetilde W(t)-\widetilde W_0(t)]}{V(t)},\\
+ \widetilde W&=W-\langle W\rangle_{\mathcal P_\theta},\qquad
+ \widetilde W_0=W_0-\langle W_0\rangle_{\mathcal P_\theta}.
+ \end{aligned}
+ \label{eq:nonax-omission}
+\end{equation}
+其中，$W$ 是完整 OPD，$W_0$ 是仅保留 $m=0$ 温度分量得到的 OPD。
+均值和 RMS 均在相同的 $201\times201$ 透射光瞳采样点上计算。
+
+% para:modes-p02
+图~\ref{fig:modes} 比较了这两个 OPD 场。
+在正入射条件下，热载荷是轴对称的，因此两种计算得到完全相同的结果。
+但在 $60^\circ$ 入射时，两者出现了比较明显的差异。
+在 $0.625$ s 时，两种计算的 OPD-PV 仅相差 $0.73\%$，但去除平均值后的 RMS 差异已经达到完整 OPD-PV 的 $8.00\%$。
+在 $75$ s 时，这两个指标分别为 $5.85\%$ 和 $5.65\%$。
+这说明，即使两个 OPD 分布具有十分接近的 PV，它们的空间分布仍然可能存在差异。
+
+% para:modes-p03
+还需要注意的是，仅由轴对称温度分量计算得到的 OPD，也不一定关于入口坐标原点轴对称。
+在斜入射条件下，入口位置为 $(x_0,y_0)$ 的光线在基底内部传播时，会经过不同的径向位置：
+\begin{equation}
+ W_0(x_0,y_0,t)=\frac{\gamma_T}{\cos\theta_t}
+ \int_0^L\Theta_0\!\left(
+ \sqrt{x_0^2+(y_0+z\tan\theta_t)^2},z,t\right)\dd z.
+ \label{eq:axisymmetric-thermal-opd}
+\end{equation}
+由于这些采样位置取决于入口位置和折射角，因此轴对称温度场仍可能产生非轴对称的 OPD 分布。
+这一效应在完整模型和简化模型中都存在，因此不属于被忽略的非轴对称温度分量所造成的差异。
+
+% para:modes-p05
+上述比较表明，忽略非轴对称温度分量可能产生仅通过 OPD-PV 难以发现的空间波前误差。
+因此，当我们不仅关心波前畸变的峰谷值，还需要预测波前的空间形状时，保留非轴对称温度分量具有意义。
+
+\begin{figure}[htbp]
+\centering\CNincludegraphics[width=.98\linewidth]{azimuthal_omission.pdf}
+\caption{仅保留轴对称温度分量的影响。$60^\circ$、$75$ s 下：(a) 完整 OPD，(b) 仅由 $m=0$ 温度分量产生的 OPD，(c) 二者去活塞项后的差值。(a)、(b) 使用相同光瞳与色标，十字标记入口坐标原点。(d) 为 $0^\circ$、$30^\circ$ 和 $60^\circ$ 下的 $E_{\rm nonax}$。两种模型均保留指定入射角下的折射光路；$m=0$ 标识温度分量，而非光学场的方位 Fourier 阶次。}
+\label{fig:modes}
+\end{figure}
+
+\begin{samepage}
+\subsection{适用范围与局限性}
+% para:scope-p01
+本方法描述均匀圆柱体内以镀膜吸收为主的加热问题，假定材料性质恒定且表面换热线性。
+本文算例采用单束居中入射光束及固定的折射参考光线，OPD 仅包含基底折射率变化带来的贡献。
+这些假设限定了与有限元法比较的热学和光学物理量。
+对于具体安装条件下的光学元件，应采用适当的接触边界条件和随波长变化的材料参数；表~\ref{tab:parameters} 中的标称热光系数也可以替换，而无需改变线性光学积分方法。
+在热光波前模型中，热膨胀与应力引起的折射率变化属于另外的贡献项 \cite{mansell2001,malacarne2012}。
+表面位移、应力光学效应、镀膜相位以及热致弯曲光线，都需要引入各自相应的力学或光学模型。
+
+\section{结论}
+% para:conclusion-p01
+本文建立了一种傅里叶--贝塞尔半解析模型，用于预测斜入射高斯表面加热下有限圆柱光学元件的稳态与瞬态热致折射率光程差（OPD）。
+该方法考虑非轴对称热载荷分布与有限尺寸热边界条件，并通过沿折射参考光线的积分，将所得三维温度场与透射 OPD 联系起来。
+瞬态解无需时间步进，即可直接求得指定时刻的响应。
+与独立构建的三维有限元解在 $0^\circ$、$30^\circ$ 和 $60^\circ$ 入射角下比较表明，稳态 OPD 峰谷值最大相对差异为 $0.00544\%$，在 $2.5$ ms 至 $75$ s 的瞬态采样区间内最大差异为 $0.0713\%$。
+模态分解量化了轴对称温度近似的光学影响：在 $60^\circ$、$0.625$ s 时，PV 仅改变 $0.73\%$，但去活塞项后的 RMS 场差异达到完整 OPD 峰谷值的 $8.00\%$。
+这一差别将温度场结构和折射光路采样与透射波前联系起来。
+
+\end{samepage}
+\par
+\FloatBarrier
+\IfFileExists{references.tex}{\input{references.tex}}{%
+\begin{thebibliography}{99}
+\bibitem{dobek2022} \textbf{原始文献条目缺失}（引用键：\texttt{dobek2022}；需补充 \texttt{references.tex}）。
+\bibitem{hellovinet1990} \textbf{原始文献条目缺失}（引用键：\texttt{hellovinet1990}；需补充 \texttt{references.tex}）。
+\bibitem{heraeus} \textbf{原始文献条目缺失}（引用键：\texttt{heraeus}；需补充 \texttt{references.tex}）。
+\bibitem{lee2015} \textbf{原始文献条目缺失}（引用键：\texttt{lee2015}；需补充 \texttt{references.tex}）。
+\bibitem{li2024} \textbf{原始文献条目缺失}（引用键：\texttt{li2024}；需补充 \texttt{references.tex}）。
+\bibitem{malacarne2012} \textbf{原始文献条目缺失}（引用键：\texttt{malacarne2012}；需补充 \texttt{references.tex}）。
+\bibitem{malitson1965} \textbf{原始文献条目缺失}（引用键：\texttt{malitson1965}；需补充 \texttt{references.tex}）。
+\bibitem{mansell2001} \textbf{原始文献条目缺失}（引用键：\texttt{mansell2001}；需补充 \texttt{references.tex}）。
+\bibitem{sqp2022} \textbf{原始文献条目缺失}（引用键：\texttt{sqp2022}；需补充 \texttt{references.tex}）。
+\bibitem{vinet2009} \textbf{原始文献条目缺失}（引用键：\texttt{vinet2009}；需补充 \texttt{references.tex}）。
+\end{thebibliography}
+}
+\end{document}

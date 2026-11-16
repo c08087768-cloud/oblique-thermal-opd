@@ -12,12 +12,14 @@
 \input{tables.tex}
 \title{A Fourier--Bessel semi-analytical model for steady and transient thermo-optic response of finite cylindrical optics under oblique Gaussian surface heating}
 \author{Zhongwei Yang, Jing Wen, Wei Li, Tingrui Li, Bohui Chen, and Liang Yang}
-\date{Working draft for author review: 27 October 2026}
+\date{Working draft for author review: 17 November 2026}
 % Author-approved publication-focused rewrite, 27 October 2026.
 % Model authority: author-supplied PHYSICAL_MODEL.md; no physical inputs changed.
 % Numerical provenance: outputs/experiment_audit/20261017T121521368371Z_f107298c.
 % Main transient comparisons use sampled t=0.0025..75 s; 1 ms diagnostics are
-% retained in supplement.tex. No new thermal/FEM calculation was performed.
+% retained in supplement.tex. Historical physical-result fields are preserved.
+% The 17 November 2026 revision adds the completed optical-refinement and
+% steady load-quadrature checks; provenance is in optical_revision_manifest.json.
 % Author follow-up (not a scientific result): historical transient comparison
 % records retain transient_truncation_established=false; separate selection
 % checks pass and aggregate scientific_status=not_run. Do not promote those
@@ -88,7 +90,7 @@ The time-dependent surface heat flux is expressed as $g(t)q_s(x,y)$, where $g(t)
 
 \begin{figure}[htbp]
 \centering\includegraphics[width=.95\linewidth]{fig_physical_model_schematic_final.pdf}
-\caption{Finite cylindrical substrate under oblique Gaussian surface heating. The incident plane is $y$--$z$; coating absorption supplies the front-face heat flux, and all surfaces exchange heat with the environment. The origin lies at the center of the coated front face ($z=0$), with the rear face at $z=L$.}
+\caption{Finite cylindrical substrate under oblique Gaussian surface heating. The incident plane is $y$--$z$; coating absorption supplies the front-face heat flux, and all surfaces exchange heat with the environment. The origin lies at the center of the coated front face ($z=0$), with the rear face at $z=L$. The refracted reference ray propagates toward increasing $y$ and $z$.}
 \label{fig:geometry}
 \end{figure}
 
@@ -131,7 +133,8 @@ The coefficient $\gamma_T$ is the temperature derivative of that fit at the refe
 
 \subsection{Thermo-Optic OPD along Refracted Rays}
 % para:model-p05
-The thermo-refractive OPD is calculated by integrating the temperature-induced refractive-index perturbation along refracted reference rays \cite{hellovinet1990,malacarne2012}.
+The thermo-refractive contribution to OPD is obtained by integrating the temperature-induced refractive-index perturbation \cite{hellovinet1990,malacarne2012}.
+We evaluate this integral along fixed refracted reference rays.
 The reference paths are determined by the unheated refractive indices through Snell's law, $n_i\sin\theta=n_s\sin\theta_t$, where $\theta_t$ is the refracted angle inside the substrate.
 For a ray entering at $(x_0,y_0,0)$, the path is given by
 \begin{equation}
@@ -330,6 +333,7 @@ A backward-Euler step is used at startup and to restart the method whenever the 
 Separate transverse, axial, time, and joint temperature refinements give the changes in Table~\ref{tab:refinement}.
 The refinement criteria cover the sampled times from $2.5$ ms to $75$ s.
 The $1$ ms frame is retained separately as an early-time diagnostic in Supplement 1.
+Supplement 1 also reports optical changes under FEM refinement on the current refracted paths.
 
 \TransientRefinementTable
 
@@ -371,7 +375,7 @@ Supplement 1 provides additional numerical details and summary error statistics,
 % para:results-p01
 Figure~\ref{fig:steadyfields} shows the steady-state temperature and transmitted OPD at an incidence angle of $60^\circ$.
 The temperature distribution near the heated front surface is elongated along the direction of incidence, following the elliptical Gaussian heat load.
-As heat spreads through the substrate, the temperature distribution becomes smoother and the center temperature decreases.
+With increasing depth from the heated front face, the temperature distribution becomes smoother and the centerline temperature rise decreases.
 The center temperature rise is $9.303$ K at the front surface, $6.959$ K at the middle plane, and $6.314$ K at the rear surface.
 The transmitted OPD is obtained by integrating this three-dimensional temperature field along the refracted rays.
 Its distribution therefore depends on both the temperature field and the paths followed by the light.

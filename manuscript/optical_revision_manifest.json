@@ -28,8 +28,8 @@
   },
   "scope": {
     "historical_thermal_refinement": "unchanged thermal problem; temperature metrics only",
-    "current_optical_checks": "finite-reference SA checks plus independently assembled FEM method-to-method comparison",
-    "new_fem_optical_refinement_certificate": "not claimed",
+    "current_optical_checks": "Finite-reference SA checks, FEM cross-method comparison and separately recorded derived saved-node FEM optical-refinement checks; two completed steady Q10-to-Q14 front-load quadrature checks.",
+    "new_fem_optical_refinement_certificate": "No standard-loader-compatible full certificate claimed; derived finite-sampling optical evidence is recorded separately.",
     "zero_angle": "exact positive scaling of historical optical fields"
   },
   "historical_input_sha256": {
@@ -93,7 +93,7 @@
     "manuscript/working/build_supplement_data.py": "c54a26ba446f9cb4dddba15531bf12f57c4d9a6e48bf0e3b2f3e788c2f47b220"
   },
   "referenced_figure_sha256": {
-    "fig_physical_model_schematic_final.pdf": "39ffd1389296c7d64e7c8747d7051a102b9bd1ad1cbcd743b7a7c072b1f4e103",
+    "fig_physical_model_schematic_final.pdf": "6c594ccb997e8c5fb346f54c525e07db043ff56b5dfdddfc8776c01291ff6bee",
     "transient_fem_comparison.pdf": "e0aadb3a71ab23d0bc57f09eac8552816f826676715707d5c9973958e3eecb59",
     "representative_steady_60deg.png": "5d5e9b46f34ae79c7d1295a8cbc953526be322e7c979824afb8b4b04c0b79ab8",
     "transient_evolution.pdf": "26179db4f70464fbc11750a54be776633102fd64939bb1986d13ed186e4d7a86",
@@ -102,52 +102,62 @@
     "steady_fem_comparison.png": "f1646bdfd2f85da7fd33a86fcd1746fb3abe0f338d0d0dbb2f15b4b0bd9c6b1c"
   },
   "manuscript_source_sha256": {
-    "main.tex": "8eddacc5817808b13eef3f2aee04dfb6ea944c8b54760f0d3eb37e71cb263da5",
+    "main.tex": "7768728ba7b546a75e0c68ee9b74c3b00d933f2b722292845ac21d94757bac78",
     "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
-    "supplement.tex": "bd9b7e8ebce401ed9d1d7ab6fbfba470e4bfb17679060b7bc3681f3ba6f4d7a6",
-    "references.tex": "83622befce194a8f0a78affe644643c1791428f5d120dba721654193d3814a2d",
-    "supplement_zh.tex": "8880f2b20f43acdf2e25b0cce7f53a282470b7e4f719d3a9a017e46064c92455"
+    "supplement.tex": "77e08cc6b010c21d5ad5e128e27f76dcef6c251efc6c16ab7775ab8b70819266",
+    "references.tex": "42902f53cb5232afc13e8811eb170c305b8bbcb2daf0a8bc36d815edbe6dfa31",
+    "supplement_zh.tex": "3e8de63ab03bc83f576154150314e5caaa3a790d5810b1a525697a622d146ca5",
+    "main_zh.tex": "818bc3465c2f2e88312bd26c1cb36f68ec700f24c93346d520585766c3f91830"
   },
   "final_validation": {
+    "date": "2026-11-17",
     "compilations": {
       "main": {
         "pages": 13,
         "compiled": true,
         "unresolved_references": 0,
+        "duplicate_labels": 0,
         "overfull_boxes": 0,
         "underfull_notices": 3,
-        "pdf_sha256": "15a96cfde7c639b86e7692dc7e5b780dff718b4a38639f3ea26f994df47bc47a"
+        "warnings": [],
+        "pdf_sha256": "09634b460dec0331b6c75aa946989e99985c3f08fc5af742553a9171a81a3e54"
       },
       "main_zh": {
         "pages": 13,
         "compiled": true,
         "unresolved_references": 0,
+        "duplicate_labels": 0,
         "overfull_boxes": 0,
-        "underfull_notices": 3,
-        "pdf_sha256": "32c9289b64e4185fc7d7b7d58c475de67e68a2eddbd6e1bfd5701b8d3aeca70e"
+        "underfull_notices": 4,
+        "warnings": [],
+        "pdf_sha256": "cb6bf08fc11ac71d82173098146cd32cf4a3f44d8c84365067fcdbc7bad65d6c"
       },
       "supplement": {
-        "pages": 5,
+        "pages": 6,
         "compiled": true,
         "unresolved_references": 0,
+        "duplicate_labels": 0,
         "overfull_boxes": 0,
         "underfull_notices": 0,
-        "pdf_sha256": "842202d2c410ed493e89a5720cd41c48e9f0be33119fa63f3bf55842129fde0f"
+        "warnings": [],
+        "pdf_sha256": "f2c3380f68eac333c14367fc6a1d877a4e1e4b3dbf8c7968c4f457f4c4b54c70"
       },
       "supplement_zh": {
-        "pages": 5,
+        "pages": 6,
         "compiled": true,
         "unresolved_references": 0,
+        "duplicate_labels": 0,
         "overfull_boxes": 0,
         "underfull_notices": 0,
-        "pdf_sha256": "43e647bb33a0989751d5c6489771b808a673e1c53d349b1a200ca3e460ae591a"
+        "warnings": [],
+        "pdf_sha256": "e8859eb0e0764e7b5ff12f8aba2d53c9727519e50418f49185abd15934cbe765"
       }
     },
-    "targeted_core_tests": "65 passed",
-    "linux_fem_material_controls": "33 passed before production",
-    "independent_scientific_review": "passed; source arrays independently checked",
-    "visual_review": "All EN/CN pages inspected; prose-revised pages9--11 inspected individually after final compilation",
-    "scope": "temperature FEM refinement retained; current SA optical convergence and FEM cross-method comparison; no new full FEM optical refinement certificate claimed"
+    "build_procedure": "Two pdflatex passes for EN and two xelatex passes for CN, from manuscript/, in isolated temporary output directory; active PDFs copied only after inspection.",
+    "retrieval_consistency": "105 exported numeric cells independently compared with saved source records; thresholds, nine-time maxima, exclusion of 1 ms diagnostics and 17 input/producer hashes checked.",
+    "export_controls": "Known percent conversion and zero cases pass; deliberate early-diagnostic control and eight corrupted inputs pass rejection controls.",
+    "visual_review": "All 38 EN/CN pages inspected in rendered montages; corrected Figure 1 and EN/CN supplement page 5 inspected at larger size. No clipped content or overlaps observed.",
+    "scope": "Document integration and saved-record consistency only. Historical solver tests were not repeated for this revision; no new independent numerical-method or experimental validation is claimed."
   },
   "prose_revision": {
     "date": "2026-11-03",
@@ -165,7 +175,14 @@
     "manuscript/data/supplement_details/sa_checks.csv": "55d3438bdb6ae5213e2478ee7bda0c0e03d1927822ffb0d0cf328809ae4c7027",
     "manuscript/data/supplement_details/sa_checks.tex": "daf0a7bb78ac2ede7430b8274c4cf0d39b742695c363cd2d56915f0488f65bb9",
     "manuscript/data/supplement_details/time_comparison.csv": "90351e0fbc2a54fae7526cf112fcce9acfce62090c86714606619f22db374e3b",
-    "manuscript/data/supplement_details/time_comparison.tex": "9bfdf412517a8f96933f1630ecda88b1c09e54ca8892b5f368a4d2de10f437df"
+    "manuscript/data/supplement_details/time_comparison.tex": "9bfdf412517a8f96933f1630ecda88b1c09e54ca8892b5f368a4d2de10f437df",
+    "manuscript/data/supplement_details/fem_optical_load_quadrature.csv": "1c7188138ea57af146bba540e153c0a286a3d9bc48c1e60ebe225f83171ada9c",
+    "manuscript/data/supplement_details/fem_optical_refinement_provenance.json": "801e85c323df1dbc8c82e3f1a87195fb21d0ddbe824d6c78fdfe5c38ad594054",
+    "manuscript/data/supplement_details/fem_optical_steady.csv": "03e50d31587b1edc683e505fa9fab7afa3d0a8924d8cdacb0a0d5d494df0a6b6",
+    "manuscript/data/supplement_details/fem_optical_steady.tex": "e042bc56bc1e132c8b61e76b808792a28db293185ab60229da1d26f2a08c5734",
+    "manuscript/data/supplement_details/fem_optical_transient.csv": "c25f30095c7ef597422cd4da4c6aa39b7decd5315cde39aecea1bfb832bef6e3",
+    "manuscript/data/supplement_details/fem_optical_transient.tex": "22c48ab8a1a0da12b435d516e22a68d28d3f5ecd54fe2110a3380b54b2ee3ed3",
+    "manuscript/data/supplement_details/fem_optical_transient_timeseries.csv": "d6cca420055f84858b3ef003a08dc5d43a4e8e189a8819790a7a54281b9d7af7"
   },
   "supplement_revision": {
     "date": "2026-11-03",
@@ -192,5 +209,108 @@
     "source_data": "unchanged",
     "narrative": "EN/CN captions, surrounding prose and Chinese Markdown updated",
     "validation": "EN/CN five-page PDFs compile without unresolved references; final figure pages visually inspected"
+  },
+  "validation_history": [
+    {
+      "recorded_revision": "2026-11-03",
+      "final_validation": {
+        "compilations": {
+          "main": {
+            "pages": 13,
+            "compiled": true,
+            "unresolved_references": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 3,
+            "pdf_sha256": "15a96cfde7c639b86e7692dc7e5b780dff718b4a38639f3ea26f994df47bc47a"
+          },
+          "main_zh": {
+            "pages": 13,
+            "compiled": true,
+            "unresolved_references": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 3,
+            "pdf_sha256": "32c9289b64e4185fc7d7b7d58c475de67e68a2eddbd6e1bfd5701b8d3aeca70e"
+          },
+          "supplement": {
+            "pages": 5,
+            "compiled": true,
+            "unresolved_references": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 0,
+            "pdf_sha256": "842202d2c410ed493e89a5720cd41c48e9f0be33119fa63f3bf55842129fde0f"
+          },
+          "supplement_zh": {
+            "pages": 5,
+            "compiled": true,
+            "unresolved_references": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 0,
+            "pdf_sha256": "43e647bb33a0989751d5c6489771b808a673e1c53d349b1a200ca3e460ae591a"
+          }
+        },
+        "targeted_core_tests": "65 passed",
+        "linux_fem_material_controls": "33 passed before production",
+        "independent_scientific_review": "passed; source arrays independently checked",
+        "visual_review": "All EN/CN pages inspected; prose-revised pages9--11 inspected individually after final compilation",
+        "scope": "temperature FEM refinement retained; current SA optical convergence and FEM cross-method comparison; no new full FEM optical refinement certificate claimed"
+      },
+      "manuscript_source_sha256": {
+        "main.tex": "7768728ba7b546a75e0c68ee9b74c3b00d933f2b722292845ac21d94757bac78",
+        "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
+        "supplement.tex": "77e08cc6b010c21d5ad5e128e27f76dcef6c251efc6c16ab7775ab8b70819266",
+        "references.tex": "42902f53cb5232afc13e8811eb170c305b8bbcb2daf0a8bc36d815edbe6dfa31",
+        "supplement_zh.tex": "3e8de63ab03bc83f576154150314e5caaa3a790d5810b1a525697a622d146ca5",
+        "main_zh.tex": "818bc3465c2f2e88312bd26c1cb36f68ec700f24c93346d520585766c3f91830"
+      },
+      "referenced_figure_sha256": {
+        "fig_physical_model_schematic_final.pdf": "6c594ccb997e8c5fb346f54c525e07db043ff56b5dfdddfc8776c01291ff6bee",
+        "transient_fem_comparison.pdf": "e0aadb3a71ab23d0bc57f09eac8552816f826676715707d5c9973958e3eecb59",
+        "representative_steady_60deg.png": "5d5e9b46f34ae79c7d1295a8cbc953526be322e7c979824afb8b4b04c0b79ab8",
+        "transient_evolution.pdf": "26179db4f70464fbc11750a54be776633102fd64939bb1986d13ed186e4d7a86",
+        "azimuthal_omission.pdf": "b3d7e1fe3ec4618e11a97305ee6358d8c238e44685e529ecfc35657a7fe150a9",
+        "supp_transient_fem_refinement.pdf": "877860c9cb2f2fccb17190a716ac73fc82750a7f0cca56204bb732d700dc6dec",
+        "steady_fem_comparison.png": "f1646bdfd2f85da7fd33a86fcd1746fb3abe0f338d0d0dbb2f15b4b0bd9c6b1c"
+      },
+      "supplement_data_sha256": {
+        "manuscript/data/supplement_details/fem_configuration_source.json": "feb481d4cce756f16e558f3b90037c5e466f0033cb1c07e8559ea389a436723d",
+        "manuscript/data/supplement_details/provenance.json": "168ee75e0ccb241e36745e0d6cf2c1ed1dc5df06ddd23ef2206da68b27c7b7d1",
+        "manuscript/data/supplement_details/pupil_pv.csv": "091ae24ab612c2e25b4e0fc80a24806fe4f8ec0b2941b10121deaab9730df1e8",
+        "manuscript/data/supplement_details/pupil_pv.tex": "86e671bfbca92b653a8b94098ccc31a7c30cf9fa08df8f40e856698b9b93ed6b",
+        "manuscript/data/supplement_details/sa_checks.csv": "55d3438bdb6ae5213e2478ee7bda0c0e03d1927822ffb0d0cf328809ae4c7027",
+        "manuscript/data/supplement_details/sa_checks.tex": "daf0a7bb78ac2ede7430b8274c4cf0d39b742695c363cd2d56915f0488f65bb9",
+        "manuscript/data/supplement_details/time_comparison.csv": "90351e0fbc2a54fae7526cf112fcce9acfce62090c86714606619f22db374e3b",
+        "manuscript/data/supplement_details/time_comparison.tex": "9bfdf412517a8f96933f1630ecda88b1c09e54ca8892b5f368a4d2de10f437df",
+        "manuscript/data/supplement_details/fem_optical_load_quadrature.csv": "1c7188138ea57af146bba540e153c0a286a3d9bc48c1e60ebe225f83171ada9c",
+        "manuscript/data/supplement_details/fem_optical_refinement_provenance.json": "801e85c323df1dbc8c82e3f1a87195fb21d0ddbe824d6c78fdfe5c38ad594054",
+        "manuscript/data/supplement_details/fem_optical_steady.csv": "03e50d31587b1edc683e505fa9fab7afa3d0a8924d8cdacb0a0d5d494df0a6b6",
+        "manuscript/data/supplement_details/fem_optical_steady.tex": "e042bc56bc1e132c8b61e76b808792a28db293185ab60229da1d26f2a08c5734",
+        "manuscript/data/supplement_details/fem_optical_transient.csv": "c25f30095c7ef597422cd4da4c6aa39b7decd5315cde39aecea1bfb832bef6e3",
+        "manuscript/data/supplement_details/fem_optical_transient.tex": "22c48ab8a1a0da12b435d516e22a68d28d3f5ecd54fe2110a3380b54b2ee3ed3",
+        "manuscript/data/supplement_details/fem_optical_transient_timeseries.csv": "d6cca420055f84858b3ef003a08dc5d43a4e8e189a8819790a7a54281b9d7af7"
+      }
+    }
+  ],
+  "current_presentation_source_sha256": {
+    "manuscript/working/build_supplement_data.py": "559985536adf360734ab33a607c9c8f54f8429eb3833721714681dfe67fa1ff4",
+    "manuscript/working/build_physical_model_schematic.py": "9255e8c990b8816145f328f73bb4dbdffbd96b6606d33439e20d1c1af77ab031"
+  },
+  "audit_revision_20261117": {
+    "authorization": "按你建议的全部修改",
+    "date": "2026-11-17",
+    "changes": [
+      "Correct Figure 1 ray direction to increasing y and z, preserving formulas.",
+      "Clarify steady centerline temperature decrease with depth.",
+      "Separate foundational temperature/index integration citations from present refracted reference-ray evaluation.",
+      "Add EN/CN FEM optical tables S6/S7 and load-quadrature sensitivity paragraph; former pupil table becomes S8.",
+      "Rebuild current EN/CN main and supplement PDFs and refresh artifact/source hashes."
+    ],
+    "equations_physical_inputs_main_results_conclusions": "unchanged",
+    "solver_code_and_launch_profiles": "unchanged; smoke/fields/full profiles retained",
+    "new_calculations_this_document_revision": "none; the two steady load checks and archived-field re-evaluations were already completed before integration",
+    "completion_run": "outputs/optical_completion/20261116T205530Z_ab7d2d6",
+    "completion_archive_sha256": "165cf662eb53d63ebdad02e88c067f0322013a565d9d188816d78fe81f034bb6",
+    "derived_evidence_provenance": "manuscript/data/supplement_details/fem_optical_refinement_provenance.json",
+    "tracked_chinese_source": "main_zh.tex and its current PDF are included to keep the bilingual deliverable reproducible",
+    "historical_computation_hashes": "computation_and_presentation_source_sha256 is retained as a historical computation snapshot; current presentation hashes are separate"
   }
 }

@@ -12,6 +12,8 @@
 \newcommand{\SteadyCheck}{Steady modes}
 \newcommand{\TransientCheck}{Transient modes}
 \newcommand{\RayCheck}{Transient ray points}
+\newcommand{\JointRefinement}{Joint}
+\newcommand{\TimeRefinement}{Time}
 \title{Supplement 1: Additional numerical results for the Fourier--Bessel model of obliquely heated cylindrical optics}
 \author{Zhongwei Yang, Jing Wen, Wei Li, Tingrui Li, Bohui Chen, and Liang Yang}
 \date{}
@@ -131,6 +133,47 @@ Filled points cover $0.0025$--$75$ s; the unconnected open points are the $0.001
 The dashed and dotted lines are the $0.5\%$ spatial/joint and $0.1\%$ time-step targets, respectively.}
 \label{fig:supp-fem-refinement}
 \end{figure}
+\FloatBarrier
+
+\subsection*{FEM optical refinement checks}
+Tables~\ref{tab:supp-fem-optical-steady} and~\ref{tab:supp-fem-optical-transient} give the optical changes evaluated from the archived FEM nodal temperatures with the current optical parameters.
+The XY and Z comparisons refine only the transverse and axial meshes, respectively, as specified in Table~\ref{tab:supp-fem-settings}.
+The transient time comparison halves the time step, and its joint comparison refines both meshes and the time step.
+The steady joint comparison refines both meshes.
+These optical evaluations reuse completed thermal solutions; no additional transient thermal solves enter these tables.
+The comparisons use a common transmitted pupil selected from a $101\times101$ Cartesian entrance grid.
+
+The PV column is the absolute difference of the two OPD-PV values divided by the corresponding refined FEM OPD-PV.
+The RMS/PV and maximum/PV columns use the RMS and maximum absolute differences between the separately piston-removed OPD fields, with the same refined FEM PV denominator.
+Thus, their denominator differs from the semi-analytical denominator in Table~\ref{tab:supp-comparison}.
+The original targets are $0.1\%$ for steady refinement, $0.5\%$ for transient spatial and joint refinement, and $0.1\%$ for transient time refinement; every listed metric meets its applicable target.
+For transient comparisons, each metric is maximized separately over the nine recorded times from $0.0025$ to $75$ s.
+The $0.001$ s diagnostic values are listed separately and excluded from those maxima and targets.
+Changes below $10^{-5}\%$ are displayed as upper bounds to avoid attributing accuracy to numerically negligible differences.
+
+\begin{table}[!htbp]\centering\small
+\caption{Steady FEM optical changes under XY, Z, and joint spatial refinement (\%). The target is $0.1\%$ for all three metrics.}\label{tab:supp-fem-optical-steady}
+\begin{tabular}{clrrr}\toprule
+$\theta$ & Refinement & PV & RMS/PV & Maximum/PV\\\midrule
+\input{data/supplement_details/fem_optical_steady.tex}
+\end{tabular}
+\end{table}
+
+\begin{table}[!htbp]\centering\scriptsize
+\setlength{\tabcolsep}{4pt}
+\caption{Transient FEM optical changes (\%). The left group contains separate maxima over $0.0025$--$75$ s; the right group contains only the $0.001$ s diagnostics. XY, Z, and joint targets are $0.5\%$; the time-step target is $0.1\%$.}\label{tab:supp-fem-optical-transient}
+\begin{tabular}{clrrrrrr}\toprule
+ & & \multicolumn{3}{c}{Maxima, $0.0025$--$75$ s} & \multicolumn{3}{c}{$0.001$ s diagnostics}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+$\theta$ & Refinement & PV & RMS/PV & Maximum/PV & PV & RMS/PV & Maximum/PV\\\midrule
+\input{data/supplement_details/fem_optical_transient.tex}
+\end{tabular}
+\end{table}
+
+Separate completed steady calculations at $30^\circ$ and $60^\circ$ increased the front-load quadrature order from $10$ to $14$ on the finest steady mesh.
+The PV, piston-removed RMS/PV, and maximum/PV changes were all below $10^{-8}\%$, compared with the $0.01\%$ target, using the baseline order-$10$ FEM PV as denominator.
+These small differences establish sensitivity to this quadrature change only.
+These comparisons quantify numerical sensitivity on the stated finite pupil and time samples; they do not establish an error bound relative to an exact solution or experimental validation.
 \FloatBarrier
 
 \section{Additional OPD values and steady field comparison}
