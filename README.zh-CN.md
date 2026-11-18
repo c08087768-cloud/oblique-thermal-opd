@@ -75,8 +75,12 @@ smoke 批次运行软件测试、均匀热流下的独立有限元基准，以�
 
 实验脚本根据输入生成热载荷、网格和采样点。上述流程无需设置随机种子或准备外部输入数据集。单项实验在 `config.json` 中记录设置和来源信息，在 `verification.json` 中记录科学检查。 [运行元数据](src/thermal_opd/run_io.py)
 
+模态热源准备要求有效表面换热系数为正。全绝热情况需要尚未实现的轴对称径向零模态，程序会明确拒绝这类输入。
+
 ## 已记录结果与数据
 
 60° 半解析算例在入口平面上对能到达后表面的光线取样，得到 OPD 峰谷值 **135.07 nm**。稳态算例复现了表中数值，保存文件完整性为 `PASS`，科学汇总状态为 `not_run`。另有有限参考检查记录了 0°、30° 和 60° 下的差异。 [稳态 OPD 表](manuscript/data/supplement_details/pupil_pv.csv) · [半解析检查表](manuscript/data/supplement_details/sa_checks.csv)
 
-仓库收录了部分随稿表格和派生光学数据。Git 忽略 `outputs/` 下生成的运行目录。对于更新后的光学模型，清单记录了半解析参考检查和与有限元的对照。更新后光学量的有限元网格加密验证超出了这批证据的范围。 [派生光学数据](manuscript/data/optical_update_20261103/) · [光学修订清单](manuscript/optical_revision_manifest.json)
+仓库收录了部分随稿表格和派生光学数据。Git 忽略 `outputs/` 下生成的运行目录。对于更新后的光学模型，清单记录了半解析参考检查和与有限元的对照。11 月 17 日的更新还包括当前折射光路下的有限元光学加密检查，以及稳态前表面热载荷积分检查。这些检查复用了存档温度解，量化的是有限分辨率下的数值敏感性，不代表实验验证或标准加载器支持的完整科学验收。[有限元光学加密证据](manuscript/data/supplement_details/fem_optical_refinement_provenance.json) [派生光学数据](manuscript/data/optical_update_20261103/) · [光学修订清单](manuscript/optical_revision_manifest.json)
+
+已纳入版本管理的三个 `manuscript/data/theta*_history.csv` 文件保留光学重建所用的历史时间网格和温度绘图值。其中旧光学列不代表当前统一材料参数下的结果。详见[输入范围和复现说明](manuscript/data/README.md)。

@@ -11,7 +11,7 @@ from thermal_opd.parameters import PhysicalParameters
 
 ROOT=Path(__file__).resolve().parents[1]
 FIXTURES=Path(__file__).with_name('fixtures')
-REPORTS=json.loads((FIXTURES/'validation_reports_before.json').read_text())
+REPORTS=json.loads((FIXTURES/'validation_reports_before.json').read_text(encoding='utf-8'))
 
 
 def stable(value):
@@ -54,7 +54,7 @@ def test_scientific_reports_match_the_captured_pre_refactor_behavior(case):
 def test_pde_residuals_match_the_original_shared_implementation_exactly():
     from thermal_opd.steady_validation import steady_pde_residual
     from thermal_opd.transient_validation import transient_pde_residual
-    baseline=json.loads((FIXTURES/'pde_residuals_before.json').read_text())
+    baseline=json.loads((FIXTURES/'pde_residuals_before.json').read_text(encoding='utf-8'))
     p=replace(PhysicalParameters(),radius=1.,thickness=1.,conductivity=1.,density=2.,specific_heat=3.)
     r,phi,z=np.array([.2,.5]),np.array([.1,1.2]),np.array([.3,.6])
     steady=lambda r,phi,z:r*r+z*z+np.sin(phi)
@@ -97,7 +97,7 @@ def test_io_does_not_import_scientific_validation_to_create_metadata(tmp_path,mo
         return original(name,*args,**kwargs)
     monkeypatch.setattr(builtins,'__import__',guarded)
     directory=create_run(tmp_path,'example')
-    assert json.loads((directory/'verification.json').read_text())['status']=='not_run'
+    assert json.loads((directory/'verification.json').read_text(encoding='utf-8'))['status']=='not_run'
 
 
 def test_obsolete_modules_are_removed_without_reexport_wrappers():

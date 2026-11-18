@@ -24,9 +24,9 @@ def save_temperature_opd_figure(path,r,phi,temperature,x,y,mask,opd,*,title,pv_m
         fig.colorbar(contour,ax=ax,label='Temperature rise [K]',shrink=.85)
     optical = np.where(mask,(opd-np.min(opd[mask]))*1e9,np.nan)
     contour = axes.flat[-1].contourf(x*1e3,y*1e3,optical,levels=61,cmap='viridis')
-    optical_title = f'OPD: sampled PV={pv_m*1e9:.4f} nm'
+    optical_title = f'OPD PV [nm]\nSampled: {pv_m*1e9:.4f}'
     if continuous_pv_m is not None:
-        optical_title += f'\nContinuous PV={continuous_pv_m*1e9:.4f} nm'
+        optical_title += f'\nContinuous: {continuous_pv_m*1e9:.4f}'
     axes.flat[-1].set_title(optical_title)
     fig.colorbar(contour,ax=axes.flat[-1],label='OPD minus aperture minimum [nm]',shrink=.85)
     for ax in axes.flat:

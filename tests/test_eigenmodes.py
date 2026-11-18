@@ -78,3 +78,8 @@ def test_eigenvalues_satisfy_robin_boundary_condition():
     ]
 
     assert np.allclose(residuals, 0.0, atol=1e-8)
+
+
+def test_axisymmetric_insulated_roots_require_zero_mode_support():
+    with pytest.raises(ValueError, match='zero mode'):
+        radial_eigenvalues(0, RADIUS, CONDUCTIVITY, 0., num_modes=3)
