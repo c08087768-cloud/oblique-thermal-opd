@@ -1,0 +1,4 @@
+# Preserve exact bytes of archived manuscript inputs on every platform.
+manuscript/data/theta0_history.csv -text whitespace=cr-at-eol
+manuscript/data/theta30_history.csv -text whitespace=cr-at-eol
+manuscript/data/theta60_history.csv -text whitespace=cr-at-eol

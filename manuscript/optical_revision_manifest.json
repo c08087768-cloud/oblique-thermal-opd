@@ -95,7 +95,7 @@
   "referenced_figure_sha256": {
     "fig_physical_model_schematic_final.pdf": "6c594ccb997e8c5fb346f54c525e07db043ff56b5dfdddfc8776c01291ff6bee",
     "transient_fem_comparison.pdf": "e0aadb3a71ab23d0bc57f09eac8552816f826676715707d5c9973958e3eecb59",
-    "representative_steady_60deg.png": "5d5e9b46f34ae79c7d1295a8cbc953526be322e7c979824afb8b4b04c0b79ab8",
+    "representative_steady_60deg.png": "683b5dc0fd3c63f9fd8af25ef7abe809259be35f535ccc131490576723b6ec61",
     "transient_evolution.pdf": "26179db4f70464fbc11750a54be776633102fd64939bb1986d13ed186e4d7a86",
     "azimuthal_omission.pdf": "b3d7e1fe3ec4618e11a97305ee6358d8c238e44685e529ecfc35657a7fe150a9",
     "supp_transient_fem_refinement.pdf": "877860c9cb2f2fccb17190a716ac73fc82750a7f0cca56204bb732d700dc6dec",
@@ -110,7 +110,7 @@
     "main_zh.tex": "818bc3465c2f2e88312bd26c1cb36f68ec700f24c93346d520585766c3f91830"
   },
   "final_validation": {
-    "date": "2026-11-17",
+    "date": "2026-11-18",
     "compilations": {
       "main": {
         "pages": 13,
@@ -120,7 +120,8 @@
         "overfull_boxes": 0,
         "underfull_notices": 3,
         "warnings": [],
-        "pdf_sha256": "09634b460dec0331b6c75aa946989e99985c3f08fc5af742553a9171a81a3e54"
+        "pdf_sha256": "fcaff89a5453a607b3a34e840b4cfeb84661b45c402ac4ef1b639269e06a3279",
+        "pdf_path": "manuscript/main.pdf"
       },
       "main_zh": {
         "pages": 13,
@@ -130,7 +131,8 @@
         "overfull_boxes": 0,
         "underfull_notices": 4,
         "warnings": [],
-        "pdf_sha256": "cb6bf08fc11ac71d82173098146cd32cf4a3f44d8c84365067fcdbc7bad65d6c"
+        "pdf_sha256": "e971171010e25639ce5325eb7033b97a06e6a4dc7f3889ad8b1542d1c869d9c9",
+        "pdf_path": "manuscript/main_zh.pdf"
       },
       "supplement": {
         "pages": 6,
@@ -140,7 +142,8 @@
         "overfull_boxes": 0,
         "underfull_notices": 0,
         "warnings": [],
-        "pdf_sha256": "f2c3380f68eac333c14367fc6a1d877a4e1e4b3dbf8c7968c4f457f4c4b54c70"
+        "pdf_sha256": "f2c3380f68eac333c14367fc6a1d877a4e1e4b3dbf8c7968c4f457f4c4b54c70",
+        "reused_unchanged_for_20261118": true
       },
       "supplement_zh": {
         "pages": 6,
@@ -150,14 +153,17 @@
         "overfull_boxes": 0,
         "underfull_notices": 0,
         "warnings": [],
-        "pdf_sha256": "e8859eb0e0764e7b5ff12f8aba2d53c9727519e50418f49185abd15934cbe765"
+        "pdf_sha256": "e8859eb0e0764e7b5ff12f8aba2d53c9727519e50418f49185abd15934cbe765",
+        "reused_unchanged_for_20261118": true
       }
     },
-    "build_procedure": "Two pdflatex passes for EN and two xelatex passes for CN, from manuscript/, in isolated temporary output directory; active PDFs copied only after inspection.",
+    "build_procedure": "Two pdflatex passes for EN main and two xelatex passes for CN main in isolated tmp/review-fixes-20261118/latex. Updated PDFs copied after inspection. Supplements and their PDFs reused unchanged.",
     "retrieval_consistency": "105 exported numeric cells independently compared with saved source records; thresholds, nine-time maxima, exclusion of 1 ms diagnostics and 17 input/producer hashes checked.",
     "export_controls": "Known percent conversion and zero cases pass; deliberate early-diagnostic control and eight corrupted inputs pass rejection controls.",
-    "visual_review": "All 38 EN/CN pages inspected in rendered montages; corrected Figure 1 and EN/CN supplement page 5 inspected at larger size. No clipped content or overlaps observed.",
-    "scope": "Document integration and saved-record consistency only. Historical solver tests were not repeated for this revision; no new independent numerical-method or experimental validation is claimed."
+    "visual_review": "All 26 updated EN/CN main pages inspected in rendered montages; Figure 3 inspected separately. No overlap or clipping observed in updated figure.",
+    "scope": "Figure-title presentation, input availability, and software fixes only. Main/supplement/table/reference TeX files byte-identical to 17 November. Original and revised PDF extracted text identical. No complete thermal or optical numerical campaign was rerun.",
+    "targeted_core_tests": "73 passed; later 40 relevant plotting/interface/report tests passed",
+    "software_tests": "402 passed, 2 Windows wider-precision skips, 0 errors/failures; default Python text encoding, pytest 8.4.1"
   },
   "prose_revision": {
     "date": "2026-11-03",
@@ -288,11 +294,65 @@
         "manuscript/data/supplement_details/fem_optical_transient.tex": "22c48ab8a1a0da12b435d516e22a68d28d3f5ecd54fe2110a3380b54b2ee3ed3",
         "manuscript/data/supplement_details/fem_optical_transient_timeseries.csv": "d6cca420055f84858b3ef003a08dc5d43a4e8e189a8819790a7a54281b9d7af7"
       }
+    },
+    {
+      "recorded_revision": "2026-11-17",
+      "final_validation": {
+        "date": "2026-11-17",
+        "compilations": {
+          "main": {
+            "pages": 13,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 3,
+            "warnings": [],
+            "pdf_sha256": "09634b460dec0331b6c75aa946989e99985c3f08fc5af742553a9171a81a3e54"
+          },
+          "main_zh": {
+            "pages": 13,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 4,
+            "warnings": [],
+            "pdf_sha256": "cb6bf08fc11ac71d82173098146cd32cf4a3f44d8c84365067fcdbc7bad65d6c"
+          },
+          "supplement": {
+            "pages": 6,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 0,
+            "warnings": [],
+            "pdf_sha256": "f2c3380f68eac333c14367fc6a1d877a4e1e4b3dbf8c7968c4f457f4c4b54c70"
+          },
+          "supplement_zh": {
+            "pages": 6,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 0,
+            "warnings": [],
+            "pdf_sha256": "e8859eb0e0764e7b5ff12f8aba2d53c9727519e50418f49185abd15934cbe765"
+          }
+        },
+        "build_procedure": "Two pdflatex passes for EN and two xelatex passes for CN, from manuscript/, in isolated temporary output directory; active PDFs copied only after inspection.",
+        "retrieval_consistency": "105 exported numeric cells independently compared with saved source records; thresholds, nine-time maxima, exclusion of 1 ms diagnostics and 17 input/producer hashes checked.",
+        "export_controls": "Known percent conversion and zero cases pass; deliberate early-diagnostic control and eight corrupted inputs pass rejection controls.",
+        "visual_review": "All 38 EN/CN pages inspected in rendered montages; corrected Figure 1 and EN/CN supplement page 5 inspected at larger size. No clipped content or overlaps observed.",
+        "scope": "Document integration and saved-record consistency only. Historical solver tests were not repeated for this revision; no new independent numerical-method or experimental validation is claimed."
+      }
     }
   ],
   "current_presentation_source_sha256": {
     "manuscript/working/build_supplement_data.py": "559985536adf360734ab33a607c9c8f54f8429eb3833721714681dfe67fa1ff4",
-    "manuscript/working/build_physical_model_schematic.py": "9255e8c990b8816145f328f73bb4dbdffbd96b6606d33439e20d1c1af77ab031"
+    "manuscript/working/build_physical_model_schematic.py": "9255e8c990b8816145f328f73bb4dbdffbd96b6606d33439e20d1c1af77ab031",
+    "src/thermal_opd/plotting.py": "64a88def6baa6871be39f410781a29b940b67d93a142b7ffd73a3516c41b83db"
   },
   "audit_revision_20261117": {
     "authorization": "按你建议的全部修改",
@@ -312,5 +372,46 @@
     "derived_evidence_provenance": "manuscript/data/supplement_details/fem_optical_refinement_provenance.json",
     "tracked_chinese_source": "main_zh.tex and its current PDF are included to keep the bilingual deliverable reproducible",
     "historical_computation_hashes": "computation_and_presentation_source_sha256 is retained as a historical computation snapshot; current presentation hashes are separate"
+  },
+  "review_fixes_20261118": {
+    "authorization": "User requested fixes to the five reviewed issues, a new branch, original/revised papers, and a sentence comparison if the paper changes.",
+    "branch": "codex/fix-review-20261118",
+    "base_commit": "3cf1bb6",
+    "code_commit": "9cc9d88",
+    "scientific_impact": "No changes to equations, physical inputs, saved numerical arrays, main results, captions, or conclusions.",
+    "changes": [
+      "Reject unsupported m=0,h=0 radial source preparation rather than silently omitting the zero mode.",
+      "Read report regression fixtures explicitly as UTF-8.",
+      "Version existing historical history CSV inputs without changing original bytes; narrow -text attributes preserve SHA-256 on all platforms.",
+      "Clarify bilingual README evidence scope and historical optical-column limits.",
+      "Reformat only Figure 3 OPD annotation; numerical values unchanged."
+    ],
+    "history_inputs": [
+      {
+        "path": "manuscript/data/theta0_history.csv",
+        "sha256": "27820d4f84da40abc6a841c2754ed552e9974fbe92e4ed035b9f1e564ff52530",
+        "rows": 131
+      },
+      {
+        "path": "manuscript/data/theta30_history.csv",
+        "sha256": "8be0f746da813c29ee8b8b000f787dbf71ce2ef9b38d8089f4fc46144f13b170",
+        "rows": 131
+      },
+      {
+        "path": "manuscript/data/theta60_history.csv",
+        "sha256": "2694b40fb828dd92744e6a3b05cd2e580268aec90fc9ea3444fc005b88ebeb02",
+        "rows": 131
+      }
+    ],
+    "figure_input_npz_sha256": "1b3aa35f5fc39e18318d788f33852602556600726efd407af1ab74c03a962902",
+    "sentence_comparison": "0 changed prose/caption sentences; all six TeX sources byte-identical; original/revised extracted PDF text identical.",
+    "tests": {
+      "passed": 402,
+      "skipped": 2,
+      "failed": 0,
+      "errors": 0
+    },
+    "independent_review": "One reviewer found CSV line-ending normalization; fixed with narrow -text attributes and indexed blob bytes checked against original SHA-256. Revised source packaging completed.",
+    "large_experiment_scope": "No complete FEM or SA scientific campaign was rerun."
   }
 }
