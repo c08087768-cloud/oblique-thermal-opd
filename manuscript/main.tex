@@ -1,18 +1,15 @@
-\documentclass[10pt,a4paper]{article}
-\usepackage[margin=24mm]{geometry}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern,amsmath,amssymb,bm,graphicx,booktabs,microtype}
-\usepackage{caption,float,placeins}
-\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\documentclass{optica-article}
+\journal{opticajournal}
+\articletype{Research Article}
+\usepackage{amsmath,bm,booktabs,float,placeins}
+\usepackage{lineno}
+\linenumbers
 \setlength{\emergencystretch}{2em}
-\numberwithin{equation}{section}
 \graphicspath{{figures/}}
 \newcommand{\OPD}{\mathrm{OPD}}
 \newcommand{\dd}{\,\mathrm{d}}
 \input{tables.tex}
-\title{A Fourier--Bessel semi-analytical model for steady and transient thermo-optic response of finite cylindrical optics under oblique Gaussian surface heating}
-\author{Zhongwei Yang, Jing Wen, Wei Li, Tingrui Li, Bohui Chen, and Liang Yang}
-\date{Working draft for author review: 17 November 2026}
+% Author affiliations and corresponding email supplied in the author reference image, 20 November 2026.
 % Author-approved publication-focused rewrite, 27 October 2026.
 % Model authority: author-supplied PHYSICAL_MODEL.md; no physical inputs changed.
 % Numerical provenance: outputs/experiment_audit/20261017T121521368371Z_f107298c.
@@ -25,8 +22,14 @@
 % checks pass and aggregate scientific_status=not_run. Do not promote those
 % records to complete scientific acceptance. Preserve the underlying records.
 \begin{document}
-\maketitle
-\begin{abstract}
+\title{A Fourier--Bessel semi-analytical model for steady and transient thermo-optic response of finite cylindrical optics under oblique Gaussian surface heating}
+\author{Zhongwei Yang,\authormark{1} Jing Wen,\authormark{2} Wei Li,\authormark{3} Tingrui Li,\authormark{4} Bohui Chen,\authormark{4} and Liang Yang\authormark{4,*}}
+\address{\authormark{1}School of Mathematics, Southwest Jiaotong University, Chengdu 611756, China\\
+\authormark{2}Laser Fusion Research Center, CAEP, Mianyang 621900, China\\
+\authormark{3}Institute of Laser \& Micro-Nano Engineering, College of Electronics \& Information Engineering, Sichuan University, Chengdu 610065, China\\
+\authormark{4}College of Mathematics, Sichuan University, Chengdu 610064, China}
+\email{\authormark{*}malyang@scu.edu.cn}
+\begin{abstract*}
 % para:abstract-p01
 Oblique Gaussian irradiation produces an elliptical surface heat load on a transmissive optic, and the transmitted rays traverse the substrate obliquely, passing through different transverse positions at different depths.
 We develop a Fourier--Bessel semi-analytical model for the steady and transient thermo-refractive optical-path difference (OPD) of a finite cylindrical substrate under this load.
@@ -35,7 +38,7 @@ Integrating the three-dimensional temperature field along fixed refracted refere
 For nominal fused-silica cases at $0^\circ$, $30^\circ$, and $60^\circ$ incidence, comparison with independent finite-element solutions gives maximum OPD peak-to-valley differences of $0.00544\%$ in steady state and $0.0713\%$ over the sampled transient times from $2.5$ ms to $75$ s, relative to the semi-analytical values.
 The modal decomposition also quantifies the effect of neglecting non-axisymmetric temperature components, showing that similar peak-to-valley values can conceal differences in the spatial wavefront.
 
-\end{abstract}
+\end{abstract*}
 
 \section{Introduction}
 % para:intro-p01

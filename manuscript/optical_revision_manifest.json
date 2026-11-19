@@ -102,68 +102,68 @@
     "steady_fem_comparison.png": "f1646bdfd2f85da7fd33a86fcd1746fb3abe0f338d0d0dbb2f15b4b0bd9c6b1c"
   },
   "manuscript_source_sha256": {
-    "main.tex": "7768728ba7b546a75e0c68ee9b74c3b00d933f2b722292845ac21d94757bac78",
+    "main.tex": "400939dee83c1a004118d66a1750dab18342c9497920262f6b7c74cba560d417",
     "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
-    "supplement.tex": "77e08cc6b010c21d5ad5e128e27f76dcef6c251efc6c16ab7775ab8b70819266",
+    "supplement.tex": "835a1cafab306d6af4ab1bcbd0d96f522bc49f3b9e52441a97d7d82b4f09c0b3",
     "references.tex": "42902f53cb5232afc13e8811eb170c305b8bbcb2daf0a8bc36d815edbe6dfa31",
-    "supplement_zh.tex": "3e8de63ab03bc83f576154150314e5caaa3a790d5810b1a525697a622d146ca5",
-    "main_zh.tex": "818bc3465c2f2e88312bd26c1cb36f68ec700f24c93346d520585766c3f91830"
+    "supplement_zh.tex": "9bd09e7603486e1a13a88f5e2f6906cc1f72d6e823f4650e79a47130cc6d3978",
+    "main_zh.tex": "4d10397d5b4bbc3bddbdf2b9d8a0d3457366f7c5b85ab624187c84b0fcb0c3ec"
   },
   "final_validation": {
-    "date": "2026-11-18",
+    "date": "2026-11-20",
     "compilations": {
       "main": {
-        "pages": 13,
         "compiled": true,
+        "pages": 15,
+        "warnings": [
+          "Underfull \\hbox (badness 1540) in paragraph at lines 68--70"
+        ],
         "unresolved_references": 0,
         "duplicate_labels": 0,
         "overfull_boxes": 0,
-        "underfull_notices": 3,
-        "warnings": [],
-        "pdf_sha256": "fcaff89a5453a607b3a34e840b4cfeb84661b45c402ac4ef1b639269e06a3279",
-        "pdf_path": "manuscript/main.pdf"
+        "pdf_sha256": "1cd802a7c918901f7adc923e54fd9c8c01afe8b1ebfffdaaf7e92db02031d816"
       },
       "main_zh": {
-        "pages": 13,
         "compiled": true,
+        "pages": 13,
+        "warnings": [
+          "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
+          "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
+          "Underfull \\hbox (badness 2653) in paragraph at lines 82--86",
+          "Underfull \\hbox (badness 1014) in paragraph at lines 82--86",
+          "Underfull \\hbox (badness 5578) in paragraph at lines 135--139",
+          "Underfull \\hbox (badness 2600) in paragraph at lines 135--139"
+        ],
         "unresolved_references": 0,
         "duplicate_labels": 0,
         "overfull_boxes": 0,
-        "underfull_notices": 4,
-        "warnings": [],
-        "pdf_sha256": "e971171010e25639ce5325eb7033b97a06e6a4dc7f3889ad8b1542d1c869d9c9",
-        "pdf_path": "manuscript/main_zh.pdf"
+        "pdf_sha256": "5bdc88975af7c98b8518da2d1e45a16cfc9dff0639bca78aed28803db3ac1582"
       },
       "supplement": {
-        "pages": 6,
         "compiled": true,
+        "pages": 7,
+        "warnings": [],
         "unresolved_references": 0,
         "duplicate_labels": 0,
         "overfull_boxes": 0,
-        "underfull_notices": 0,
-        "warnings": [],
-        "pdf_sha256": "f2c3380f68eac333c14367fc6a1d877a4e1e4b3dbf8c7968c4f457f4c4b54c70",
-        "reused_unchanged_for_20261118": true
+        "pdf_sha256": "9a80d90ceeb93b3f533c4a4d52339501a271cfe1ec0e94a927790bbd2fceb62c"
       },
       "supplement_zh": {
-        "pages": 6,
         "compiled": true,
+        "pages": 6,
+        "warnings": [
+          "Package inputenc Warning: inputenc package ignored with utf8 based engines."
+        ],
         "unresolved_references": 0,
         "duplicate_labels": 0,
         "overfull_boxes": 0,
-        "underfull_notices": 0,
-        "warnings": [],
-        "pdf_sha256": "e8859eb0e0764e7b5ff12f8aba2d53c9727519e50418f49185abd15934cbe765",
-        "reused_unchanged_for_20261118": true
+        "pdf_sha256": "427342a0173023e197983a56b0b7ee221cda939fa240bbdf982323c569e41d27"
       }
     },
-    "build_procedure": "Two pdflatex passes for EN main and two xelatex passes for CN main in isolated tmp/review-fixes-20261118/latex. Updated PDFs copied after inspection. Supplements and their PDFs reused unchanged.",
-    "retrieval_consistency": "105 exported numeric cells independently compared with saved source records; thresholds, nine-time maxima, exclusion of 1 ms diagnostics and 17 input/producer hashes checked.",
-    "export_controls": "Known percent conversion and zero cases pass; deliberate early-diagnostic control and eight corrupted inputs pass rejection controls.",
-    "visual_review": "All 26 updated EN/CN main pages inspected in rendered montages; Figure 3 inspected separately. No overlap or clipping observed in updated figure.",
-    "scope": "Figure-title presentation, input availability, and software fixes only. Main/supplement/table/reference TeX files byte-identical to 17 November. Original and revised PDF extracted text identical. No complete thermal or optical numerical campaign was rerun.",
-    "targeted_core_tests": "73 passed; later 40 relevant plotting/interface/report tests passed",
-    "software_tests": "402 passed, 2 Windows wider-precision skips, 0 errors/failures; default Python text encoding, pytest 8.4.1"
+    "build_procedure": "pdflatex for English main/supplement; xelatex for Chinese reviews; repeated until references stable in isolated tmp/applied-optics-20261120/build.",
+    "scope": "Template and supplied author metadata conversion only; scientific source content and data preserved. Full code tests and numerical experiments not rerun.",
+    "visual_review": "All 41 pages of four PDFs inspected in rendered montages; all four first pages inspected at full size. No clipping/overlap observed.",
+    "template_manifest": "manuscript/template_conversion_manifest.json"
   },
   "prose_revision": {
     "date": "2026-11-03",
@@ -347,6 +347,65 @@
         "visual_review": "All 38 EN/CN pages inspected in rendered montages; corrected Figure 1 and EN/CN supplement page 5 inspected at larger size. No clipped content or overlaps observed.",
         "scope": "Document integration and saved-record consistency only. Historical solver tests were not repeated for this revision; no new independent numerical-method or experimental validation is claimed."
       }
+    },
+    {
+      "recorded_revision": "2026-11-18",
+      "final_validation": {
+        "date": "2026-11-18",
+        "compilations": {
+          "main": {
+            "pages": 13,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 3,
+            "warnings": [],
+            "pdf_sha256": "fcaff89a5453a607b3a34e840b4cfeb84661b45c402ac4ef1b639269e06a3279",
+            "pdf_path": "manuscript/main.pdf"
+          },
+          "main_zh": {
+            "pages": 13,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 4,
+            "warnings": [],
+            "pdf_sha256": "e971171010e25639ce5325eb7033b97a06e6a4dc7f3889ad8b1542d1c869d9c9",
+            "pdf_path": "manuscript/main_zh.pdf"
+          },
+          "supplement": {
+            "pages": 6,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 0,
+            "warnings": [],
+            "pdf_sha256": "f2c3380f68eac333c14367fc6a1d877a4e1e4b3dbf8c7968c4f457f4c4b54c70",
+            "reused_unchanged_for_20261118": true
+          },
+          "supplement_zh": {
+            "pages": 6,
+            "compiled": true,
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "underfull_notices": 0,
+            "warnings": [],
+            "pdf_sha256": "e8859eb0e0764e7b5ff12f8aba2d53c9727519e50418f49185abd15934cbe765",
+            "reused_unchanged_for_20261118": true
+          }
+        },
+        "build_procedure": "Two pdflatex passes for EN main and two xelatex passes for CN main in isolated tmp/review-fixes-20261118/latex. Updated PDFs copied after inspection. Supplements and their PDFs reused unchanged.",
+        "retrieval_consistency": "105 exported numeric cells independently compared with saved source records; thresholds, nine-time maxima, exclusion of 1 ms diagnostics and 17 input/producer hashes checked.",
+        "export_controls": "Known percent conversion and zero cases pass; deliberate early-diagnostic control and eight corrupted inputs pass rejection controls.",
+        "visual_review": "All 26 updated EN/CN main pages inspected in rendered montages; Figure 3 inspected separately. No overlap or clipping observed in updated figure.",
+        "scope": "Figure-title presentation, input availability, and software fixes only. Main/supplement/table/reference TeX files byte-identical to 17 November. Original and revised PDF extracted text identical. No complete thermal or optical numerical campaign was rerun.",
+        "targeted_core_tests": "73 passed; later 40 relevant plotting/interface/report tests passed",
+        "software_tests": "402 passed, 2 Windows wider-precision skips, 0 errors/failures; default Python text encoding, pytest 8.4.1"
+      }
     }
   ],
   "current_presentation_source_sha256": {
@@ -413,5 +472,12 @@
     },
     "independent_review": "One reviewer found CSV line-ending normalization; fixed with narrow -text attributes and indexed blob bytes checked against original SHA-256. Revised source packaging completed.",
     "large_experiment_scope": "No complete FEM or SA scientific campaign was rerun."
+  },
+  "template_conversion_20261120": {
+    "manifest": "manuscript/template_conversion_manifest.json",
+    "class": "optica-article / osa-supplemental-document",
+    "branch": "codex/applied-optics-template-20261120",
+    "scientific_content": "unchanged",
+    "author_metadata": "Supplied image on 20 November 2026"
   }
 }
