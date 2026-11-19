@@ -1,7 +1,5 @@
 # Thermo-optic response of cylindrical optics under oblique Gaussian heating
 
-[简体中文](README.zh-CN.md)
-
 This repository computes the steady and transient temperature rise in a finite cylinder subject to oblique Gaussian surface heating and Robin heat exchange. The semi-analytical solver expands the thermal field in Fourier–Bessel modes. A separately assembled finite-element model (FEM) on a prismatic mesh integrates the Gaussian load directly for comparison. The optical path difference (OPD) is the first-order refractive-index contribution integrated along fixed, straight refracted rays that reach the rear face.
 
 ## Requirements and installation
