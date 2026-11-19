@@ -102,12 +102,12 @@
     "steady_fem_comparison.png": "f1646bdfd2f85da7fd33a86fcd1746fb3abe0f338d0d0dbb2f15b4b0bd9c6b1c"
   },
   "manuscript_source_sha256": {
-    "main.tex": "400939dee83c1a004118d66a1750dab18342c9497920262f6b7c74cba560d417",
+    "main.tex": "0f3ff2a415a8cd920ee8bba462088e590d7a037c3ac094de7e2a907af2f6c77b",
     "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
     "supplement.tex": "835a1cafab306d6af4ab1bcbd0d96f522bc49f3b9e52441a97d7d82b4f09c0b3",
     "references.tex": "42902f53cb5232afc13e8811eb170c305b8bbcb2daf0a8bc36d815edbe6dfa31",
     "supplement_zh.tex": "9bd09e7603486e1a13a88f5e2f6906cc1f72d6e823f4650e79a47130cc6d3978",
-    "main_zh.tex": "4d10397d5b4bbc3bddbdf2b9d8a0d3457366f7c5b85ab624187c84b0fcb0c3ec"
+    "main_zh.tex": "531d528fa9bec24bfad72f45173a565d6b95f261a94ebfe8583783e4465ec5e0"
   },
   "final_validation": {
     "date": "2026-11-20",
@@ -115,17 +115,20 @@
       "main": {
         "compiled": true,
         "pages": 15,
+        "scientific_source_unchanged": true,
         "warnings": [
           "Underfull \\hbox (badness 1540) in paragraph at lines 68--70"
         ],
         "unresolved_references": 0,
         "duplicate_labels": 0,
         "overfull_boxes": 0,
-        "pdf_sha256": "1cd802a7c918901f7adc923e54fd9c8c01afe8b1ebfffdaaf7e92db02031d816"
+        "pdf_sha256": "5ec4439c3d62884f46fdb124f1efd0ba8d85d523fc889ddafb3716fd57b82602",
+        "pdf_path": "manuscript/main_revised.pdf"
       },
       "main_zh": {
         "compiled": true,
         "pages": 13,
+        "scientific_source_unchanged": true,
         "warnings": [
           "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
           "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
@@ -137,7 +140,8 @@
         "unresolved_references": 0,
         "duplicate_labels": 0,
         "overfull_boxes": 0,
-        "pdf_sha256": "5bdc88975af7c98b8518da2d1e45a16cfc9dff0639bca78aed28803db3ac1582"
+        "pdf_sha256": "8d8a38241f501a33a9f0656ded8147844e9ba43ca48f0c3a14708502571f114d",
+        "pdf_path": "manuscript/main_zh_revised.pdf"
       },
       "supplement": {
         "compiled": true,
@@ -160,9 +164,9 @@
         "pdf_sha256": "427342a0173023e197983a56b0b7ee221cda939fa240bbdf982323c569e41d27"
       }
     },
-    "build_procedure": "pdflatex for English main/supplement; xelatex for Chinese reviews; repeated until references stable in isolated tmp/applied-optics-20261120/build.",
-    "scope": "Template and supplied author metadata conversion only; scientific source content and data preserved. Full code tests and numerical experiments not rerun.",
-    "visual_review": "All 41 pages of four PDFs inspected in rendered montages; all four first pages inspected at full size. No clipping/overlap observed.",
+    "build_procedure": "Two pdflatex passes for EN main and two xelatex passes for CN main in isolated tmp/submission-statements-20261120/build; updated PDFs saved with _revised suffix after rendering and inspection. English one-file source compiled independently. Supplements and their PDFs reused unchanged.",
+    "scope": "Author-confirmed administrative backmatter only. Scientific source, equations, labels, bibliography entries and numerical/figure data unchanged. No numerical or code tests rerun.",
+    "visual_review": "Rendered EN pages 14-15 and CN pages 12-13 inspected after final statements; no clipping, missing text or overlap observed.",
     "template_manifest": "manuscript/template_conversion_manifest.json"
   },
   "prose_revision": {
@@ -406,6 +410,65 @@
         "targeted_core_tests": "73 passed; later 40 relevant plotting/interface/report tests passed",
         "software_tests": "402 passed, 2 Windows wider-precision skips, 0 errors/failures; default Python text encoding, pytest 8.4.1"
       }
+    },
+    {
+      "event": "before_submission_backmatter_20261120",
+      "final_validation": {
+        "date": "2026-11-20",
+        "compilations": {
+          "main": {
+            "compiled": true,
+            "pages": 15,
+            "warnings": [
+              "Underfull \\hbox (badness 1540) in paragraph at lines 68--70"
+            ],
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "pdf_sha256": "1cd802a7c918901f7adc923e54fd9c8c01afe8b1ebfffdaaf7e92db02031d816"
+          },
+          "main_zh": {
+            "compiled": true,
+            "pages": 13,
+            "warnings": [
+              "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
+              "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
+              "Underfull \\hbox (badness 2653) in paragraph at lines 82--86",
+              "Underfull \\hbox (badness 1014) in paragraph at lines 82--86",
+              "Underfull \\hbox (badness 5578) in paragraph at lines 135--139",
+              "Underfull \\hbox (badness 2600) in paragraph at lines 135--139"
+            ],
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "pdf_sha256": "5bdc88975af7c98b8518da2d1e45a16cfc9dff0639bca78aed28803db3ac1582"
+          },
+          "supplement": {
+            "compiled": true,
+            "pages": 7,
+            "warnings": [],
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "pdf_sha256": "9a80d90ceeb93b3f533c4a4d52339501a271cfe1ec0e94a927790bbd2fceb62c"
+          },
+          "supplement_zh": {
+            "compiled": true,
+            "pages": 6,
+            "warnings": [
+              "Package inputenc Warning: inputenc package ignored with utf8 based engines."
+            ],
+            "unresolved_references": 0,
+            "duplicate_labels": 0,
+            "overfull_boxes": 0,
+            "pdf_sha256": "427342a0173023e197983a56b0b7ee221cda939fa240bbdf982323c569e41d27"
+          }
+        },
+        "build_procedure": "pdflatex for English main/supplement; xelatex for Chinese reviews; repeated until references stable in isolated tmp/applied-optics-20261120/build.",
+        "scope": "Template and supplied author metadata conversion only; scientific source content and data preserved. Full code tests and numerical experiments not rerun.",
+        "visual_review": "All 41 pages of four PDFs inspected in rendered montages; all four first pages inspected at full size. No clipping/overlap observed.",
+        "template_manifest": "manuscript/template_conversion_manifest.json"
+      }
     }
   ],
   "current_presentation_source_sha256": {
@@ -479,5 +542,39 @@
     "branch": "codex/applied-optics-template-20261120",
     "scientific_content": "unchanged",
     "author_metadata": "Supplied image on 20 November 2026"
+  },
+  "backmatter_update_20261120": {
+    "date": "2026-11-20",
+    "base_commit": "6bd89815c425f7597996cd5238b69414c9feefc7",
+    "authorization": "Author supplied repository URL, no-conflicts declaration, AI purposes/model, and instructed preparation of public code release without claiming current public access.",
+    "implemented": [
+      "Acknowledgments: GPT-6.1 sol (OpenAI), manuscript translation and code writing",
+      "Disclosures: no conflicts of interest",
+      "Data availability: current private repository; public release being prepared; selected derived data in Supplement 1; archived FEM nodal fields absent from repository",
+      "Supplemental document: See Supplement 1 for supporting content"
+    ],
+    "code_repository": {
+      "url": "https://github.com/c08087768-cloud/oblique-thermal-opd",
+      "private": true,
+      "checked": "2026-11-20",
+      "evidence": "GitHub repository metadata: private=true; visibility=private",
+      "visibility_changed": false
+    },
+    "scientific_source_unchanged": true,
+    "policy": "https://opg.optica.org/content/author/portal/item/review-general-policies",
+    "visual_validation": "Rendered EN pages 14-15 and CN pages 12-13 inspected after final statements; no clipping, missing text or overlap observed.",
+    "standalone_main": {
+      "compiled": true,
+      "pages": 15,
+      "one_tex_file": true,
+      "pdf_extracted_text_identical": true
+    },
+    "pdf_save": "Prior English main.pdf could not be replaced (WinError 32 reader lock). Latest PDFs saved as main_revised.pdf and main_zh_revised.pdf; earlier main PDFs retained unchanged.",
+    "submission_followup": [
+      "Complete public code release before claiming public availability.",
+      "Finalize access arrangements for underlying data not included in Supplement 1 or the repository.",
+      "Funding information not supplied.",
+      "Retained abstract exceeds approximately 100-word template guidance; no shortening authorized."
+    ]
   }
 }

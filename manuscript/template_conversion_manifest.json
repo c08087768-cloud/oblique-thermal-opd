@@ -31,13 +31,13 @@
     "manuscript/styles/opticajournal.sty": "5addadcff99923329f8c5ab3c1841c1b0fd8bb49dc6f6753a49e6ad01af7d595"
   },
   "source_sha256": {
-    "main.tex": "400939dee83c1a004118d66a1750dab18342c9497920262f6b7c74cba560d417",
-    "main_zh.tex": "4d10397d5b4bbc3bddbdf2b9d8a0d3457366f7c5b85ab624187c84b0fcb0c3ec",
+    "main.tex": "0f3ff2a415a8cd920ee8bba462088e590d7a037c3ac094de7e2a907af2f6c77b",
+    "main_zh.tex": "531d528fa9bec24bfad72f45173a565d6b95f261a94ebfe8583783e4465ec5e0",
     "supplement.tex": "835a1cafab306d6af4ab1bcbd0d96f522bc49f3b9e52441a97d7d82b4f09c0b3",
     "supplement_zh.tex": "9bd09e7603486e1a13a88f5e2f6906cc1f72d6e823f4650e79a47130cc6d3978",
     "tables.tex": "d3bc202cd93f391af44e5148a9ef040ffd6bfdbf9e9f34d0b3d98512811454b7",
     "references.tex": "42902f53cb5232afc13e8811eb170c305b8bbcb2daf0a8bc36d815edbe6dfa31",
-    "TEMPLATE.md": "a527ad50ff028a913224bb67c013026d2bcbdbd132f5b096cd1f74005d5e9f34"
+    "TEMPLATE.md": "327778b50683c7b7c812e90ddd65ef93040cf4d0630343cefbddfda0160aff67"
   },
   "author_metadata": {
     "reference_image_sha256": "c1b61f48e84a2dfaf5d43467c442a1687e8f55f5ba1865f9f43de941d36c3795",
@@ -87,17 +87,20 @@
     "main": {
       "compiled": true,
       "pages": 15,
+      "scientific_source_unchanged": true,
       "warnings": [
         "Underfull \\hbox (badness 1540) in paragraph at lines 68--70"
       ],
       "unresolved_references": 0,
       "duplicate_labels": 0,
       "overfull_boxes": 0,
-      "pdf_sha256": "1cd802a7c918901f7adc923e54fd9c8c01afe8b1ebfffdaaf7e92db02031d816"
+      "pdf_sha256": "5ec4439c3d62884f46fdb124f1efd0ba8d85d523fc889ddafb3716fd57b82602",
+      "pdf_path": "manuscript/main_revised.pdf"
     },
     "main_zh": {
       "compiled": true,
       "pages": 13,
+      "scientific_source_unchanged": true,
       "warnings": [
         "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
         "Underfull \\hbox (badness 10000) in paragraph at lines 68--70",
@@ -109,7 +112,8 @@
       "unresolved_references": 0,
       "duplicate_labels": 0,
       "overfull_boxes": 0,
-      "pdf_sha256": "5bdc88975af7c98b8518da2d1e45a16cfc9dff0639bca78aed28803db3ac1582"
+      "pdf_sha256": "8d8a38241f501a33a9f0656ded8147844e9ba43ca48f0c3a14708502571f114d",
+      "pdf_path": "manuscript/main_zh_revised.pdf"
     },
     "supplement": {
       "compiled": true,
@@ -136,14 +140,16 @@
   "scientific_impact": "No changes to scientific title/abstract/body, equations, citation keys, reference entries, figure files, tables, raw/derived arrays, or conclusions. Automatic main-equation numbering follows the new class.",
   "independent_review": "No actionable conversion defects; exact body and 37 data/figure/table/reference hash checks independently confirmed; author metadata matches user image.",
   "submission_followup": [
-    "Author-confirmed Disclosures and Data availability back matter are still needed.",
-    "A journal-format supplemental-document back-matter callout remains to be supplied.",
-    "Retained abstract exceeds template approximately 100-word guidance; no shortening authorized."
+    "Complete public code release before claiming public availability.",
+    "Finalize access arrangements for underlying data not included in Supplement 1 or the repository.",
+    "Funding information not supplied.",
+    "Retained abstract exceeds approximately 100-word template guidance; no shortening authorized."
   ],
   "software_and_scientific_tests": "Not rerun: formatting-only task; no solver or test code was changed.",
   "standalone_submission_validation": {
     "main": {
       "compiled": true,
+      "pages": 15,
       "one_tex_file": true,
       "pdf_extracted_text_identical": true
     },
@@ -155,5 +161,39 @@
       "pages": 7,
       "visual_review": "All seven exported pages inspected; no clipping or overlap"
     }
+  },
+  "backmatter_update_20261120": {
+    "date": "2026-11-20",
+    "base_commit": "6bd89815c425f7597996cd5238b69414c9feefc7",
+    "authorization": "Author supplied repository URL, no-conflicts declaration, AI purposes/model, and instructed preparation of public code release without claiming current public access.",
+    "implemented": [
+      "Acknowledgments: GPT-6.1 sol (OpenAI), manuscript translation and code writing",
+      "Disclosures: no conflicts of interest",
+      "Data availability: current private repository; public release being prepared; selected derived data in Supplement 1; archived FEM nodal fields absent from repository",
+      "Supplemental document: See Supplement 1 for supporting content"
+    ],
+    "code_repository": {
+      "url": "https://github.com/c08087768-cloud/oblique-thermal-opd",
+      "private": true,
+      "checked": "2026-11-20",
+      "evidence": "GitHub repository metadata: private=true; visibility=private",
+      "visibility_changed": false
+    },
+    "scientific_source_unchanged": true,
+    "policy": "https://opg.optica.org/content/author/portal/item/review-general-policies",
+    "visual_validation": "Rendered EN pages 14-15 and CN pages 12-13 inspected after final statements; no clipping, missing text or overlap observed.",
+    "standalone_main": {
+      "compiled": true,
+      "pages": 15,
+      "one_tex_file": true,
+      "pdf_extracted_text_identical": true
+    },
+    "pdf_save": "Prior English main.pdf could not be replaced (WinError 32 reader lock). Latest PDFs saved as main_revised.pdf and main_zh_revised.pdf; earlier main PDFs retained unchanged.",
+    "submission_followup": [
+      "Complete public code release before claiming public availability.",
+      "Finalize access arrangements for underlying data not included in Supplement 1 or the repository.",
+      "Funding information not supplied.",
+      "Retained abstract exceeds approximately 100-word template guidance; no shortening authorized."
+    ]
   }
 }
