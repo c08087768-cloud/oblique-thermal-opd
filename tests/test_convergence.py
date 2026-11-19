@@ -49,3 +49,45 @@ def test_continuous_pv_enforces_rear_transmission_for_signed_angle(angle):
     )
     assert result['pv'] == pytest.approx(1.6, abs=1e-8)
     assert result['maximum'] == pytest.approx(0.7 if angle > 0 else 0.9, abs=1e-8)
+
+
+def test_settings_audit_rejects_a_wrong_nondefault_batch(monkeypatch):
+    from scripts.convergence import check_steady_numerical_settings as audit
+    from thermal_opd.experiments import experiment_configuration
+    from thermal_opd.parameters import PhysicalParameters
+
+    defaults = {**experiment_configuration("steady")["defaults"], "num_opd_xy": 9}
+    counts = {name: (defaults[name], defaults[name]+1) for name in audit.sweep_counts}
+    counts["opd_point_chunk_size"] = (128, defaults["opd_point_chunk_size"], 4096)
+
+    class PlantedModel:
+        coefficients = {}
+        roots = {}
+        refraction_angle = 0.
+
+        def prepare(self):
+            return self
+
+        def solve_steady(self):
+            return self
+
+        def prepare_opd(self, *, point_chunk_size):
+            return lambda x, y: x
+
+        def opd(self, x, y, *, point_chunk_size):
+            # Only the small batch is wrong. The production default is correct.
+            return np.full_like(x, 2e-7 if point_chunk_size == 128 else 1e-7)
+
+    monkeypatch.setattr(audit, "ThermalModel", lambda *args: PlantedModel())
+    monkeypatch.setattr(audit, "steady_boundary_residuals", lambda *args: {"side_W_per_m2": 0.})
+    monkeypatch.setattr(audit, "steady_energy_balance",
+                        lambda *args, **kwargs: {"modal_input_W": 1., "balance_absolute_error_W": 0.})
+    monkeypatch.setattr(audit, "gaussian_disk_power", lambda *args, **kwargs: 1.)
+
+    rows, checks, evidence = [], [], {}
+    audit.audit_angle(PhysicalParameters(), 0., defaults, counts, rows, checks, evidence)
+    assert len(checks) == 9
+    assert {check["name"] for check in checks if check["status"] == "failed"} == {
+        "theta0_opd_point_chunk_size",
+    }
+    assert all(row["used_for_gate"] for row in rows if row["parameter"] == "opd_point_chunk_size")

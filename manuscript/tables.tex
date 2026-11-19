@@ -1,0 +1,65 @@
+\newcommand{\NominalTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Nominal parameters used in the numerical calculations.}\label{tab:parameters}
+\begin{tabular}{ll}\toprule
+Quantity & Value\\\midrule
+Substrate radius $R$ & $12.7$ mm\\
+Substrate thickness $L$ & $5.0$ mm\\
+Beam radius $w_0$ & $3.81$ mm ($0.3R$)\\
+Absorbed-power parameter $P_{\rm abs}$ & $0.110$ W\\
+Thermal conductivity $k$ & $1.38$ W\,m$^{-1}$\,K$^{-1}$\\
+Density $\rho$ & $2203$ kg\,m$^{-3}$\\
+Specific heat $c_p$ & $772$ J\,kg$^{-1}$\,K$^{-1}$\\
+Ambient temperature $T_\infty$ & $300$ K\\
+Convection coefficient $h_{\rm conv}$ & $10$ W\,m$^{-2}$\,K$^{-1}$\\
+Emissivity $\epsilon$ & $0.85$\\
+Effective heat-transfer coefficient $h_{\rm eff}$ & $15.2054$ W\,m$^{-2}$\,K$^{-1}$\\
+Thermo-optic coefficient $\gamma_T$ & $8.4154\times10^{-6}$ K$^{-1}$\\
+Reference wavelength & $1064$ nm\\
+Incident refractive index $n_i$ & $1$\\
+Substrate refractive index $n_s$ & $1.450076$\\
+Entrance-pupil radius $a$ & $0.9R$\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize $n_s$ and $\gamma_T$ are evaluated from the same absolute Corning 7980 Sellmeier fit at $1064$ nm and $300$ K and held constant in the linear optical calculation.\end{minipage}
+\end{table}}
+
+\newcommand{\SteadyFieldTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Steady temperature rises and sampled OPD-PV.}\label{tab:steadyfields}
+\begin{tabular}{lrrrr}\toprule
+$\theta$ & Front center (K) & Midplane center (K) & Rear center (K) & OPD-PV (nm)\\\midrule
+$0^\circ$ & 11.921 & 7.656 & 6.716 & 145.958\\
+$30^\circ$ & 11.336 & 7.537 & 6.656 & 147.940\\
+$60^\circ$ & 9.303 & 6.959 & 6.314 & 135.068\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize OPD-PV uses the saved $201\times201$ physical transmitted-pupil grid. Continuous numerical extrema are reported separately in Supplement 1; FEM comparisons use their own discrete common domain.\end{minipage}
+\end{table}}
+
+\newcommand{\TransientRefinementTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Largest transient FEM temperature-refinement changes (percent).}\label{tab:refinement}
+\begin{tabular}{lrrrr}\toprule
+$\theta$ & Transverse & Axial & Time & Joint\\\midrule
+$0^\circ$ & 0.104616 & 0.029993 & 0.025763 & 0.125259\\
+$30^\circ$ & 0.099671 & 0.029973 & 0.025837 & 0.118577\\
+$60^\circ$ & 0.088451 & 0.029925 & 0.026017 & 0.105834\\
+Target & $0.5$ & $0.5$ & $0.1$ & $0.5$\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize Maxima include the positive observation times from $0.0025$ to $75$ s. The $0.001$ s frame is recorded separately as a diagnostic; the exact zero initial condition and all-step physical checks remain independent requirements.\end{minipage}
+\end{table}}
+
+\newcommand{\ValidationTable}{%
+\begin{table}[htbp]
+\centering
+\caption{Optical differences between FEM and the semi-analytical calculation (percent).}\label{tab:comparison}
+\begin{tabular}{lrrr}\toprule
+$\theta$ & Steady $E_V$ & Transient $E_V$ & Transient $E_{W,\infty}$\\\midrule
+$0^\circ$ & 0.004220 & 0.071263 & 0.090254\\
+$30^\circ$ & 0.000523 & 0.054396 & 0.085119\\
+$60^\circ$ & 0.005436 & 0.046819 & 0.082575\\\bottomrule
+\end{tabular}
+\par\smallskip\begin{minipage}{.96\linewidth}\footnotesize Steady values use the finest FEM mesh. Transient values are maxima over sampled times from $2.5$ ms to $75$ s and use the FEM candidate examined by the separate refinements. All denominators are the semi-analytical PV on the common pupil. Supplement 1 provides additional numerical details and summary error statistics, including $1$ ms diagnostics.\end{minipage}
+\end{table}}

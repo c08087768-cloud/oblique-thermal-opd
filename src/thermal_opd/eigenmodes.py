@@ -53,8 +53,14 @@ def radial_eigenvalues(m, radius, conductivity, h, num_modes):
 
     The current search is used for nonnegative integer m, positive radius,
     conductivity and h, and a positive number of modes. For h=0 the m=0
-    zero mode requires separate treatment and is not included here.
+    zero mode requires separate treatment; this unsupported case is rejected.
     """
+
+    if m == 0 and h == 0:
+        raise ValueError(
+            'The insulated axisymmetric radial zero mode is not implemented; '
+            'use positive sidewall heat transfer for modal source preparation'
+        )
 
     def equation(lam):
         return radial_eigenvalue_equation(

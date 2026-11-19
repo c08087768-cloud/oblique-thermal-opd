@@ -7,6 +7,10 @@ calling script. The incidence angle is also supplied by the calling script.
 from dataclasses import dataclass
 
 from scipy.constants import Stefan_Boltzmann
+from thermal_opd.materials import corning_7980_reference
+
+
+_REFERENCE_INDEX, _REFERENCE_DN_DT = corning_7980_reference(1064e-9, 300.)
 
 
 @dataclass(frozen=True)
@@ -15,8 +19,9 @@ class PhysicalParameters:
 
     ``absorbed_power`` is assigned to the Gaussian on the full plane;
     power intercepted by the finite substrate must be evaluated separately.
-    ``dn_dT`` retains the manuscript's value tabulated at 643.8 nm; it is
-    not a measurement at the specified 1064 nm optical wavelength.
+    ``dn_dT`` and ``substrate_refractive_index`` come from the same absolute
+    Corning7980 Sellmeier fit at 1064 nm and 300 K. Both are held constant;
+    changing wavelength or reference temperature requires updating both.
     """
 
     radius: float = 12.7e-3              # m
@@ -33,13 +38,11 @@ class PhysicalParameters:
     ambient_temperature: float = 300.0   # K
     absorbed_power: float = 110e-3       # W
     beam_radius_ratio: float = 0.30
-    dn_dT: float = 0.96e-5               # 1/K, tabulated at 643.8 nm
+    dn_dT: float = _REFERENCE_DN_DT      # 1/K, derivative of absolute index
     wavelength: float = 1064e-9          # m
     incident_refractive_index: float = 1.0  # Air approximation for Snell's law.
-    # Nominal fused silica at 1064 nm, Malitson (1965) Sellmeier formula.
-    # Not a sample measurement; update with wavelength/material changes.
-    # https://doi.org/10.1364/JOSA.55.001205
-    substrate_refractive_index: float = 1.44963
+    # Leviton--Frey (2006), NASA NTRS20070018851 Table3; nominal fit value.
+    substrate_refractive_index: float = _REFERENCE_INDEX
 
     @property
     def beam_radius(self) -> float:

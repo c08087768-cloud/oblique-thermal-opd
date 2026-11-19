@@ -1,0 +1,206 @@
+\documentclass[9pt]{osa-supplemental-document}
+\setboolean{shortarticle}{false}
+\setboolean{displaycopyright}{false}
+\usepackage{placeins,longtable}
+\setlength{\emergencystretch}{2em}
+\graphicspath{{figures/}}
+\renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\newcommand{\SteadyState}{Steady}
+\newcommand{\SteadyCheck}{Steady modes}
+\newcommand{\TransientCheck}{Transient modes}
+\newcommand{\RayCheck}{Transient ray points}
+\newcommand{\JointRefinement}{Joint}
+\newcommand{\TimeRefinement}{Time}
+\title{Supplement 1: Additional numerical results for the Fourier--Bessel model of obliquely heated cylindrical optics}
+\author{} % Author information is added by the publisher during production.
+\date{}
+\begin{abstract}
+\end{abstract}
+\begin{document}
+\maketitle
+
+\section{Time-resolved comparison with FEM}
+Table~\ref{tab:supp-comparison} lists the steady differences and the differences at every recorded transient time, rather than only the maxima reported in the main text.
+The $0.001$ s entries are early-time diagnostics; the main-text transient maxima cover $0.0025$--$75$ s.
+All entries are percentages, with the semi-analytical solution providing the reference denominators.
+
+The temperature column is the largest relative maximum difference across the front, middle, and rear planes.
+Before $0.625$ s, all three planes use the largest semi-analytical maximum temperature rise among the planes as the denominator; at later times, each plane uses its own maximum.
+For the optical columns, the mean is removed separately from each OPD field on the common pupil before their RMS and maximum differences are calculated.
+Both field differences and the absolute PV difference are divided by the semi-analytical OPD-PV.
+Steady temperature comparisons use Cartesian grids: $201\times201$ at $0^\circ$, and $101\times101$ at $30^\circ$ and $60^\circ$.
+Transient temperature comparisons use $201\times201$ polar samples, with Gauss radial nodes and uniform azimuths.
+OPD comparisons use a $101\times101$ Cartesian entrance grid at all three angles.
+The common optical pupil contains only rays that reach the rear face and remain within the FEM polygon.
+
+\begingroup\small
+\begin{longtable}{ccrrrr}
+\caption{Steady and time-resolved FEM--semi-analytical differences (\%). The OPD columns give RMS/PV, maximum/PV, and absolute PV difference/PV, respectively.}\label{tab:supp-comparison}\\
+\toprule
+$\theta$ & State / $t$ (s) & Temperature maximum & OPD RMS & OPD maximum & OPD-PV\\\midrule
+\endfirsthead
+\multicolumn{6}{c}{Table~\thetable\ (continued)}\\\toprule
+$\theta$ & State / $t$ (s) & Temperature maximum & OPD RMS & OPD maximum & OPD-PV\\\midrule
+\endhead
+\bottomrule\endfoot
+\input{data/supplement_details/time_comparison.tex}
+\end{longtable}
+\endgroup
+Steady rows use the finest steady FEM mesh listed in Table~\ref{tab:supp-fem-settings}; transient rows use the main transient FEM configuration.
+
+\section{Changes under numerical refinement}
+Here, refinement means retaining more series terms or using more integration points or finite elements.
+It does not change the substrate, heat load, wavelength, or material parameters.
+The settings and their measured changes are listed together below.
+
+\subsection*{Semi-analytical OPD checks}
+In Table~\ref{tab:supp-sa-settings}, $M$ is the largest retained azimuthal temperature order, $N$ is the number of radial modes per order, and $J$ is the number of axial modes in the transient expansion.
+$Q_r\times Q_\phi$ counts the radial and azimuthal integration points used to project the heat load onto the modes; it is not the number of pixels in a temperature plot.
+$Q_s$ is the number of integration points along each refracted ray, not the number of rays.
+
+\begin{table}[!htbp]\centering\small
+\caption{The main-text settings and the explicit comparison settings used for the OPD checks. A dash denotes a steady calculation without an axial transient expansion.}\label{tab:supp-sa-settings}
+\begin{tabular}{lrrrrr}\toprule
+Calculation & $M$ & $N$ & $J$ & $Q_r\times Q_\phi$ & $Q_s$\\\midrule
+Main steady calculation & 6 & 8 & -- & $400\times32$ & 16\\
+Steady modal comparison & 10 & 20 & -- & $1200\times128$ & 32\\
+Main transient calculation & 10 & 20 & 256 & $1200\times128$ & 32\\
+Transient modal comparison & 14 & 28 & 384 & $1800\times256$ & 64\\
+Transient ray-only comparison & 10 & 20 & 256 & $1200\times128$ & 64\\\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:supp-sa-changes} gives the changes obtained by comparing each main-text calculation with its stated comparison calculation.
+The steady row group contains one steady comparison per angle; the transient groups give the largest change over the ten positive times in Table~\ref{tab:supp-comparison}.
+All optical checks use the same $101\times101$ physical transmitted-pupil samples.
+The comparison calculation supplies the PV denominator, and piston is removed before computing the field differences.
+These are changes between two numerical settings, rather than differences from an exact solution.
+
+\begin{table}[!htbp]\centering\small
+\caption{Changes in OPD under the comparisons in Table~\ref{tab:supp-sa-settings} (\%).}\label{tab:supp-sa-changes}
+\begin{tabular}{lrrrr}\toprule
+Comparison & $\theta$ & PV change & RMS/PV & Maximum/PV\\\midrule
+\input{data/supplement_details/sa_checks.tex}
+\end{tabular}
+\end{table}
+Temperature and temperature-gradient truncation checks use the separate configurations in Table~\ref{tab:supp-temperature-settings}.
+The A and B configurations represent two finite numerical references for the same thermal problem; the larger expansion also increases the source-projection integration points.
+They supply the temperature-reference settings mentioned in the main text, while Table~\ref{tab:supp-sa-settings} gives the settings for the current OPD checks.
+
+\begin{table}[!htbp]\centering\small
+\caption{Additional reference settings for the temperature-field checks. The meanings of $M$, $N$, $J$, and the source-projection counts are defined above.}\label{tab:supp-temperature-settings}
+\begin{tabular}{lrrrr}\toprule
+Temperature calculation & $M$ & $N$ & $J$ & $Q_r\times Q_\phi$\\\midrule
+Steady reference A & 14 & 32 & -- & $2400\times256$\\
+Steady reference B & 16 & 40 & -- & $3200\times512$\\
+Transient reference A & 14 & 32 & 512 & $2400\times256$\\
+Transient reference B & 16 & 40 & 768 & $3200\times512$\\\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+
+\subsection*{FEM temperature checks}
+Table~\ref{tab:supp-fem-settings} states what changes in the spatial FEM comparisons.
+The same transverse meshes are used for the steady and transient calculations; the axial mesh is uniform in the steady case and graded near both faces in the transient case.
+The time-only check keeps the main transient mesh and halves every time step, increasing the step count from $2176$ to $4352$.
+The joint transient check combines the finer transverse and axial meshes with this smaller time step.
+
+\begin{table}[!htbp]\centering\small
+\caption{FEM meshes used in the temperature-refinement comparisons. Total counts are full-space degrees of freedom.}\label{tab:supp-fem-settings}
+\begin{tabular}{lrrrrr}\toprule
+ & Transverse & \multicolumn{2}{c}{Steady} & \multicolumn{2}{c}{Transient}\\
+Configuration & DOF & Axial elements & Total DOF & Axial elements & Total DOF\\\midrule
+Main mesh & 2113 & 32 & 137345 & 88 & 374001\\
+Transverse refinement & 8321 & 32 & 540865 & 88 & 1472817\\
+Axial refinement & 2113 & 64 & 272577 & 174 & 737437\\
+Joint spatial refinement & 8321 & 64 & 1073409 & 174 & 2904029\\\bottomrule
+\end{tabular}
+\end{table}
+The main transient calculation uses $128$ steps between successive observation times, except for $0.1$--$0.625$ s, which uses $1024$ steps.
+This gives $2176$ steps from $0$ to $75$ s.
+
+Figure~\ref{fig:supp-fem-refinement} supplies the time-resolved temperature changes behind the main-text maximum values.
+At each time, each curve gives the largest relative $L^2$ or maximum temperature difference over the three fixed planes and seven diffusion-depth samples.
+Before $0.625$ s, a norm is divided by the largest corresponding refined-reference norm across those depths; thereafter each depth uses its own reference norm.
+These curves concern FEM temperature refinement; the optical columns in Table~\ref{tab:supp-comparison} instead compare FEM with the semi-analytical solution.
+
+\begin{figure}[!htbp]\centering
+\includegraphics[width=.91\linewidth]{supp_transient_fem_refinement.pdf}
+\caption{Temperature changes caused by transverse, axial, time-step, and joint FEM refinement at $0^\circ$, $30^\circ$, and $60^\circ$.
+Filled points cover $0.0025$--$75$ s; the unconnected open points are the $0.001$ s diagnostics.
+The dashed and dotted lines are the $0.5\%$ spatial/joint and $0.1\%$ time-step targets, respectively.}
+\label{fig:supp-fem-refinement}
+\end{figure}
+\FloatBarrier
+
+\subsection*{FEM optical refinement checks}
+Tables~\ref{tab:supp-fem-optical-steady} and~\ref{tab:supp-fem-optical-transient} give the optical changes evaluated from the archived FEM nodal temperatures with the current optical parameters.
+The XY and Z comparisons refine only the transverse and axial meshes, respectively, as specified in Table~\ref{tab:supp-fem-settings}.
+The transient time comparison halves the time step, and its joint comparison refines both meshes and the time step.
+The steady joint comparison refines both meshes.
+These optical evaluations reuse completed thermal solutions; no additional transient thermal solves enter these tables.
+The comparisons use a common transmitted pupil selected from a $101\times101$ Cartesian entrance grid.
+
+The PV column is the absolute difference of the two OPD-PV values divided by the corresponding refined FEM OPD-PV.
+The RMS/PV and maximum/PV columns use the RMS and maximum absolute differences between the separately piston-removed OPD fields, with the same refined FEM PV denominator.
+Thus, their denominator differs from the semi-analytical denominator in Table~\ref{tab:supp-comparison}.
+The original targets are $0.1\%$ for steady refinement, $0.5\%$ for transient spatial and joint refinement, and $0.1\%$ for transient time refinement; every listed metric meets its applicable target.
+For transient comparisons, each metric is maximized separately over the nine recorded times from $0.0025$ to $75$ s.
+The $0.001$ s diagnostic values are listed separately and excluded from those maxima and targets.
+Changes below $10^{-5}\%$ are displayed as upper bounds to avoid attributing accuracy to numerically negligible differences.
+
+\begin{table}[!htbp]\centering\small
+\caption{Steady FEM optical changes under XY, Z, and joint spatial refinement (\%). The target is $0.1\%$ for all three metrics.}\label{tab:supp-fem-optical-steady}
+\begin{tabular}{clrrr}\toprule
+$\theta$ & Refinement & PV & RMS/PV & Maximum/PV\\\midrule
+\input{data/supplement_details/fem_optical_steady.tex}
+\end{tabular}
+\end{table}
+
+\begin{table}[!htbp]\centering\scriptsize
+\setlength{\tabcolsep}{4pt}
+\caption{Transient FEM optical changes (\%). The left group contains separate maxima over $0.0025$--$75$ s; the right group contains only the $0.001$ s diagnostics. XY, Z, and joint targets are $0.5\%$; the time-step target is $0.1\%$.}\label{tab:supp-fem-optical-transient}
+\begin{tabular}{clrrrrrr}\toprule
+ & & \multicolumn{3}{c}{Maxima, $0.0025$--$75$ s} & \multicolumn{3}{c}{$0.001$ s diagnostics}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+$\theta$ & Refinement & PV & RMS/PV & Maximum/PV & PV & RMS/PV & Maximum/PV\\\midrule
+\input{data/supplement_details/fem_optical_transient.tex}
+\end{tabular}
+\end{table}
+
+Separate completed steady calculations at $30^\circ$ and $60^\circ$ increased the front-load quadrature order from $10$ to $14$ on the finest steady mesh.
+The PV, piston-removed RMS/PV, and maximum/PV changes were all below $10^{-8}\%$, compared with the $0.01\%$ target, using the baseline order-$10$ FEM PV as denominator.
+These small differences establish sensitivity to this quadrature change only.
+These comparisons quantify numerical sensitivity on the stated finite pupil and time samples; they do not establish an error bound relative to an exact solution or experimental validation.
+\FloatBarrier
+
+\section{Additional OPD values and steady field comparison}
+Table~\ref{tab:supp-pupil-pv} distinguishes the physical-pupil grid values used in the main text from continuous-pupil numerical extrema.
+The first set is evaluated on the saved $201\times201$ Cartesian grid restricted to the physical transmitted pupil.
+The second set uses multistart SLSQP searches on the same physical pupil; it changes how extrema are located, rather than the temperature solution or optical parameters.
+The last column is the continuous estimate minus the grid value, in nm; it is not a FEM error.
+The differences are calculated before rounding.
+
+\begin{table}[!htbp]\centering\small
+\caption{Grid-sampled and continuous-pupil OPD-PV (nm).}\label{tab:supp-pupil-pv}
+\begin{tabular}{lrrrr}\toprule
+State / time & $\theta$ & Grid PV & Continuous PV & Difference\\\midrule
+\input{data/supplement_details/pupil_pv.tex}
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:steadyfem} adds the steady $60^\circ$ spatial comparison to the transient maps shown in the main text.
+Each row uses the same common samples for the two methods and a common color scale for their fields.
+
+\begin{figure}[!htbp]\centering
+\includegraphics[width=.82\linewidth]{steady_fem_comparison.png}
+\caption{Steady $60^\circ$ comparison: semi-analytical field (left) and finest FEM field (right).
+The top row shows front-plane temperature rise, and the bottom row shows refracted-ray OPD on the common pupil.
+The two fields in each row use the same color scale.}
+\label{fig:steadyfem}
+\end{figure}
+\FloatBarrier
+\end{document}

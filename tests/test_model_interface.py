@@ -1,5 +1,5 @@
 """Public model lifecycle and equivalence to the established numerical API."""
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 import numpy as np
 import pytest
 from thermal_opd.parameters import PhysicalParameters
@@ -78,3 +78,11 @@ def test_prepared_model_copies_external_arrays():
     roots[0][0] = 0.
     assert prepared.coefficients[0][0]==1000.
     assert prepared.roots[0][0]==80.
+
+
+@pytest.mark.parametrize('angle', [0., 30., 60.])
+def test_modal_preparation_rejects_unimplemented_insulated_zero_mode(angle):
+    p = replace(PhysicalParameters(), h_conv=0., emissivity=0.)
+    model = ThermalModel(p, angle, ModalResolution(2, 3, 80, 16, 16))
+    with pytest.raises(ValueError, match='zero mode'):
+        model.prepare()

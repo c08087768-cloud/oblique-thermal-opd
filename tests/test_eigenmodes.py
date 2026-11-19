@@ -1,3 +1,9 @@
+"""Verify radial mode norms and roots of the Robin eigenvalue equation.
+
+The roots must be positive, ordered, and returned in the requested count.
+Substituting each root into the equation checks its residual.
+"""
+
 import numpy as np
 import pytest
 from scipy.integrate import quad
@@ -8,12 +14,6 @@ from thermal_opd.eigenmodes import (
     radial_eigenvalues,
     radial_mode_norm,
 )
-
-"""
-我要 5 个，你有没有给我 5 个？
-这些是不是正的、按顺序排列的 eigenvalues？
-最重要：你所谓的“根”代回原来的 Robin eigenvalue equation，到底是不是真的等于 0？
-"""
 
 RADIUS = 12.5e-3
 CONDUCTIVITY = 1.38
@@ -78,3 +78,8 @@ def test_eigenvalues_satisfy_robin_boundary_condition():
     ]
 
     assert np.allclose(residuals, 0.0, atol=1e-8)
+
+
+def test_axisymmetric_insulated_roots_require_zero_mode_support():
+    with pytest.raises(ValueError, match='zero mode'):
+        radial_eigenvalues(0, RADIUS, CONDUCTIVITY, 0., num_modes=3)
