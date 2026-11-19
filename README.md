@@ -2,6 +2,8 @@
 
 This repository computes the steady and transient temperature rise in a finite cylinder subject to oblique Gaussian surface heating and Robin heat exchange. The semi-analytical solver expands the thermal field in Fourier–Bessel modes. A separately assembled finite-element model (FEM) on a prismatic mesh integrates the Gaussian load directly for comparison. The optical path difference (OPD) is the first-order refractive-index contribution integrated along fixed, straight refracted rays that reach the rear face.
 
+**Version:** `0.1.0` ([fixed source tag `v0.1.0`](https://github.com/c08087768-cloud/oblique-thermal-opd/tree/v0.1.0)).
+
 ## Requirements and installation
 
 Use Python 3.10 or later and Git. The core solver uses NumPy and SciPy. The installation below also provides Matplotlib for plots, scikit-fem for finite-element runs, and pytest for software tests. Run the commands from the repository root. [Dependency specification](pyproject.toml)
