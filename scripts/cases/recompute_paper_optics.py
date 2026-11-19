@@ -59,7 +59,7 @@ def sa_case(run, angle):
     folder.mkdir(exist_ok=False)
     start = time.perf_counter()
     p = PhysicalParameters()
-    with (ROOT/f'manuscript/data/theta{angle:g}_history.csv').open(encoding='utf-8') as f:
+    with (ROOT/f'data/reference/theta{angle:g}_history.csv').open(encoding='utf-8') as f:
         old_history = [dict(row) for row in csv.DictReader(f)]
     times = np.unique(np.r_[OBS, [float(v['time_s']) for v in old_history
                                 if 0 < float(v['time_s']) <= 75.000001]])

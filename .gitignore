@@ -35,3 +35,9 @@ tmp/
 *.log
 *.tmp
 .obsidian/
+
+# Local manuscript and writing workflow (kept outside the public code tree)
+/manuscript/
+/Agents.md
+/AGENTS.md
+/README.legacy.zh-CN.md

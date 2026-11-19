@@ -1,14 +1,4 @@
-# Preserve exact bytes of archived manuscript inputs on every platform.
-manuscript/data/theta0_history.csv -text whitespace=cr-at-eol
-manuscript/data/theta30_history.csv -text whitespace=cr-at-eol
-manuscript/data/theta60_history.csv -text whitespace=cr-at-eol
-
-# Keep publisher-supplied template files byte-identical to their sources.
-manuscript/optica-article.cls -text -whitespace
-manuscript/osa-supplemental-document.cls -text -whitespace
-manuscript/opticajnl.bst -text -whitespace
-manuscript/opticajnlnt.bst -text -whitespace
-manuscript/jabbrv.sty -text -whitespace
-manuscript/jabbrv-ltwa-en.ldf -text -whitespace
-manuscript/jabbrv-ltwa-all.ldf -text -whitespace
-manuscript/styles/opticajournal.sty -text -whitespace
+# Preserve exact bytes of archived numerical sampling inputs on every platform.
+data/reference/theta0_history.csv -text whitespace=cr-at-eol
+data/reference/theta30_history.csv -text whitespace=cr-at-eol
+data/reference/theta60_history.csv -text whitespace=cr-at-eol

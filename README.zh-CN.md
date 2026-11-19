@@ -1,6 +1,6 @@
 # 斜入射 Gaussian 加热下圆柱光学元件的热光响应
 
-[English](README.md) · [旧版中文使用指南](README.legacy.zh-CN.md)
+[English](README.md)
 
 本仓库计算有限圆柱在斜入射 Gaussian 表面加热和 Robin 换热条件下的稳态与瞬态温升。半解析求解器用 Fourier–Bessel 模态展开温度场。有限元模型（FEM）在棱柱网格上单独组装，直接积分 Gaussian 载荷，用于方法间对照。这里的光程差（OPD）是一阶折射率变化的贡献，沿能够到达后表面的固定直线折射光线积分。
 
@@ -35,11 +35,11 @@ py -m venv .venv
 | [`scripts/`](scripts/) | 单个算例、收敛研究、独立基准、诊断和重绘 |
 | [`run.py`](run.py)、[`run_all.py`](run_all.py) | 交互式实验入口和批量流程 |
 | [`tests/`](tests/) | 软件回归测试 |
-| [`manuscript/`](manuscript/) | LaTeX 源文件和部分随稿派生数据 |
+| [`data/reference/`](data/reference/) | 历史采样输入、部分数值表格、派生光学数组和来源记录 |
 
 ## 复现数值实验
 
-下列命令会启动新的实验。重放论文中的原始对照需要[光学修订清单](manuscript/optical_revision_manifest.json)所列的归档运行目录。
+下列命令根据物理参数和 Gaussian 热源模型生成新的数值结果，无需准备外部实验数据集。运行结果保存在 `outputs/` 下，该目录不纳入 Git。重放部分历史光学对照属于另一套流程，还需要相应的归档运行文件，详见[参考数据说明](data/reference/README.md)。
 
 ### 60° 稳态算例
 
@@ -77,10 +77,10 @@ smoke 批次运行软件测试、均匀热流下的独立有限元基准，以�
 
 模态热源准备要求有效表面换热系数为正。全绝热情况需要尚未实现的轴对称径向零模态，程序会明确拒绝这类输入。
 
-## 已记录结果与数据
+## 数值参考结果与数据
 
-60° 半解析算例在入口平面上对能到达后表面的光线取样，得到 OPD 峰谷值 **135.07 nm**。稳态算例复现了表中数值，保存文件完整性为 `PASS`，科学汇总状态为 `not_run`。另有有限参考检查记录了 0°、30° 和 60° 下的差异。 [稳态 OPD 表](manuscript/data/supplement_details/pupil_pv.csv) · [半解析检查表](manuscript/data/supplement_details/sa_checks.csv)
+60° 半解析算例在入口平面上对能到达后表面的光线取样，得到 OPD 峰谷值 **135.07 nm**。稳态算例复现了表中数值，保存文件完整性为 `PASS`，科学汇总状态为 `not_run`。另有有限参考检查记录了 0°、30° 和 60° 下的差异。 [稳态 OPD 表](data/reference/supplement_details/pupil_pv.csv) · [半解析检查表](data/reference/supplement_details/sa_checks.csv)
 
-仓库收录了部分随稿表格和派生光学数据。Git 忽略 `outputs/` 下生成的运行目录。对于更新后的光学模型，清单记录了半解析参考检查和与有限元的对照。11 月 17 日的更新还包括当前折射光路下的有限元光学加密检查，以及稳态前表面热载荷积分检查。这些检查复用了存档温度解，量化的是有限分辨率下的数值敏感性，不代表实验验证或标准加载器支持的完整科学验收。[有限元光学加密证据](manuscript/data/supplement_details/fem_optical_refinement_provenance.json) [派生光学数据](manuscript/data/optical_update_20261103/) · [光学修订清单](manuscript/optical_revision_manifest.json)
+仓库在 [`data/reference/`](data/reference/) 中保留了部分数值参考表、派生光学数组和来源记录。已记录的对照包括半解析有限参考检查、与有限元的方法间比较、折射光路下的有限元光学加密检查，以及稳态前表面热载荷积分检查。其中加密和积分检查复用了归档温度解，量化的是数值敏感性，不代表实验验证或标准加载器支持的完整科学验收。[有限元光学加密证据](data/reference/supplement_details/fem_optical_refinement_provenance.json) · [派生光学数据](data/reference/optical_update_20261103/)
 
-已纳入版本管理的三个 `manuscript/data/theta*_history.csv` 文件保留光学重建所用的历史时间网格和温度绘图值。其中旧光学列不代表当前统一材料参数下的结果。详见[输入范围和复现说明](manuscript/data/README.md)。
+三个 `data/reference/theta*_history.csv` 文件保留了可选光学重放脚本所用的历史时间网格和温度绘图值，其中旧光学列不代表当前统一材料参数下的结果。详见[输入范围和重放要求](data/reference/README.md)。
