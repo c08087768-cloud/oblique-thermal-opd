@@ -1,7 +1,5 @@
 # Thermo-optic response of cylindrical optics under oblique Gaussian heating
 
-[简体中文](README.zh-CN.md) · [Archived Chinese guide](README.legacy.zh-CN.md)
-
 This repository computes the steady and transient temperature rise in a finite cylinder subject to oblique Gaussian surface heating and Robin heat exchange. The semi-analytical solver expands the thermal field in Fourier–Bessel modes. A separately assembled finite-element model (FEM) on a prismatic mesh integrates the Gaussian load directly for comparison. The optical path difference (OPD) is the first-order refractive-index contribution integrated along fixed, straight refracted rays that reach the rear face.
 
 ## Requirements and installation
@@ -35,11 +33,11 @@ On Windows, use `.\.venv\Scripts\python.exe` in place of `python` in the command
 | [`scripts/`](scripts/) | Single cases, convergence studies, independent benchmarks, diagnostics, and replotting |
 | [`run.py`](run.py), [`run_all.py`](run_all.py) | Interactive experiment launcher and batch workflow |
 | [`tests/`](tests/) | Software regression tests |
-| [`manuscript/`](manuscript/) | LaTeX sources and selected derived data used in the manuscript |
+| [`data/reference/`](data/reference/) | Historical sampling inputs, selected numerical tables, derived optical arrays, and provenance |
 
 ## Reproducing the numerical experiments
 
-These commands start new runs. Replaying the exact archived manuscript comparisons requires the run directories listed in the [optical revision manifest](manuscript/optical_revision_manifest.json).
+These commands generate new numerical results from the physical parameters and Gaussian heat-source model; they do not require an external experimental dataset. Generated runs are saved under `outputs/`, which is excluded from Git. Replaying selected archived optical comparisons is a separate workflow with additional saved-run requirements; see the [reference-data notes](data/reference/README.md).
 
 ### Steady example at 60°
 
@@ -79,10 +77,10 @@ The smoke batch runs the software tests, the independent uniform-flux FEM benchm
 
 The experiment drivers generate the heat loads, meshes, and sampling grids from their inputs. The workflows above require no random seed or external input dataset. Individual experiments record settings and provenance in `config.json` and scientific checks in `verification.json`. [Run metadata](src/thermal_opd/run_io.py)
 
-## Recorded results and data
+## Numerical reference results and data
 
-The 60° semi-analytical case gives a sampled peak-to-valley OPD of **135.07 nm** over entrance-plane points whose rays reach the rear face. The steady example reproduced the tabulated value with a saved-file integrity status of `PASS` and an aggregate scientific status of `not_run`. Separate finite-reference checks report differences for 0°, 30°, and 60°. [Steady OPD table](manuscript/data/supplement_details/pupil_pv.csv) · [Semi-analytical checks](manuscript/data/supplement_details/sa_checks.csv)
+The 60° semi-analytical case gives a sampled peak-to-valley OPD of **135.07 nm** over entrance-plane points whose rays reach the rear face. The steady example reproduced the tabulated value with a saved-file integrity status of `PASS` and an aggregate scientific status of `not_run`. Separate finite-reference checks report differences for 0°, 30°, and 60°. [Steady OPD table](data/reference/supplement_details/pupil_pv.csv) · [Semi-analytical checks](data/reference/supplement_details/sa_checks.csv)
 
-The repository includes selected manuscript tables and derived optical data. Generated run directories under `outputs/` are excluded from Git. For the updated optical model, the manifest records semi-analytical reference checks and cross-method comparisons with FEM. The 17 November update also includes FEM optical refinement on the current refracted paths and steady front-load quadrature checks. These are finite-resolution numerical sensitivity checks using archived thermal solutions; they are not experimental validation or a complete standard-loader scientific certificate. [FEM optical refinement evidence](manuscript/data/supplement_details/fem_optical_refinement_provenance.json) [Derived optical data](manuscript/data/optical_update_20261103/) · [Optical revision manifest](manuscript/optical_revision_manifest.json)
+The repository includes selected numerical reference tables, derived optical arrays, and provenance under [`data/reference/`](data/reference/). The recorded comparisons include semi-analytical finite-reference checks, cross-method comparisons with FEM, FEM optical refinement on refracted paths, and steady front-load quadrature checks. The refinement and quadrature results reuse archived thermal solutions and quantify numerical sensitivity; they are not experimental validation or a complete standard-loader scientific certificate. [FEM optical refinement evidence](data/reference/supplement_details/fem_optical_refinement_provenance.json) · [Derived optical data](data/reference/optical_update_20261103/)
 
-The three tracked `manuscript/data/theta*_history.csv` inputs preserve the historical time grids and thermal plotting values used by the optical rebuild. Their legacy optical columns are not current matched-material results. See the [input scope and reproduction notes](manuscript/data/README.md).
+The three `data/reference/theta*_history.csv` inputs preserve historical time grids and thermal plotting values for the optional optical replay script. Their legacy optical columns are not current matched-material results. See the [input scope and replay requirements](data/reference/README.md).
